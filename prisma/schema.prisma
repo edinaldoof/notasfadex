@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =================================================================
+// Enums - Tipos de dados pré-definidos
+// =================================================================
+
+enum Role {
+  USER
+  MANAGER
+  OWNER
+}
+
+enum InvoiceStatus {
+  PENDENTE
+  ATESTADA
+  EXPIRADA
+}
+
+enum HistoryType {
+  CREATED
+  ATTESTED
+  REVERTED
+  EDITED
+  EXPIRED
+}
+
+enum InvoiceType {
+  SERVICO
+  PRODUTO
+}
+
+// =================================================================
+// Modelos de Autenticação - Gerenciados pelo NextAuth.js
+// =================================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role         @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  notes         FiscalNote[]
+}
+
+// =================================================================
+// Modelos da Aplicação
+// =================================================================
+
+model FiscalNote {
+  id                   String        @id @default(cuid())
+  description          String
+  requester            String
+  issueDate            DateTime
+  status               InvoiceStatus @default(PENDENTE)
+  amount               Float?
+  fileType             String
+  fileName             String
+  originalFileUrl      String
+  driveFileId          String        @unique
+  category             String?
+  attestedFileUrl      String?
+  attestedDriveFileId  String?
+  attestedAt           DateTime?
+  observation          String?
+  attestedById         String?
+  attestedBy           String?
+
+  // Relação com o usuário que fez o upload
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id])
+
+  // Campos adicionais (RF02)
+  projectAccountNumber String
+  invoiceType          InvoiceType   @default(SERVICO)
+  hasWithholdingTax    Boolean       @default(false)
+  coordinatorName      String
+  coordinatorEmail     String
+  attestationDeadline  DateTime?
+
+  // Campos extraídos pela IA
+  prestadorRazaoSocial String?
+  prestadorCnpj        String?
+  tomadorRazaoSocial   String?
+  tomadorCnpj          String?
+  numeroNota           String?
+  dataEmissao          String?
+
+  // Histórico de eventos da nota
+  history              NoteHistoryEvent[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+}
+
+model NoteHistoryEvent {
+  id           String     @id @default(cuid())
+  fiscalNoteId String
+  date         DateTime   @default(now())
+  type         HistoryType
+  user         String
+  details      String
+
+  note FiscalNote @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+}
+
+
+model Settings {
+  id                      String @id @default("default")
+  attestationDeadlineInDays Int    @default(30)
+  reminderFrequencyInDays Int    @default(7)
+}
+
+model EmailTemplate {
+  type    String @id @unique
+  subject String
+  body    String @db.Text
+}
