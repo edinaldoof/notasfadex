@@ -1,23 +1,25 @@
 'use server';
 /**
- * @fileOverview Flow to extract structured data from a fiscal note document.
+ * @fileOverview Flow de alta precisão para extrair dados estruturados de uma nota fiscal.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { z } from 'zod';
 
-// 1. Definição dos Schemas Zod
+// Garante que as variáveis de ambiente sejam carregadas
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("A variável de ambiente GEMINI_API_KEY não está definida.");
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Definição dos Schemas (não muda)
 const InvoiceTypeSchema = z.enum(['PRODUTO', 'SERVICO']);
-
-const ExtractNoteDataInputSchema = z.object({
-  documentUri: z
-    .string()
-    .describe(
-      "A fiscal note document (PDF, JPG, XML) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-});
+const ExtractNoteDataInputSchema = z.object({ documentUri: z.string() });
 export type ExtractNoteDataInput = z.infer<typeof ExtractNoteDataInputSchema>;
-
 const ExtractNoteDataOutputSchema = z.object({
   prestadorRazaoSocial: z.string().optional().describe('A razão social ou nome do prestador de serviço/vendedor do produto.'),
   prestadorCnpj: z.string().optional().describe('O CNPJ ou CPF do prestador de serviço/vendedor.'),
@@ -31,51 +33,68 @@ const ExtractNoteDataOutputSchema = z.object({
 });
 export type ExtractNoteDataOutput = z.infer<typeof ExtractNoteDataOutputSchema>;
 
-// 2. Exportação da função principal
-export async function extractNoteData(input: ExtractNoteDataInput): Promise<ExtractNoteDataOutput> {
-  return extractNoteDataFlow(input);
+// Função auxiliar para converter Data URI
+function dataUriToGooglePart(dataUri: string) {
+    const match = dataUri.match(/^data:(.+);base64,(.+)$/);
+    if (!match) { throw new Error("Formato de Data URI inválido."); }
+    const [_, mimeType, base64] = match;
+    return { inlineData: { mimeType, data: base64 } };
 }
 
-// 3. Definição do Prompt (usando os Schemas)
-const model = 'googleAI/gemini-1.5-flash-latest';
+// Função principal que usa o prompt aprimorado
+export async function extractNoteData(input: ExtractNoteDataInput): Promise<ExtractNoteDataOutput> {
+  try {
+    const validatedInput = ExtractNoteDataInputSchema.parse(input);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const documentPart = dataUriToGooglePart(validatedInput.documentUri);
 
-const extractNoteDataPrompt = ai.definePrompt({
-  name: 'extractNoteDataPrompt',
-  model: model,
-  input: { schema: ExtractNoteDataInputSchema },
-  output: { schema: ExtractNoteDataOutputSchema },
-  prompt: `Você é um extrator de dados de documentos. Sua tarefa é analisar o documento e extrair as informações solicitadas no formato JSON.
-Seja o mais preciso possível. **NÃO INVENTE INFORMAÇÕES**. Se um campo não for encontrado, deixe-o em branco.
+    // ===================================================================
+    // PROMPT APRIMORADO DE ALTA PRECISÃO
+    // ===================================================================
+    const prompt = `
+      Sua função é ser um Analista de Dados Contábeis especializado em documentos fiscais do Brasil.
+      Seu objetivo é analisar o documento fornecido e extrair as informações especificadas, retornando **APENAS e EXCLUSIVAMENTE um objeto JSON VÁLIDO**.
 
-Regras de Extração:
-- \`numeroNota\`: Número da Nota Fiscal.
-- \`dataEmissao\`: Data de emissão no formato DD/MM/AAAA.
-- \`valorTotal\`: Valor total como um número (float), usando ponto como separador decimal.
-- \`descricaoServicos\`: Resumo dos serviços/produtos.
-- \`prestadorRazaoSocial\`: Razão Social/Nome do emissor.
-- \`prestadorCnpj\`: CNPJ/CPF do emissor.
-- \`tomadorRazaoSocial\`: Razão Social/Nome do cliente.
-- \`tomadorCnpj\`: CNPJ/CPF do cliente.
-- \`type\`: Classifique como "PRODUTO" (se for DANFE) ou "SERVICO" (se for NFSe).
+      **REGRAS CRÍTICAS:**
+      1.  **NÃO INVENTE DADOS.** Se uma informação não estiver explicitamente no documento, o campo correspondente no JSON deve ser \`null\`.
+      2.  **FORMATAÇÃO ESTRITA:**
+          - \`valorTotal\`: Deve ser um número (float), usando ponto como separador decimal. Ex: \`1500.50\`.
+          - \`dataEmissao\`: Deve estar no formato "DD/MM/AAAA".
+          - \`prestadorCnpj\` e \`tomadorCnpj\`: Devem conter apenas os dígitos numéricos, sem pontos, barras ou hífens.
+      3.  **CLASSIFICAÇÃO:**
+          - \`type\`: Se o documento for um DANFE (Documento Auxiliar da Nota Fiscal Eletrônica), classifique como "PRODUTO". Se for uma NFS-e (Nota Fiscal de Serviços Eletrônica), classifique como "SERVICO".
 
-Documento para análise:
-{{media url=documentUri}}`,
-});
+      **EXEMPLO DE SAÍDA PERFEITA:**
+      \`\`\`json
+      {
+        "prestadorRazaoSocial": "EMPRESA DE TECNOLOGIA LTDA",
+        "prestadorCnpj": "12345678000190",
+        "tomadorRazaoSocial": "CLIENTE FINAL SA",
+        "tomadorCnpj": "98765432000100",
+        "numeroNota": "12345",
+        "dataEmissao": "25/07/2025",
+        "valorTotal": 450.75,
+        "descricaoServicos": "PRESTAÇÃO DE SERVIÇOS DE CONSULTORIA EM TI",
+        "type": "SERVICO"
+      }
+      \`\`\`
 
-// 4. Definição do Flow (usando o Prompt)
-const extractNoteDataFlow = ai.defineFlow(
-  {
-    name: 'extractNoteDataFlow',
-    inputSchema: ExtractNoteDataInputSchema,
-    outputSchema: ExtractNoteDataOutputSchema,
-  },
-  async (input) => {
-    try {
-      const { output } = await extractNoteDataPrompt(input);
-      return output!;
-    } catch (error) {
-      console.error("Falha ao extrair dados da nota fiscal:", error);
-      throw new Error('Não foi possível analisar os dados do documento. Por favor, verifique o arquivo ou preencha os campos manualmente.');
-    }
+      **TAREFA:**
+      Analise o documento a seguir e retorne o objeto JSON correspondente.
+    `;
+
+    // Gera o conteúdo
+    const result = await model.generateContent([prompt, documentPart]);
+    const response = await result.response;
+    // Limpa qualquer formatação de markdown que a IA possa adicionar por hábito
+    const jsonText = response.text().replace(/```json|```/g, "").trim();
+
+    // Valida a resposta para garantir que está no formato esperado
+    const parsedJson = JSON.parse(jsonText);
+    return ExtractNoteDataOutputSchema.parse(parsedJson);
+
+  } catch (error) {
+    console.error("Falha ao extrair dados da nota fiscal:", error);
+    throw new Error('Não foi possível analisar os dados do documento. Por favor, verifique o arquivo ou preencha os campos manualmente.');
   }
-);
+}

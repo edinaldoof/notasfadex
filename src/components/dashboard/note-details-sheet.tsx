@@ -73,7 +73,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
             <div>
                 <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações Gerais</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
-                    <DetailItem icon={User} label="Solicitante" value={note.requester} />
+                    <DetailItem icon={User} label="Analista" value={note.requester} />
                     <DetailItem icon={Calendar} label="Data de Envio" value={new Date(note.issueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                     <DetailItem icon={BadgeInfo} label="Status" value={note.status} />
                     <DetailItem icon={Tag} label="Categoria" value={note.category} />

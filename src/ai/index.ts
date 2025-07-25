@@ -1,12 +1,20 @@
+// src/ai/index.ts
 'use server';
+
 /**
- * @fileOverview A chatbot flow to assist users with the Notas Fadex system.
+ * @fileOverview O ficheiro central para toda a lógica de IA do Notas Fadex.
+ * Este ficheiro deve ser o único local que exporta funções de IA para a aplicação.
  */
 
-import { ai } from '@/ai/genkit';
+// Importa a instância 'ai' JÁ CONFIGURADA do nosso novo ficheiro de configuração.
+import { ai } from './config'; 
 import { z } from 'zod';
+import './actions.js';
+// =========================================================
+// LÓGICA DO CHATBOT
+// =========================================================
 
-// 1. Definição dos Schemas Zod
+// Definição dos Schemas de entrada e saída
 const ChatbotInputSchema = z.object({
   query: z.string().describe('The user question about the system.'),
   history: z.array(z.object({
@@ -21,17 +29,11 @@ const ChatbotOutputSchema = z.object({
 });
 export type ChatbotOutput = z.infer<typeof ChatbotOutputSchema>;
 
-// 2. Exportação da função principal
-export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
-  return chatbotFlow(input);
-}
 
-// 3. Definição do Prompt (usando os Schemas e a nova flag 'isUser')
-const model = 'googleAI/gemini-1.5-flash-latest';
-
-const prompt = ai.definePrompt({
+// Definição do Template de Prompt Detalhado
+const chatbotPrompt = ai.definePrompt({
   name: 'chatbotPrompt',
-  model: model,
+  model: 'gemini-1.5-flash', // <-- CORREÇÃO: O modelo é definido aqui.
   input: { schema: ChatbotInputSchema },
   output: { schema: ChatbotOutputSchema },
   prompt: `Você é um assistente virtual amigável e prestativo para o sistema "Notas Fadex".
@@ -65,7 +67,8 @@ Pergunta do Usuário: {{{query}}}
 `,
 });
 
-// 4. Definição do Flow (pré-processando o histórico)
+
+// Definição do Flow (Fluxo) que usa o prompt acima
 const chatbotFlow = ai.defineFlow(
   {
     name: 'chatbotFlow',
@@ -73,20 +76,26 @@ const chatbotFlow = ai.defineFlow(
     outputSchema: ChatbotOutputSchema,
   },
   async (input) => {
-    // Adiciona a flag booleana 'isUser' para facilitar o trabalho do template
+    // Adiciona a flag booleana 'isUser' para o template conseguir renderizar corretamente
     const historyWithFlags = input.history?.map(h => ({
       ...h,
       isUser: h.role === 'user'
     }));
-
-    // Passa o histórico modificado para o prompt
-    const { output } = await prompt({ ...input, history: historyWithFlags });
+    
+    // Chama o prompt que definimos, passando os dados de entrada
+    const { output } = await chatbotPrompt({ ...input, history: historyWithFlags });
 
     if (output) {
       return output;
     }
     
-    // Retorna uma resposta padrão em caso de falha na formatação
+    // Retorna uma resposta padrão em caso de falha
     return { response: "Desculpe, não consegui processar sua pergunta. Tente novamente." };
   }
 );
+
+
+// Exportação da função principal para ser usada pela aplicação
+export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
+  return chatbotFlow(input);
+}
