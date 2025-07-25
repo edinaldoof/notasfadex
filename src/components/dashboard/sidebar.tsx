@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,21 +15,24 @@ import {
   Users,
   LogOut,
   type LucideIcon,
+  LayoutDashboard,
 } from 'lucide-react';
+import { Role } from '@prisma/client';
 
 type NavItemProps = {
   href: string;
   label: string;
   icon: LucideIcon;
+  requiredRole?: Role[];
 };
 
 const navItems: NavItemProps[] = [
-  { href: '/dashboard', label: 'Início', icon: Home },
-  { href: '/dashboard/notas', label: 'Notas Fiscais', icon: FileSpreadsheet },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/notas', label: 'Visão Geral', icon: FileSpreadsheet },
   { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Users },
   { href: '/dashboard/timeline', label: 'Linha do Tempo', icon: History },
   { href: '/dashboard/reports', label: 'Relatórios', icon: BarChart3 },
-  { href: '/dashboard/settings', label: 'Configurações', icon: Settings },
+  { href: '/dashboard/settings', label: 'Configurações', icon: Settings, requiredRole: [Role.OWNER, Role.MANAGER] },
 ];
 
 /**
@@ -58,8 +62,17 @@ function NavItem({ href, label, icon: Icon }: NavItemProps) {
  */
 export function Sidebar() {
   const { data: session } = useSession();
+  const userRole = session?.user?.role;
 
-  const accessibleNavItems = navItems;
+  const accessibleNavItems = navItems.filter(item => {
+    if (!item.requiredRole) {
+      return true; // Item is public for all authenticated users
+    }
+    if (userRole) {
+      return item.requiredRole.includes(userRole);
+    }
+    return false;
+  });
 
   return (
     <aside className="hidden lg:flex w-64 flex-shrink-0 bg-slate-900/90 backdrop-blur-lg border-r border-slate-800/50 flex-col">

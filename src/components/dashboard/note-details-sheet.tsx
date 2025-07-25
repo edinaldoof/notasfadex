@@ -8,9 +8,10 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { FiscalNote, NoteHistoryEvent, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign } from 'lucide-react';
+import { FiscalNote, HistoryType } from '@/lib/types';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare } from 'lucide-react';
 import { Separator } from '../ui/separator';
+import { Button } from '../ui/button';
 
 interface NoteDetailsSheetProps {
   note: FiscalNote | null;
@@ -34,17 +35,24 @@ const getEventTypeConfig = (type: HistoryType) => {
 }
 
 const formatTimelineDateTime = (date: Date) => {
-    return date.toLocaleString('pt-BR', { timeZone: 'UTC' });
+    return new Date(date).toLocaleString('pt-BR', { timeZone: 'UTC' });
 }
 
-const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value?: string | number | null }) => {
-  if (!value) return null;
+const DetailItem = ({ icon: Icon, label, value, fullWidth = false, children }: { icon: React.ElementType, label: string, value?: string | number | null | boolean, fullWidth?: boolean, children?: React.ReactNode }) => {
+  if (!children && (value === null || value === undefined || value === '')) return null;
+  
+  const displayValue = typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : value;
+
   return (
-    <div className="flex items-start">
+    <div className={`flex items-start ${fullWidth ? 'col-span-2' : ''}`}>
       <Icon className="w-4 h-4 text-slate-400 mt-1 mr-3 flex-shrink-0" />
       <div>
         <p className="text-xs text-slate-400">{label}</p>
-        <p className="text-sm font-medium text-white">{value}</p>
+        {children ? (
+          <div className="text-sm font-medium text-white break-words">{children}</div>
+        ) : (
+          <p className="text-sm font-medium text-white break-words">{String(displayValue)}</p>
+        )}
       </div>
     </div>
   );
@@ -69,18 +77,68 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
           </SheetDescription>
         </SheetHeader>
         
-        <div className='space-y-6'>
+        <div className='space-y-8'>
             <div>
-                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações Gerais</h3>
+                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Documento</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
-                    <DetailItem icon={User} label="Analista" value={note.requester} />
-                    <DetailItem icon={Calendar} label="Data de Envio" value={new Date(note.issueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
                     <DetailItem icon={BadgeInfo} label="Status" value={note.status} />
-                    <DetailItem icon={Tag} label="Categoria" value={note.category} />
-                    <DetailItem icon={Hash} label="ID da Nota" value={note.id} />
-                    <DetailItem icon={CircleDollarSign} label="Valor" value={note.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                    <DetailItem icon={Hash} label="Nº da Nota" value={note.numeroNota} />
+                    <DetailItem icon={FileType} label="Tipo de Nota" value={note.invoiceType} />
+                    <DetailItem icon={Calendar} label="Data de Emissão (Extraída)" value={note.dataEmissao} />
+                    <DetailItem icon={CircleDollarSign} label="Valor Total" value={note.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                    <DetailItem icon={Percent} label="Possui Retenção" value={note.hasWithholdingTax} />
+                    <DetailItem icon={FileText} label="Descrição dos Serviços" value={note.description} fullWidth />
                 </div>
             </div>
+            
+            <div>
+                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Prestador</h3>
+                <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
+                    <DetailItem icon={Building} label="Razão Social" value={note.prestadorRazaoSocial} fullWidth/>
+                    <DetailItem icon={Copy} label="CNPJ" value={note.prestadorCnpj} fullWidth/>
+                </div>
+            </div>
+
+            <div>
+                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Tomador</h3>
+                <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
+                    <DetailItem icon={Building} label="Razão Social" value={note.tomadorRazaoSocial} fullWidth/>
+                    <DetailItem icon={Copy} label="CNPJ" value={note.tomadorCnpj} fullWidth/>
+                </div>
+            </div>
+            
+            <div>
+                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Responsáveis e Projeto</h3>
+                <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
+                    <DetailItem icon={User} label="Solicitante" value={note.requester} />
+                    <DetailItem icon={Calendar} label="Data de Envio" value={new Date(note.issueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
+                    <DetailItem icon={User} label="Coordenador (Ateste)" value={note.coordinatorName} />
+                    <DetailItem icon={Mail} label="E-mail do Coordenador" value={note.coordinatorEmail} />
+                    <DetailItem icon={Banknote} label="Conta do Projeto" value={note.projectAccountNumber} fullWidth />
+                </div>
+            </div>
+
+            {note.status === 'ATESTADA' && (
+               <div>
+                <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Ateste</h3>
+                <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
+                    <DetailItem icon={User} label="Atestado por" value={note.attestedBy} />
+                    <DetailItem icon={Calendar} label="Data do Ateste" value={note.attestedAt ? new Date(note.attestedAt).toLocaleString('pt-BR', { timeZone: 'UTC' }) : '-'} />
+                    <DetailItem icon={MessageSquare} label="Observação" value={note.observation} fullWidth />
+                    <DetailItem icon={Download} label="Arquivo de Atesto" fullWidth>
+                        {note.attestedFileUrl ? (
+                            <Button asChild variant="link" className="p-0 h-auto text-sm text-primary hover:underline">
+                                <a href={note.attestedFileUrl} target="_blank" rel="noopener noreferrer">
+                                    Baixar arquivo anexado
+                                </a>
+                            </Button>
+                        ) : (
+                            <p className="text-sm font-medium text-slate-500">Nenhum arquivo anexado</p>
+                        )}
+                    </DetailItem>
+                </div>
+            </div>
+            )}
 
             <Separator className="bg-border" />
             
@@ -99,7 +157,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                                     <div className="ml-8 w-full">
                                         <p className="font-bold text-white">{config.title}</p>
                                         <p className="text-xs text-slate-400 mt-1">
-                                            {formatTimelineDateTime(event.date)}
+                                            {formatTimelineDateTime(new Date(event.date))}
                                         </p>
                                         <p className="text-sm text-slate-300 mt-2">
                                             {event.details}
@@ -124,3 +182,4 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
     </Sheet>
   );
 }
+

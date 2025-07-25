@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -23,6 +24,17 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ],
+  },
+  webpack: (config, { isServer }) => {
+    // Adicionado para resolver o problema 'async_hooks' no cliente
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        async_hooks: false,
+      };
+    }
+
+    return config;
   },
 };
 

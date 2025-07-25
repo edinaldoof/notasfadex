@@ -48,7 +48,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getNotesForUser } from './notas/data';
+import { getNotes } from './notas/data';
 import { attestNote, revertAttestation } from './notas/actions';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useSession } from 'next-auth/react';
 
 
 const formatDate = (date: Date | string) => {
@@ -79,6 +80,7 @@ const validStatuses = ['all', 'atestada', 'pendente', 'expirada'];
 export default function NotasClientPage() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status');
+  const { data: session } = useSession();
   
   const [notes, setNotes] = useState<FiscalNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export default function NotasClientPage() {
   const fetchNotes = async () => {
     setLoading(true);
     try {
-      const fetchedNotes = await getNotesForUser(); 
+      const fetchedNotes = await getNotes(); 
       setNotes(fetchedNotes);
     } catch (error) {
       console.error("Failed to fetch notes:", error);
@@ -211,7 +213,7 @@ export default function NotasClientPage() {
   return (
     <TooltipProvider>
       <div className="flex flex-col sm:flex-row justify-between items-start mb-8">
-        <h1 className="text-3xl font-bold">Notas Fiscais</h1>
+        <h1 className="text-3xl font-bold">Visão Geral das Notas</h1>
         <Button
           onClick={() => setShowAddModal(true)}
           className={cn(
@@ -298,8 +300,7 @@ export default function NotasClientPage() {
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="text-left p-4 font-semibold text-slate-300">Conta do Projeto</th>
-                <th className="text-left p-4 font-semibold text-slate-300">Nº da Nota</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Solicitante</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Coordenador</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
@@ -313,8 +314,7 @@ export default function NotasClientPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-t border-border">
-                    <td className="p-4"><Skeleton className="h-8 w-24" /></td>
-                    <td className="p-4"><Skeleton className="h-8 w-20" /></td>
+                    <td className="p-4"><Skeleton className="h-8 w-40" /></td>
                     <td className="p-4"><Skeleton className="h-8 w-32" /></td>
                     <td className="p-4"><Skeleton className="h-8 w-32" /></td>
                     <td className="p-4"><Skeleton className="h-8 w-24" /></td>
@@ -328,21 +328,25 @@ export default function NotasClientPage() {
                 filteredNotes.map((note) => {
                   const dynamicStatus = getDynamicStatus(note);
                   const statusConfig = getStatusConfig(dynamicStatus);
+                  const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
+                  const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
+                  
                   return (
                     <tr 
                       key={note.id} 
                       className="border-t border-border hover:bg-accent/40 transition-colors"
                     >
                       <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Banknote className="w-4 h-4 text-slate-400" />
-                          <span className="font-medium text-white">{note.projectAccountNumber}</span>
-                        </div>
-                      </td>
-                       <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <FileText className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{note.numeroNota || '-'}</span>
+                        <div className="flex items-center space-x-3">
+                           <div className="bg-gradient-to-br from-slate-800 to-slate-700 p-2 rounded-lg border border-slate-600">
+                             <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
+                           </div>
+                           <div>
+                              <a href={note.originalFileUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-white hover:underline">
+                                {note.projectAccountNumber} - {note.numeroNota || 'S/N'}
+                              </a>
+                              <p className="text-sm text-slate-400 truncate max-w-xs">{note.description}</p>
+                           </div>
                         </div>
                       </td>
                        <td className="p-4">
@@ -399,7 +403,7 @@ export default function NotasClientPage() {
                                <Tooltip>
                                 <TooltipTrigger asChild>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-amber-400 hover:bg-amber-500/10" disabled={isPending}>
+                                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-amber-400 hover:bg-amber-500/10" disabled={isPending || !canManage}>
                                             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
                                         </Button>
                                     </AlertDialogTrigger>
@@ -426,7 +430,7 @@ export default function NotasClientPage() {
                             variant="outline"
                             size="sm"
                             className="flex items-center space-x-2 text-amber-300 hover:text-amber-100 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20"
-                            disabled={isPending}
+                            disabled={isPending || !canAttest}
                           >
                             <Stamp className="w-4 h-4" />
                             <span>Atestar</span>
@@ -462,7 +466,7 @@ export default function NotasClientPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={8}>
                     <div className="text-center py-12">
                       <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                       <p className="text-slate-400 mb-2">Nenhuma nota encontrada</p>
@@ -493,3 +497,5 @@ export default function NotasClientPage() {
     </TooltipProvider>
   )
 }
+
+    

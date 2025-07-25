@@ -3,14 +3,39 @@ import { auth } from "@/auth";
 import { getDriveService } from "@/lib/google-drive";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { verifyAttestationToken } from "@/lib/token-utils";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { fileId: string } }
 ) {
     const session = await auth();
-    if (!session || !session.user || !session.user.id) {
-        return new NextResponse("Acesso não autorizado", { status: 401 });
+    const token = request.nextUrl.searchParams.get('token');
+
+    let isTokenValid = false;
+    let noteFromToken;
+
+    if (token) {
+        try {
+            const decoded = verifyAttestationToken(token);
+            if (decoded) {
+                 noteFromToken = await prisma.fiscalNote.findUnique({
+                    where: { id: decoded.noteId }
+                 });
+
+                 if (noteFromToken && noteFromToken.driveFileId === params.fileId) {
+                    isTokenValid = true;
+                 }
+            }
+        } catch (error) {
+            console.error("Token validation failed for download:", error);
+            isTokenValid = false;
+        }
+    }
+
+
+    if (!session && !isTokenValid) {
+         return new NextResponse("Acesso não autorizado", { status: 401 });
     }
 
     const { fileId } = params;
@@ -30,13 +55,22 @@ export async function GET(
              return new NextResponse("Arquivo não vinculado a nenhuma nota.", { status: 404 });
         }
         
-        // --- Permission Check ---
-        const isOwner = note.userId === session.user.id;
-        // User with MANAGER or OWNER role can see all files.
-        const isManager = session.user.role === 'OWNER' || session.user.role === 'MANAGER';
+        let canAccess = false;
+
+        // Public access via valid token
+        if (isTokenValid && note.id === noteFromToken?.id) {
+            canAccess = true;
+        }
+
+        // Authenticated access
+        if (session && session.user && session.user.id) {
+            const isOwner = note.userId === session.user.id;
+            const isManager = session.user.role === 'OWNER' || session.user.role === 'MANAGER';
+             if (isOwner || isManager) {
+                canAccess = true;
+             }
+        }
         
-        // Users can access if they own it or are a manager.
-        const canAccess = isOwner || isManager;
 
         if (!canAccess) {
             return new NextResponse("Acesso negado ao arquivo.", { status: 403 });

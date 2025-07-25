@@ -17,7 +17,8 @@ import {
   Mail,
   AlertTriangle,
   CheckCircle2,
-  Clock
+  Clock,
+  ClipboardCheck
 } from "lucide-react";
 import { User, Role, Settings, EmailTemplate } from "@prisma/client";
 import { 
@@ -99,7 +100,7 @@ function AccessDenied() {
   )
 }
 
-const placeholderMap = {
+const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; description: string }[]> = {
     ATTESTATION_REQUEST: [
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
@@ -124,6 +125,12 @@ const placeholderMap = {
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[DataExpiracao]', description: 'Data em que o prazo para atesto expirou.' },
+    ],
+    ATTESTATION_CONFIRMATION_COORDINATOR: [
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que realizou o ateste.' },
+        { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[DataAtesto]', description: 'Data e hora em que a nota foi atestada.' },
+        { placeholder: '[ObservacaoAtesto]', description: 'Observações deixadas no momento do ateste.' },
     ]
 };
 
@@ -317,10 +324,11 @@ export default function SettingsPage() {
             </p>
             
             <Tabs defaultValue="ATTESTATION_REQUEST">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+                <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 h-auto">
                     <TabsTrigger value="ATTESTATION_REQUEST"><Mail className="w-4 h-4 mr-2"/> Solicitação</TabsTrigger>
                     <TabsTrigger value="ATTESTATION_REMINDER"><Clock className="w-4 h-4 mr-2"/> Lembrete</TabsTrigger>
-                    <TabsTrigger value="ATTESTATION_CONFIRMATION"><CheckCircle2 className="w-4 h-4 mr-2"/> Confirmação</TabsTrigger>
+                    <TabsTrigger value="ATTESTATION_CONFIRMATION"><CheckCircle2 className="w-4 h-4 mr-2"/> Confirmação (Solicitante)</TabsTrigger>
+                    <TabsTrigger value="ATTESTATION_CONFIRMATION_COORDINATOR"><ClipboardCheck className="w-4 h-4 mr-2"/> Confirmação (Coordenador)</TabsTrigger>
                     <TabsTrigger value="NOTE_EXPIRED"><AlertTriangle className="w-4 h-4 mr-2"/> Expiração</TabsTrigger>
                 </TabsList>
 

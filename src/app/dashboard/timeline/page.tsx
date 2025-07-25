@@ -74,7 +74,9 @@ export default function TimelinePage() {
                     <AccordionItem key={note.id} value={note.id} className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-border data-[state=closed]:p-0 data-[state=open]:p-6 transition-all">
                         <AccordionTrigger className="w-full text-left hover:no-underline data-[state=closed]:p-6 data-[state=open]:pb-6">
                         <div className='flex flex-col items-start'>
-                            <h2 className="text-lg font-bold text-white mb-1">{note.description}</h2>
+                            <h2 className="text-lg font-bold text-white mb-1">
+                                {note.numeroNota ? `Nota: ${note.numeroNota} - (${note.projectAccountNumber})` : note.description}
+                            </h2>
                             <p className="text-sm text-slate-400">Solicitado por: {note.requester}</p>
                         </div>
                         </AccordionTrigger>

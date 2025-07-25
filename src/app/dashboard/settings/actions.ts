@@ -99,7 +99,13 @@ export async function saveSettings(data: Partial<Settings>) {
 
 export async function getEmailTemplates(): Promise<EmailTemplate[]> {
     const templates = await prisma.emailTemplate.findMany();
-    const allTypes: EmailTemplate['type'][] = ['ATTESTATION_REQUEST', 'ATTESTATION_REMINDER', 'ATTESTATION_CONFIRMATION', 'NOTE_EXPIRED'];
+    const allTypes: EmailTemplate['type'][] = [
+        'ATTESTATION_REQUEST', 
+        'ATTESTATION_REMINDER', 
+        'ATTESTATION_CONFIRMATION', 
+        'NOTE_EXPIRED',
+        'ATTESTATION_CONFIRMATION_COORDINATOR'
+    ];
     
     // Ensure all template types exist, create with defaults if not
     for (const type of allTypes) {
@@ -142,8 +148,7 @@ export async function sendTestEmail(recipientEmail: string, subject: string, bod
             .replace(/\[LinkAteste\]/g, '#')
             .replace(/\[NomeAtestador\]/g, 'Carlos Pereira (Teste)')
             .replace(/\[DataAtesto\]/g, new Date().toLocaleString('pt-BR'))
-            .replace(/\[ObservacaoAtesto\]/g, 'Tudo certo, aprovado.')
-            .replace(/\[DataExpiracao\]/g, new Date().toLocaleDateString('pt-BR'));
+            .replace(/\[ObservacaoAtesto\]/g, 'Tudo certo, aprovado.');
 
         await sendEmail({
             to: recipientEmail,
@@ -207,6 +212,19 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
     <h2 style="color: #dc3545;">Prazo de Ateste Expirado</h2>
     <p>A nota fiscal "[DescricaoNota]", enviada por [NomeSolicitante] e designada a [NomeCoordenador], expirou em <strong>[DataExpiracao]</strong> sem ateste.</p>
     <p>Uma ação manual pode ser necessária.</p>
+</div>`,
+            };
+        case 'ATTESTATION_CONFIRMATION_COORDINATOR':
+            return {
+                type: 'ATTESTATION_CONFIRMATION_COORDINATOR',
+                subject: 'Confirmação: Você atestou a nota fiscal [DescricaoNota]',
+                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2>Confirmação de Ateste Realizado</h2>
+    <p>Olá, [NomeCoordenador],</p>
+    <p>Este e-mail confirma que você atestou a nota fiscal referente a "<strong>[DescricaoNota]</strong>" em <strong>[DataAtesto]</strong>.</p>
+    <p>Uma cópia do documento de ateste está anexa a este e-mail para seus registros.</p>
+    <p><strong>Observação deixada:</strong> [ObservacaoAtesto]</p>
+    <p>Obrigado pela sua colaboração.</p>
 </div>`,
             };
     }

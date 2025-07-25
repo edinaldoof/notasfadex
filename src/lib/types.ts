@@ -44,3 +44,14 @@ export interface AttestationEmailPayload {
     fileName: string;
     fileType: string;
 }
+
+export interface CoordinatorConfirmationEmailPayload {
+    noteId: string;
+    coordinatorName: string;
+    coordinatorEmail: string;
+    noteDescription: string;
+    attestedFileId: string;
+    attestedFileName: string;
+    attestationDate: Date;
+    attestationObservation?: string | null;
+}

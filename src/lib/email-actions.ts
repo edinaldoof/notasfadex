@@ -3,21 +3,12 @@
 
 import { getDriveService } from './google-drive';
 import { sendEmail } from './email';
-import type { AttestationEmailPayload } from './types';
-import * as jwt from 'jsonwebtoken';
+import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload } from './types';
 import prisma from './prisma';
+import { generateAttestationToken } from './token-utils';
 
-const generateSecureLink = (noteId: string): string => {
-    if (!process.env.AUTH_SECRET) {
-        throw new Error('A variável de ambiente AUTH_SECRET não está definida.');
-    }
-    // Token com validade de 30 dias, por exemplo
-    const token = jwt.sign({ noteId }, process.env.AUTH_SECRET, { expiresIn: '30d' });
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:7000';
-    return `${baseUrl}/attest/${token}`;
-};
 
-const createEmailBody = (template: string, coordinatorName: string, requesterName: string, secureLink: string, description: string): string => {
+const createAttestationRequestBody = (template: string, coordinatorName: string, requesterName: string, secureLink: string, description: string): string => {
     return template
         .replace(/\[NomeCoordenador\]/g, coordinatorName)
         .replace(/\[NomeSolicitante\]/g, requesterName)
@@ -25,12 +16,19 @@ const createEmailBody = (template: string, coordinatorName: string, requesterNam
         .replace(/\[DescricaoNota\]/g, description);
 };
 
+const createCoordinatorConfirmationBody = (template: string, coordinatorName: string, description: string, attestationDate: Date, observation?: string | null): string => {
+    return template
+        .replace(/\[NomeCoordenador\]/g, coordinatorName)
+        .replace(/\[DescricaoNota\]/g, description)
+        .replace(/\[DataAtesto\]/g, attestationDate.toLocaleString('pt-BR'))
+        .replace(/\[ObservacaoAtesto\]/g, observation || 'Nenhuma');
+}
+
 
 export const sendAttestationRequestEmail = async (payload: AttestationEmailPayload) => {
     try {
         const drive = getDriveService();
         
-        // 1. Fetch file from Google Drive
         const driveResponse = await drive.files.get(
             { fileId: payload.driveFileId, alt: 'media' },
             { responseType: 'arraybuffer' }
@@ -40,7 +38,6 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             throw new Error(`Não foi possível buscar o arquivo ${payload.driveFileId} do Google Drive.`);
         }
 
-        // 2. Fetch email template from DB
         const template = await prisma.emailTemplate.findUnique({
             where: { type: 'ATTESTATION_REQUEST' },
         });
@@ -49,16 +46,14 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             throw new Error('Template de e-mail para solicitação de atesto não encontrado.');
         }
 
-        // 3. Generate secure link
-        const secureLink = generateSecureLink(payload.noteId);
+        // The public attestation link is now generated here
+        const publicAttestationLink = generateAttestationToken(payload.noteId);
         
-        // 4. Create email body
-        const emailBody = createEmailBody(template.body, payload.coordinatorName, payload.requesterName, secureLink, payload.noteDescription);
+        const emailBody = createAttestationRequestBody(template.body, payload.coordinatorName, payload.requesterName, publicAttestationLink, payload.noteDescription);
         const emailSubject = template.subject.replace(/\[DescricaoNota\]/g, payload.noteDescription);
 
-        // 5. Prepare CC list
         const ccList = new Set<string>();
-        ccList.add(payload.requesterEmail); // Add requester automatically
+        ccList.add(payload.requesterEmail);
         
         if (payload.ccEmails) {
             payload.ccEmails.split(',').forEach(email => {
@@ -71,7 +66,6 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
         
         const ccString = Array.from(ccList).join(',');
 
-        // 6. Send email with attachment and CC
         await sendEmail({
             to: payload.coordinatorEmail,
             cc: ccString,
@@ -89,7 +83,48 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
 
     } catch (error) {
         console.error(`Falha ao enviar e-mail de atesto para a nota ${payload.noteId}:`, error);
-        // Não relançar o erro para não quebrar a transação principal de adição de nota,
-        // mas registrar o erro para monitoramento.
     }
 };
+
+export const sendAttestationConfirmationToCoordinator = async (payload: CoordinatorConfirmationEmailPayload) => {
+     try {
+        const drive = getDriveService();
+        
+        const driveResponse = await drive.files.get(
+            { fileId: payload.attestedFileId, alt: 'media' },
+            { responseType: 'arraybuffer' }
+        );
+        
+        if (!driveResponse.data) {
+            throw new Error(`Não foi possível buscar o arquivo de atesto ${payload.attestedFileId} do Google Drive.`);
+        }
+
+        const template = await prisma.emailTemplate.findUnique({
+            where: { type: 'ATTESTATION_CONFIRMATION_COORDINATOR' },
+        });
+
+        if (!template) {
+            throw new Error('Template de e-mail para confirmação do coordenador não encontrado.');
+        }
+        
+        const emailBody = createCoordinatorConfirmationBody(template.body, payload.coordinatorName, payload.noteDescription, payload.attestationDate, payload.attestationObservation);
+        const emailSubject = template.subject.replace(/\[DescricaoNota\]/g, payload.noteDescription);
+
+        await sendEmail({
+            to: payload.coordinatorEmail,
+            subject: emailSubject,
+            body: emailBody,
+            attachment: {
+                filename: payload.attestedFileName,
+                contentType: 'application/pdf',
+                // @ts-ignore
+                content: Buffer.from(driveResponse.data).toString('base64'),
+            },
+        });
+        
+        console.log(`E-mail de confirmação de atesto enviado com sucesso para ${payload.coordinatorEmail} para a nota ${payload.noteId}`);
+
+    } catch (error) {
+        console.error(`Falha ao enviar e-mail de confirmação para o coordenador da nota ${payload.noteId}:`, error);
+    }
+}
