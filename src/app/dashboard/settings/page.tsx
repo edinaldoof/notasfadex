@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  ClipboardCheck
+  ClipboardCheck,
+  ExternalLink
 } from "lucide-react";
 import { User, Role, Settings, EmailTemplate } from "@prisma/client";
 import { 
@@ -28,7 +29,8 @@ import {
     getSettings,
     saveSettings,
     getEmailTemplates,
-    saveEmailTemplates
+    saveEmailTemplates,
+    getPreviewAttestationLink
 } from "./actions";
 import {
   Table,
@@ -140,6 +142,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, startSavingTransition] = useTransition();
   const [isSendingTest, startSendingTestTransition] = useTransition();
+  const [isGettingPreview, startGettingPreviewTransition] = useTransition();
   
   const [settings, setSettings] = useState<Partial<Settings>>({});
   const [templates, setTemplates] = useState<Partial<Record<EmailTemplate['type'], EmailTemplate>>>({});
@@ -231,6 +234,25 @@ export default function SettingsPage() {
     });
   }
 
+  const handleGetPreviewLink = () => {
+      startGettingPreviewTransition(async () => {
+          const result = await getPreviewAttestationLink();
+          if (result.success && result.link) {
+              window.open(result.link, '_blank');
+              toast({
+                  title: 'Link de Visualização Gerado',
+                  description: 'A página de ateste foi aberta em uma nova aba.',
+              })
+          } else {
+              toast({
+                  title: 'Erro ao Gerar Link',
+                  description: result.message,
+                  variant: 'destructive',
+              });
+          }
+      });
+  };
+
   if (loading || status === 'loading') {
     return (
         <div>
@@ -312,6 +334,27 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Card de Visualização e Testes */}
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-border">
+            <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                <Eye />
+                Visualização e Testes
+            </h2>
+            <p className="text-slate-400 mb-6">
+                Use os botões abaixo para visualizar componentes-chave do sistema.
+            </p>
+            <div className="flex items-center gap-4">
+                 <Button onClick={handleGetPreviewLink} disabled={isGettingPreview}>
+                    {isGettingPreview ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+                    {isGettingPreview ? 'Gerando...' : 'Visualizar Página de Ateste'}
+                </Button>
+            </div>
+             <p className="text-xs text-slate-500 mt-2">
+                A visualização da página de ateste usará a nota pendente mais recente como exemplo.
+            </p>
+        </div>
+
 
         {/* Card de Notificações */}
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-border">
@@ -655,3 +698,5 @@ function RoleSwitcher({
     </Popover>
   );
 }
+
+    

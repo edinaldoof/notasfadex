@@ -3,10 +3,11 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { Role, Settings, EmailTemplate } from '@prisma/client';
+import { Role, Settings, EmailTemplate, InvoiceStatus } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { sendEmail } from '@/lib/email';
 import { z } from 'zod';
+import { generateAttestationToken } from '@/lib/token-utils';
 
 /**
  * Fetches all users from the database.
@@ -165,6 +166,38 @@ export async function sendTestEmail(recipientEmail: string, subject: string, bod
     }
 }
 
+export async function getPreviewAttestationLink(): Promise<{ success: boolean; link?: string; message?: string }> {
+    const session = await auth();
+    const userRole = session?.user?.role;
+
+    if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
+        return { success: false, message: 'Acesso não autorizado.' };
+    }
+
+    try {
+        const latestPendingNote = await prisma.fiscalNote.findFirst({
+            where: {
+                status: InvoiceStatus.PENDENTE,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        if (!latestPendingNote) {
+            return { success: false, message: 'Nenhuma nota pendente encontrada para gerar um link de visualização.' };
+        }
+        
+        const link = generateAttestationToken(latestPendingNote.id);
+        return { success: true, link };
+
+    } catch (error) {
+        console.error("Erro ao gerar link de visualização de ateste:", error);
+        const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
+        return { success: false, message };
+    }
+}
+
 
 // --- Helper for Default Templates ---
 
@@ -229,3 +262,4 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
             };
     }
 }
+    

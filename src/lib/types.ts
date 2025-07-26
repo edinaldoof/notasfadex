@@ -5,7 +5,8 @@ import {
   HistoryType,
   InvoiceStatus,
   InvoiceType,
-  Role
+  Role,
+  User as PrismaUser,
 } from '@prisma/client';
 
 // Re-export Prisma types to be used across the application
@@ -18,6 +19,7 @@ export interface FiscalNote extends PrismaFiscalNote {
   attestedBy?: string | null;
   attestedAt?: Date | null;
   observation?: string | null;
+  user?: Partial<PrismaUser>; // Include user for accessing email
 }
 
 export interface SendEmailOptions {
@@ -49,6 +51,7 @@ export interface CoordinatorConfirmationEmailPayload {
     noteId: string;
     coordinatorName: string;
     coordinatorEmail: string;
+    requesterEmail: string; // Add requester email to CC them
     noteDescription: string;
     attestedFileId: string;
     attestedFileName: string;

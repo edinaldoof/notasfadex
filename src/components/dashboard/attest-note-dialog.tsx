@@ -145,5 +145,3 @@ export function AttestNoteDialog({ open, onOpenChange, note, onConfirm, isPendin
     </Dialog>
   );
 }
-
-    

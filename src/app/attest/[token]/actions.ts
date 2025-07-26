@@ -11,6 +11,7 @@ import { sendAttestationConfirmationToCoordinator } from '@/lib/email-actions';
 
 const attestNoteSchema = z.object({
   coordinatorName: z.string().min(3, 'O nome do coordenador é obrigatório.'),
+  coordinatorEmail: z.string().email('O e-mail do coordenador é inválido.'),
   observation: z.string().optional(),
   token: z.string().min(1, 'Token de autenticação ausente.'),
 });
@@ -18,6 +19,7 @@ const attestNoteSchema = z.object({
 export async function attestNotePublic(formData: FormData) {
     const rawData = Object.fromEntries(formData.entries());
     
+    // 1. Validação manual do arquivo primeiro
     const attestedFile = formData.get('attestedFile') as File | null;
     if (!attestedFile || attestedFile.size === 0) {
         return { success: false, message: 'O arquivo de atesto (PDF) é obrigatório.' };
@@ -29,13 +31,15 @@ export async function attestNotePublic(formData: FormData) {
         return { success: false, message: 'O tamanho máximo do arquivo é 10MB.' };
     }
 
+    // 2. Validação dos outros campos do formulário
     const validated = attestNoteSchema.safeParse(rawData);
     if (!validated.success) {
         console.error("Validation error:", validated.error.flatten().fieldErrors);
-        return { success: false, message: 'Dados inválidos para o atesto.' };
+        const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
+        return { success: false, message: firstError || 'Dados inválidos para o atesto.' };
     }
 
-    const { token, coordinatorName, observation } = validated.data;
+    const { token, coordinatorName, observation, coordinatorEmail } = validated.data;
     
     let note; // Define note here to be accessible in the finally block if needed
 
@@ -46,12 +50,19 @@ export async function attestNotePublic(formData: FormData) {
         }
         const { noteId } = decodedToken;
 
-        note = await prisma.fiscalNote.findUnique({ where: { id: noteId } });
+        note = await prisma.fiscalNote.findUnique({
+            where: { id: noteId },
+            include: { user: { select: { email: true } } }
+        });
+
         if (!note) {
             return { success: false, message: 'Nota fiscal não encontrada.' };
         }
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não está mais pendente de ateste.' };
+        }
+         if (!note.user || !note.user.email) {
+            return { success: false, message: 'Não foi possível encontrar o e-mail do solicitante original para notificação.' };
         }
 
         const fileBuffer = Buffer.from(await attestedFile.arrayBuffer());
@@ -72,7 +83,7 @@ export async function attestNotePublic(formData: FormData) {
         const attestedFileUrl = `/api/download/${driveFile.id}`;
         const attestationDate = new Date();
         
-        let historyDetails = `Nota atestada por ${coordinatorName} (via link público).`;
+        let historyDetails = `Nota atestada por ${coordinatorName} (${coordinatorEmail}) via link público.`;
         if (observation) {
             historyDetails += ` Observação: "${observation}"`;
         }
@@ -103,11 +114,12 @@ export async function attestNotePublic(formData: FormData) {
         revalidatePath('/dashboard/colaboradores');
         revalidatePath('/dashboard/timeline');
 
-        // Send confirmation email to the coordinator
+        // Send confirmation email to the coordinator who attested, with the original requester in CC.
         await sendAttestationConfirmationToCoordinator({
             noteId: note.id,
             coordinatorName: coordinatorName,
-            coordinatorEmail: note.coordinatorEmail,
+            coordinatorEmail: coordinatorEmail,
+            requesterEmail: note.user.email,
             noteDescription: note.description,
             attestedFileId: attestedDriveFileId,
             attestedFileName: attestedFile.name,

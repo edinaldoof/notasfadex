@@ -9,7 +9,7 @@
 // Importa a instância 'ai' JÁ CONFIGURADA do nosso novo ficheiro de configuração.
 import { ai } from './config'; 
 import { z } from 'zod';
-import './actions.js';
+
 // =========================================================
 // LÓGICA DO CHATBOT
 // =========================================================

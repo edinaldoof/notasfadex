@@ -14,11 +14,10 @@ export async function getNotes(): Promise<FiscalNote[]> {
     return [];
   }
 
-  // This page now only shows the user's own notes.
-  // The collaborators page will show all notes for managers.
-  const whereClause = { 
-    userId: session.user.id 
-  };
+  // If the user is a manager or owner, show all notes.
+  // Otherwise, only show the user's own notes.
+  const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
+  const whereClause = isManagerOrOwner ? {} : { userId: session.user.id };
 
   try {
     const notes = await prisma.fiscalNote.findMany({

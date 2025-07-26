@@ -112,6 +112,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 
         await sendEmail({
             to: payload.coordinatorEmail,
+            cc: payload.requesterEmail, // Add the original requester to CC
             subject: emailSubject,
             body: emailBody,
             attachment: {

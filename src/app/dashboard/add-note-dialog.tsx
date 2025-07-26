@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { addNote } from '@/app/dashboard/notas/actions';
 import { getExistingAccountNumbers } from '@/app/dashboard/actions';
 import { extractNoteData } from '@/ai/flows/extract-note-data-flow';
-import { cn, maskCnpj, maskProjectAccount } from '@/lib/utils';
+import { cn, maskCnpj, maskProjectAccount } from '@/lib/utils'; 
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
