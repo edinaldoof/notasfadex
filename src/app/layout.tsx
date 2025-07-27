@@ -2,7 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import SessionProvider from '@/components/auth/session-provider';
-import SessionHandler from '@/components/auth/session-handler';
+import { InteractiveBackground } from '@/components/effects/interactive-background';
 
 export const metadata: Metadata = {
   title: 'Notas Fadex',
@@ -21,9 +21,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-sans antialiased">
+      <body 
+        className="font-sans antialiased"
+      >
+          <InteractiveBackground />
           <SessionProvider>
-            <SessionHandler />
             {children}
             <Toaster />
           </SessionProvider>

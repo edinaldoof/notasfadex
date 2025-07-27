@@ -1,3 +1,4 @@
+
 import prisma from '@/lib/prisma';
 import { InvoiceStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
@@ -40,16 +41,18 @@ export async function GET(request: NextRequest) {
         });
 
         // 3. (Optional but recommended) Create a history event for each expiration
-        for (const note of expiredNotes) {
-            await prisma.noteHistoryEvent.create({
-                data: {
-                    fiscalNoteId: note.id,
-                    type: 'EXPIRED',
-                    details: `A nota expirou em ${now.toLocaleDateString('pt-BR')} pois não foi atestada até o prazo final.`,
-                    user: 'Sistema (Cron Job)',
-                }
-            });
-        }
+        const historyEvents = expiredNotes.map(note => ({
+            fiscalNoteId: note.id,
+            type: 'EXPIRED',
+            details: `A nota expirou em ${now.toLocaleDateString('pt-BR')} pois não foi atestada até o prazo final.`,
+            userName: 'Sistema (Cron Job)',
+            userId: null,
+        }));
+        
+        await prisma.noteHistoryEvent.createMany({
+            // @ts-ignore
+            data: historyEvents
+        });
         
         console.log(`[CRON] ${updateResult.count} notas foram marcadas como expiradas.`);
 

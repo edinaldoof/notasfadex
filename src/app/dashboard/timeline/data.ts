@@ -1,3 +1,4 @@
+
 'use server';
 
 import prisma from '@/lib/prisma';
@@ -22,12 +23,21 @@ export async function getNotesForTimeline(): Promise<FiscalNote[]> {
           orderBy: {
             date: 'desc',
           },
+          include: {
+            author: { // Correctly include the author relation
+              select: {
+                name: true,
+                image: true,
+              }
+            }
+          }
         },
       },
       orderBy: {
         updatedAt: 'desc',
       },
     });
+    // @ts-ignore
     return notes;
   } catch (error) {
     console.error('Failed to fetch timeline notes from database:', error);

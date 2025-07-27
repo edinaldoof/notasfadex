@@ -24,6 +24,7 @@ enum InvoiceStatus {
   PENDENTE
   ATESTADA
   EXPIRADA
+  REJEITADA
 }
 
 enum HistoryType {
@@ -32,6 +33,7 @@ enum HistoryType {
   REVERTED
   EDITED
   EXPIRED
+  REJECTED
 }
 
 enum InvoiceType {
@@ -88,6 +90,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   notes         FiscalNote[]
+  history       NoteHistoryEvent[]
 }
 
 // =================================================================
@@ -140,16 +143,17 @@ model FiscalNote {
 }
 
 model NoteHistoryEvent {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   fiscalNoteId String
-  date         DateTime   @default(now())
+  date         DateTime    @default(now())
   type         HistoryType
-  user         String
   details      String
+  userName     String?
+  userId       String?
 
-  note FiscalNote @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  author User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  note   FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
 }
-
 
 model Settings {
   id                      String @id @default("default")

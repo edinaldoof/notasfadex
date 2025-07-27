@@ -1,9 +1,11 @@
+
 'use server';
 
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import type { User } from '@prisma/client';
+import * as XLSX from 'xlsx';
 
 export interface UserWithNoteCount extends User {
     noteCount: number;
@@ -160,7 +162,7 @@ export async function getNotesByUserId(userId: string) {
 }
 
 /**
- * Export collaborators data to CSV
+ * Export collaborators data to XLSX
  * Only accessible by OWNER or MANAGER.
  */
 export async function exportCollaboratorsData() {
@@ -172,35 +174,67 @@ export async function exportCollaboratorsData() {
     }
 
     try {
-        const collaborators = await getCollaborators();
+        const users = await prisma.user.findMany({
+            include: {
+                notes: true,
+            }
+        });
+
+        const dataToExport = [];
+
+        for (const user of users) {
+            if (user.notes.length === 0) {
+                dataToExport.push({
+                    'Nome Colaborador': user.name,
+                    'Email Colaborador': user.email,
+                    'ID da Nota': 'N/A',
+                    'Descrição': 'N/A',
+                    'Status': 'N/A',
+                    'Link Drive': 'N/A',
+                    // Adicione outras colunas com 'N/A'
+                });
+            } else {
+                for (const note of user.notes) {
+                    dataToExport.push({
+                        'Nome Colaborador': user.name,
+                        'Email Colaborador': user.email,
+                        'ID da Nota': note.id,
+                        'Descrição': note.description,
+                        'Status': note.status,
+                        'Valor': note.amount,
+                        'Tipo de Nota': note.invoiceType,
+                        'Conta do Projeto': note.projectAccountNumber,
+                        'Nº da Nota Fiscal': note.numeroNota,
+                        'Data de Emissão': note.issueDate,
+                        'CNPJ Prestador': note.prestadorCnpj,
+                        'Razão Social Prestador': note.prestadorRazaoSocial,
+                        'CNPJ Tomador': note.tomadorCnpj,
+                        'Razão Social Tomador': note.tomadorRazaoSocial,
+                        'Nome Coordenador': note.coordinatorName,
+                        'Email Coordenador': note.coordinatorEmail,
+                        'Atestado Por': note.attestedBy,
+                        'Data Atesto': note.attestedAt,
+                        'Link Drive': note.driveFileId ? `${process.env.NEXT_PUBLIC_APP_URL}/api/download/${note.driveFileId}` : 'N/A',
+                    });
+                }
+            }
+        }
         
-        // Convert to CSV format
-        const csvHeaders = [
-            'Nome',
-            'Email',
-            'Função',
-            'Total de Notas',
-            'Notas Recentes (30 dias)',
-            'Última Nota',
-            'Data de Criação'
-        ].join(',');
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Colaboradores e Notas');
 
-        const csvData = collaborators.map(user => [
-            `"${user.name || ''}"`,
-            `"${user.email || ''}"`,
-            `"${user.role}"`,
-            user.noteCount,
-            user.recentNotesCount,
-            user.lastNoteDate ? new Date(user.lastNoteDate).toLocaleDateString('pt-BR') : 'Nunca',
-            new Date(user.createdAt).toLocaleDateString('pt-BR')
-        ].join(',')).join('\n');
-
-        return `${csvHeaders}\n${csvData}`;
+        const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+        
+        return { success: true, fileData: buffer.toString('base64') };
+        
     } catch (error) {
         console.error('Falha ao exportar dados:', error);
-        throw new Error('Não foi possível exportar os dados dos colaboradores.');
+        const message = error instanceof Error ? error.message : "Erro desconhecido ao exportar dados.";
+        return { success: false, message: message };
     }
 }
+
 
 /**
  * Get user activity summary
@@ -279,3 +313,4 @@ export async function getUserActivitySummary(userId: string) {
         throw new Error('Não foi possível buscar o resumo de atividade do usuário.');
     }
 }
+    

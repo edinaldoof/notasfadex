@@ -6,15 +6,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function maskCnpj(value: string) {
+export function maskCnpj(value?: string | null) {
   if (!value) return ""
   return value
-    .replace(/\D/g, '')
+    .replace(/\D/g, '') // Remove todos os caracteres não numéricos
+    .slice(0, 14) // Limita a 14 dígitos
     .replace(/(\d{2})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1/$2')
     .replace(/(\d{4})(\d)/, '$1-$2')
-    .replace(/(-\d{2})\d+?$/, '$1')
 }
 
 export function maskProjectAccount(value: string) {
@@ -29,12 +29,15 @@ export function maskProjectAccount(value: string) {
     if (value.length > 6) {
         // ######-#
         return value.replace(/(\d{6})(\d)/, '$1-$2');
-    } else if (value.length > 5) {
+    }
+    // No specific mask for 6, so it remains #.####-#
+    if (value.length > 5) {
         // #####-#
         return value.replace(/(\d{5})(\d)/, '$1-$2');
-    } else if (value.length > 4) {
-        // ####-#
-        return value.replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    if (value.length > 1) {
+        // ####-# through #-#
+        return value.replace(/(\d{1,5})(\d)/, '$1-$2');
     }
     
     return value;

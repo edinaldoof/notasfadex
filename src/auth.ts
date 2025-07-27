@@ -8,37 +8,18 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 // Função auxiliar para renovar o token de acesso
 async function refreshAccessToken(token: any) {
   try {
-    const response = await fetch("https://oauth2.googleapis.com/token", {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        grant_type: "refresh_token",
-        refresh_token: token.refreshToken as string,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: token.refreshToken }),
     });
 
     const newTokens = await response.json();
 
     if (!response.ok) {
-      throw newTokens;
+      // Se a rota da API falhar (p.ex., o refresh token é inválido), propaga o erro.
+      throw new Error(newTokens.error || 'Failed to refresh token');
     }
-
-    // Atualiza a conta no banco de dados com os novos tokens
-    await prisma.account.update({
-      where: {
-        provider_providerAccountId: {
-          provider: 'google',
-          providerAccountId: token.sub, // Use token.sub here
-        },
-      },
-      data: {
-        access_token: newTokens.access_token,
-        expires_at: Math.floor(Date.now() / 1000) + newTokens.expires_in,
-        refresh_token: newTokens.refresh_token ?? token.refreshToken,
-      },
-    });
 
     // Retorna o novo token com as informações atualizadas
     return {

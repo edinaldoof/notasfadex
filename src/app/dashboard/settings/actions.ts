@@ -105,7 +105,8 @@ export async function getEmailTemplates(): Promise<EmailTemplate[]> {
         'ATTESTATION_REMINDER', 
         'ATTESTATION_CONFIRMATION', 
         'NOTE_EXPIRED',
-        'ATTESTATION_CONFIRMATION_COORDINATOR'
+        'ATTESTATION_CONFIRMATION_COORDINATOR',
+        'NOTE_REJECTED' // Add new template type
     ];
     
     // Ensure all template types exist, create with defaults if not
@@ -141,19 +142,33 @@ export async function sendTestEmail(recipientEmail: string, subject: string, bod
     }
     
     try {
-        const processedBody = body
-            .replace(/\[NomeCoordenador\]/g, 'José da Silva (Teste)')
-            .replace(/\[NomeSolicitante\]/g, 'Maria Souza (Teste)')
-            .replace(/\[DescricaoNota\]/g, 'Consultoria em TI (Exemplo)')
-            .replace(/\[DiasRestantes\]/g, '15')
-            .replace(/\[LinkAteste\]/g, '#')
-            .replace(/\[NomeAtestador\]/g, 'Carlos Pereira (Teste)')
-            .replace(/\[DataAtesto\]/g, new Date().toLocaleString('pt-BR'))
-            .replace(/\[ObservacaoAtesto\]/g, 'Tudo certo, aprovado.');
+        let processedBody = body;
+        let processedSubject = subject;
+
+        const replacements: Record<string, string> = {
+            'NomeCoordenador': 'José da Silva (Teste)',
+            'NomeSolicitante': 'Maria Souza (Teste)',
+            'DescricaoNota': 'Consultoria em TI (Exemplo)',
+            'DiasRestantes': '15',
+            'LinkAteste': '#',
+            'NomeAtestador': 'Carlos Pereira (Teste)',
+            'DataAtesto': new Date().toLocaleString('pt-BR'),
+            'ObservacaoAtesto': 'Tudo certo, aprovado.',
+            'DataRejeicao': new Date().toLocaleString('pt-BR'),
+            'MotivoRejeicao': 'O valor da nota não corresponde ao serviço prestado.',
+            'NumeroNota': 'NF-12345',
+            'ContaProjeto': 'CP-98765'
+        };
+
+        for (const key in replacements) {
+            const regex = new RegExp(`\\[${key}\\]`, 'g');
+            processedBody = processedBody.replace(regex, replacements[key]);
+            processedSubject = processedSubject.replace(regex, replacements[key]);
+        }
 
         await sendEmail({
             to: recipientEmail,
-            subject: `[TESTE] ${subject}`,
+            subject: `[TESTE] ${processedSubject}`,
             body: processedBody,
         });
         
@@ -206,7 +221,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
         case 'ATTESTATION_REQUEST':
             return {
                 type: 'ATTESTATION_REQUEST',
-                subject: 'Ação Necessária: Ateste de Nota Fiscal - [DescricaoNota]',
+                subject: 'Ação Necessária: Ateste de Nota Fiscal - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
                 body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
     <h2>Solicitação de Ateste de Nota Fiscal</h2>
     <p>Olá, [NomeCoordenador],</p>
@@ -229,7 +244,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
         case 'ATTESTATION_CONFIRMATION':
             return {
                 type: 'ATTESTATION_CONFIRMATION',
-                subject: 'Nota Fiscal Atestada com Sucesso - [DescricaoNota]',
+                subject: 'Nota Fiscal Atestada com Sucesso - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
                 body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
     <h2>Confirmação de Ateste</h2>
     <p>Olá, [NomeSolicitante],</p>
@@ -250,7 +265,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
         case 'ATTESTATION_CONFIRMATION_COORDINATOR':
             return {
                 type: 'ATTESTATION_CONFIRMATION_COORDINATOR',
-                subject: 'Confirmação: Você atestou a nota fiscal [DescricaoNota]',
+                subject: 'Confirmação: Você atestou a nota fiscal para o projeto [ContaProjeto] - Nota: [NumeroNota]',
                 body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
     <h2>Confirmação de Ateste Realizado</h2>
     <p>Olá, [NomeCoordenador],</p>
@@ -260,6 +275,18 @@ function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
     <p>Obrigado pela sua colaboração.</p>
 </div>`,
             };
+        case 'NOTE_REJECTED':
+            return {
+                type: 'NOTE_REJECTED',
+                subject: 'Ação Necessária: Nota Fiscal Rejeitada - Projeto: [ContaProjeto] - Nota: [NumeroNota]',
+                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2 style="color: #dc3545;">Nota Fiscal Rejeitada</h2>
+    <p>Olá, [NomeSolicitante],</p>
+    <p>A nota fiscal referente a "<strong>[DescricaoNota]</strong>" foi rejeitada por <strong>[NomeCoordenador]</strong> em <strong>[DataRejeicao]</strong>.</p>
+    <p><strong>Motivo da Rejeição:</strong></p>
+    <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 1rem; font-style: italic;">[MotivoRejeicao]</blockquote>
+    <p>Por favor, revise a nota fiscal e as informações fornecidas para tomar as ações necessárias.</p>
+</div>`,
+            };
     }
 }
-    

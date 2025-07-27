@@ -3,27 +3,24 @@
 
 import { getDriveService } from './google-drive';
 import { sendEmail } from './email';
-import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload } from './types';
+import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload, EmailTemplateParts, RejectionEmailPayload } from './types';
 import prisma from './prisma';
 import { generateAttestationToken } from './token-utils';
 
 
-const createAttestationRequestBody = (template: string, coordinatorName: string, requesterName: string, secureLink: string, description: string): string => {
-    return template
-        .replace(/\[NomeCoordenador\]/g, coordinatorName)
-        .replace(/\[NomeSolicitante\]/g, requesterName)
-        .replace(/\[LinkAteste\]/g, secureLink)
-        .replace(/\[DescricaoNota\]/g, description);
+const processTemplate = (template: { subject: string; body: string }, replacements: Record<string, string | null | undefined>): EmailTemplateParts => {
+    let processedSubject = template.subject;
+    let processedBody = template.body;
+
+    for (const key in replacements) {
+        const value = replacements[key] || 'N/A';
+        const regex = new RegExp(`\\[${key}\\]`, 'g');
+        processedSubject = processedSubject.replace(regex, value);
+        processedBody = processedBody.replace(regex, value);
+    }
+
+    return { subject: processedSubject, body: processedBody };
 };
-
-const createCoordinatorConfirmationBody = (template: string, coordinatorName: string, description: string, attestationDate: Date, observation?: string | null): string => {
-    return template
-        .replace(/\[NomeCoordenador\]/g, coordinatorName)
-        .replace(/\[DescricaoNota\]/g, description)
-        .replace(/\[DataAtesto\]/g, attestationDate.toLocaleString('pt-BR'))
-        .replace(/\[ObservacaoAtesto\]/g, observation || 'Nenhuma');
-}
-
 
 export const sendAttestationRequestEmail = async (payload: AttestationEmailPayload) => {
     try {
@@ -46,11 +43,18 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             throw new Error('Template de e-mail para solicitação de atesto não encontrado.');
         }
 
-        // The public attestation link is now generated here
         const publicAttestationLink = generateAttestationToken(payload.noteId);
         
-        const emailBody = createAttestationRequestBody(template.body, payload.coordinatorName, payload.requesterName, publicAttestationLink, payload.noteDescription);
-        const emailSubject = template.subject.replace(/\[DescricaoNota\]/g, payload.noteDescription);
+        const replacements = {
+            'NomeCoordenador': payload.coordinatorName,
+            'NomeSolicitante': payload.requesterName,
+            'LinkAteste': publicAttestationLink,
+            'DescricaoNota': payload.noteDescription,
+            'NumeroNota': payload.numeroNota,
+            'ContaProjeto': payload.projectAccountNumber,
+        };
+
+        const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
 
         const ccList = new Set<string>();
         ccList.add(payload.requesterEmail);
@@ -107,8 +111,16 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
             throw new Error('Template de e-mail para confirmação do coordenador não encontrado.');
         }
         
-        const emailBody = createCoordinatorConfirmationBody(template.body, payload.coordinatorName, payload.noteDescription, payload.attestationDate, payload.attestationObservation);
-        const emailSubject = template.subject.replace(/\[DescricaoNota\]/g, payload.noteDescription);
+        const replacements = {
+            'NomeCoordenador': payload.coordinatorName,
+            'DescricaoNota': payload.noteDescription,
+            'DataAtesto': payload.attestationDate.toLocaleString('pt-BR'),
+            'ObservacaoAtesto': payload.attestationObservation || 'Nenhuma',
+            'NumeroNota': payload.numeroNota,
+            'ContaProjeto': payload.projectAccountNumber,
+        };
+
+        const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
 
         await sendEmail({
             to: payload.coordinatorEmail,
@@ -127,5 +139,40 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 
     } catch (error) {
         console.error(`Falha ao enviar e-mail de confirmação para o coordenador da nota ${payload.noteId}:`, error);
+    }
+}
+
+export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayload) => {
+    try {
+        const template = await prisma.emailTemplate.findUnique({
+            where: { type: 'NOTE_REJECTED' },
+        });
+
+        if (!template) {
+            throw new Error('Template de e-mail para notificação de rejeição não encontrado.');
+        }
+
+        const replacements = {
+            'NomeSolicitante': payload.requesterName,
+            'NomeCoordenador': payload.coordinatorName,
+            'DescricaoNota': payload.noteDescription,
+            'MotivoRejeicao': payload.rejectionReason,
+            'DataRejeicao': payload.rejectionDate.toLocaleString('pt-BR'),
+            'NumeroNota': payload.numeroNota,
+            'ContaProjeto': payload.projectAccountNumber,
+        };
+        
+        const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
+
+        await sendEmail({
+            to: payload.requesterEmail,
+            subject: emailSubject,
+            body: emailBody,
+        });
+        
+        console.log(`E-mail de notificação de rejeição enviado com sucesso para ${payload.requesterEmail} para a nota ${payload.noteId}`);
+
+    } catch (error) {
+        console.error(`Falha ao enviar e-mail de notificação de rejeição para a nota ${payload.noteId}:`, error);
     }
 }

@@ -75,7 +75,7 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="hidden lg:flex w-64 flex-shrink-0 bg-slate-900/90 backdrop-blur-lg border-r border-slate-800/50 flex-col">
+    <aside className="w-64 h-full flex-shrink-0 bg-slate-900/90 backdrop-blur-lg border-r border-slate-800/50 flex flex-col">
       {/* Cabeçalho com Logo */}
       <div className="h-20 flex items-center px-6 border-b border-slate-800/50">
         <div className="flex items-center space-x-3">

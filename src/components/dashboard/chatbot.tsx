@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -185,9 +186,6 @@ export function Chatbot() {
   
   const toggleOpen = () => {
     setIsOpen(prev => !prev);
-    if (!isOpen) {
-      setMessages([]);
-    }
   };
 
   return (
@@ -216,7 +214,7 @@ export function Chatbot() {
       </div>
       
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-full max-w-md">
+        <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:right-6 sm:w-full sm:max-w-md z-50">
           <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl flex flex-col h-[70vh] animate-in fade-in-50 slide-in-from-bottom-10 duration-500 overflow-hidden">
             
             {/* Header melhorado */}

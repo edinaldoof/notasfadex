@@ -10,15 +10,18 @@ import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { addDays } from 'date-fns';
 import { sendAttestationRequestEmail } from '@/lib/email-actions';
+import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '@/ai/flows/extract-note-data-flow';
 
-// Schema for parsing FormData on the server.
+// Regex robusto para validação de e-mail
+const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
 const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))*$/;
 
+// Schema for parsing FormData on the server.
 const addNoteSchema = z.object({
   invoiceType: z.nativeEnum(InvoiceType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
   coordinatorName: z.string().min(1, 'O nome do coordenador é obrigatório.'),
-  coordinatorEmail: z.string().email('O e-mail do coordenador é inválido.'),
+  coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
   // file is handled separately from FormData
@@ -30,6 +33,7 @@ const addNoteSchema = z.object({
   dataEmissao: z.string().optional(),
   valorTotal: z.string().optional(),
   prestadorRazaoSocial: z.string().optional(),
+  forceCreate: z.preprocess((val) => val === 'true', z.boolean()).optional(),
 });
 
 
@@ -39,8 +43,7 @@ export async function addNote(formData: FormData) {
     return { success: false, message: 'Usuário não autenticado ou informações do usuário ausentes. Acesso negado.' };
   }
   
-  const requesterName = session.user.name;
-  const requesterEmail = session.user.email;
+  const { id: userId, name: userName } = session.user;
 
   // Manual file validation from FormData
   const file = formData.get('file') as File;
@@ -75,10 +78,28 @@ export async function addNote(formData: FormData) {
     coordinatorName,
     projectAccountNumber,
     ccEmails,
+    forceCreate,
     ...rest 
   } = validatedFields.data;
 
   try {
+
+    // Check for duplicates if not forced
+    if (!forceCreate && rest.numeroNota && projectAccountNumber) {
+        const existing = await prisma.fiscalNote.findFirst({
+            where: {
+                numeroNota: rest.numeroNota,
+                projectAccountNumber: projectAccountNumber,
+            },
+        });
+        if (existing) {
+            return {
+                success: false,
+                message: 'Já existe uma nota fiscal com o mesmo número para esta conta de projeto.',
+            };
+        }
+    }
+
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileStream = Readable.from(fileBuffer);
     
@@ -95,7 +116,7 @@ export async function addNote(formData: FormData) {
     const newNote = await prisma.fiscalNote.create({
       data: {
         description: descricaoServicos,
-        requester: requesterName,
+        requester: userName,
         issueDate: submissionDate,
         status: InvoiceStatus.PENDENTE,
         fileType: file.type,
@@ -103,7 +124,7 @@ export async function addNote(formData: FormData) {
         originalFileUrl: `/api/download/${driveFile.id}`,
         driveFileId: driveFile.id,
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
-        userId: session.user.id,
+        userId: userId,
         invoiceType: invoiceType,
         projectAccountNumber: projectAccountNumber,
         hasWithholdingTax: hasWithholdingTax,
@@ -114,8 +135,9 @@ export async function addNote(formData: FormData) {
         history: {
           create: {
             type: 'CREATED',
-            user: requesterName,
-            details: `Nota fiscal criada por ${requesterName} e atribuída a ${coordinatorName} para atesto. Arquivo '${file.name}' salvo na pasta da conta ${projectAccountNumber} no Drive.`
+            details: `Nota fiscal criada por ${userName} e atribuída a ${coordinatorName} para atesto. Arquivo '${file.name}' salvo na pasta da conta ${projectAccountNumber} no Drive.`,
+            userId: userId,
+            userName: userName,
           }
         }
       }
@@ -126,12 +148,14 @@ export async function addNote(formData: FormData) {
       coordinatorName: newNote.coordinatorName,
       coordinatorEmail: newNote.coordinatorEmail,
       requesterName: newNote.requester,
-      requesterEmail: requesterEmail,
+      requesterEmail: session.user.email,
       ccEmails: ccEmails,
       noteDescription: newNote.description,
       driveFileId: newNote.driveFileId,
       fileName: newNote.fileName,
-      fileType: newNote.fileType
+      fileType: newNote.fileType,
+      numeroNota: newNote.numeroNota,
+      projectAccountNumber: newNote.projectAccountNumber,
     });
 
     revalidatePath('/dashboard/notas');
@@ -164,6 +188,8 @@ export async function attestNote(formData: FormData) {
     if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
+    
+    const { id: userId, name: userName } = session.user;
 
     const rawData = Object.fromEntries(formData.entries());
     const validated = attestNoteSchema.safeParse(rawData);
@@ -183,7 +209,7 @@ export async function attestNote(formData: FormData) {
         
         let attestedDriveFileId: string | null = null;
         let attestedFileUrl: string | null = null;
-        let historyDetails = `Nota atestada por ${session.user.name}.`;
+        let historyDetails = `Nota atestada por ${userName}.`;
 
         if (attestedFile && attestedFile.size > 0) {
             const fileBuffer = Buffer.from(await attestedFile.arrayBuffer());
@@ -214,16 +240,17 @@ export async function attestNote(formData: FormData) {
             data: {
                 status: 'ATESTADA',
                 attestedAt: new Date(),
-                attestedById: session.user.id,
-                attestedBy: session.user.name,
+                attestedById: userId,
+                attestedBy: userName,
                 observation: observation,
                 attestedDriveFileId: attestedDriveFileId,
                 attestedFileUrl: attestedFileUrl,
                 history: {
                     create: {
                         type: 'ATTESTED',
-                        user: session.user.name,
                         details: historyDetails,
+                        userId: userId,
+                        userName: userName,
                     }
                 }
             },
@@ -247,6 +274,8 @@ export async function revertAttestation(noteId: string) {
     if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
+
+    const { id: userId, name: userName } = session.user;
     
     try {
          await prisma.fiscalNote.update({
@@ -262,8 +291,9 @@ export async function revertAttestation(noteId: string) {
                 history: {
                     create: {
                         type: 'REVERTED',
-                        user: session.user.name,
-                        details: 'O atesto da nota foi desfeito.'
+                        details: 'O atesto da nota foi desfeito.',
+                        userId: userId,
+                        userName: userName,
                     }
                 }
             }
@@ -279,3 +309,40 @@ export async function revertAttestation(noteId: string) {
         return { success: false, message: 'Erro no servidor ao reverter o atesto.' };
     }
 }
+
+const checkExistingNoteSchema = z.object({
+  numeroNota: z.string(),
+  projectAccountNumber: z.string(),
+});
+
+export async function checkExistingNote(input: { numeroNota: string; projectAccountNumber: string }): Promise<boolean> {
+    const session = await auth();
+    if (!session?.user?.id) {
+        console.error("Unauthorized attempt to check for existing notes.");
+        return false;
+    }
+    
+    try {
+        const validatedInput = checkExistingNoteSchema.parse(input);
+        const existing = await prisma.fiscalNote.findFirst({
+            where: {
+                numeroNota: validatedInput.numeroNota,
+                projectAccountNumber: validatedInput.projectAccountNumber,
+            },
+        });
+        return !!existing;
+    } catch (error) {
+        console.error("Error checking for existing note:", error);
+        return false;
+    }
+}
+
+// Server Action to wrap the extraction logic
+export async function extractNoteData(input: ExtractNoteDataInput): Promise<ExtractNoteDataOutput> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Acesso não autorizado.');
+  }
+  return performExtraction(input);
+}
+    

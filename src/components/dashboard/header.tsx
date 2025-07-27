@@ -1,3 +1,4 @@
+
 'use client';
 
 import { LogOut, User as UserIcon, Menu, Settings } from 'lucide-react';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '../ui/sheet';
 import { Button } from '../ui/button';
 import { Sidebar } from './sidebar';
 
@@ -38,7 +39,10 @@ export function Header() {
     return (
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
+             <div className="lg:hidden">
+                 <Skeleton className="h-10 w-10 rounded-md" />
+             </div>
             <Skeleton className="h-10 w-10 rounded-full" />
           </div>
         </div>
@@ -55,9 +59,16 @@ export function Header() {
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-6 w-6" />
+                  <span className="sr-only">Abrir menu</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-64 bg-background/95">
+                <SheetHeader className="p-4 border-b border-border">
+                    <SheetTitle>Menu de Navegação</SheetTitle>
+                    <SheetDescription>
+                        Navegue pelas seções do Notas Fadex.
+                    </SheetDescription>
+                </SheetHeader>
                 <Sidebar />
               </SheetContent>
             </Sheet>
@@ -71,6 +82,7 @@ export function Header() {
                       <AvatarImage src={user.image || ''} alt={user.name || 'User'} />
                       <AvatarFallback>{getInitials(user.name || user.email || 'U')}</AvatarFallback>
                     </Avatar>
+                     <span className="sr-only">Abrir menu do usuário</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-60 bg-background/95 backdrop-blur-lg" align="end">

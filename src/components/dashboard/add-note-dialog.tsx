@@ -20,15 +20,11 @@ import { useToast } from '@/hooks/use-toast';
 
 // Utilities
 import { cn } from '@/lib/utils';
-import { toDataURL } from '@/lib/media-utils'; // Helper que vamos criar/verificar
+import { toDataURL } from '@/lib/media-utils';
 
 // Server Actions
 import { addNote } from '@/app/dashboard/notas/actions';
-// ==================================================================
-// PARTE MAIS IMPORTANTE DA CORREÇÃO (AQUI)!
-// Trocamos a importação do 'flow' pela 'action'.
-import { extractNoteDataAction } from '@/ai/actions';
-// ==================================================================
+import { extractNoteData } from '@/ai/flows/extract-note-data-flow';
 
 // Validação do formulário com Zod
 const addNoteFormSchema = z.object({
@@ -77,48 +73,34 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Atualiza o formulário e o nome do arquivo
     form.setValue('file', event.target.files);
     setFileName(file.name);
     setIsExtracting(true);
 
     try {
-      // Converte o arquivo para um formato que pode ser enviado para o servidor
-      const dataUrl = await toDataURL(file);
-
-      // ==================================================================
-      // CHAMADA PARA A SERVER ACTION (AQUI)!
-      // Em vez de chamar a IA diretamente, chamamos a nossa action.
-      const result = await extractNoteDataAction({ dataUrl, contentType: file.type });
-      // ==================================================================
-      
-      if (result.success && result.data) {
-        const extracted = result.data;
-        if (extracted.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extracted.prestadorRazaoSocial);
-        if (extracted.prestadorCnpj) form.setValue('prestadorCnpj', extracted.prestadorCnpj);
-        if (extracted.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extracted.tomadorRazaoSocial);
-        if (extracted.tomadorCnpj) form.setValue('tomadorCnpj', extracted.tomadorCnpj);
-        if (extracted.numeroNota) form.setValue('numeroNota', extracted.numeroNota);
-        if (extracted.dataEmissao) form.setValue('dataEmissao', extracted.dataEmissao);
-        if (extracted.amount) form.setValue('valorTotal', String(extracted.amount)); // Note a mudança para 'amount'
+      const documentUri = await toDataURL(file);
+      const extractedData = await extractNoteData({ documentUri });
         
-        toast({
-          title: "Extração Concluída",
-          description: "Os dados da nota foram preenchidos.",
-          variant: "default",
-        });
-      } else {
-         toast({
-          title: "Erro na Extração",
-          description: result.error || "Não foi possível extrair os dados. Preencha manualmente.",
-          variant: "destructive",
-        });
-      }
+      if (extractedData.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extractedData.prestadorRazaoSocial);
+      if (extractedData.prestadorCnpj) form.setValue('prestadorCnpj', extractedData.prestadorCnpj);
+      if (extractedData.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extractedData.tomadorRazaoSocial);
+      if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', extractedData.tomadorCnpj);
+      if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
+      if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
+      if (extractedData.valorTotal) form.setValue('valorTotal', String(extractedData.valorTotal));
+      
+      toast({
+        title: "Extração Concluída",
+        description: "Os dados da nota foram preenchidos.",
+        variant: "default",
+      });
+
     } catch (error) {
       console.error("Error handling file change:", error);
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível extrair os dados. Preencha manualmente.";
       toast({
-        title: "Erro no Arquivo",
-        description: "Houve um problema ao processar o arquivo.",
+        title: "Erro na Extração",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -127,7 +109,6 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   };
 
   const onSubmit = async (data: AddNoteFormValues) => {
-    // Sua lógica de submit está correta e não precisa de alterações.
     if (!session?.user) {
       toast({ title: "Erro de Autenticação", description: "Sessão não encontrada.", variant: 'destructive' });
       return;
@@ -171,8 +152,6 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     onOpenChange(isOpen);
   };
   
-  // O seu JSX está ótimo e não precisa de alterações.
-  // ... cole o seu JSX completo aqui ...
   const inputStyles = "w-full bg-slate-800/80 border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-primary/50 focus:outline-none transition-colors";
 
   return (
@@ -202,9 +181,8 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                             type="file" 
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                             accept=".pdf,.xml,.jpg,.jpeg,.png" 
-                            // O register é movido para cá para simplificar
                             {...form.register('file', {
-                                onChange: handleFileChange // Chama nossa função no onChange
+                                onChange: handleFileChange
                             })}
                             disabled={isExtracting || isSubmitting}
                          />
@@ -215,8 +193,69 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
             </div>
 
             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (isExtracting || isSubmitting) && "opacity-50 pointer-events-none")}>
-                {/* O resto do seu formulário aqui... */}
-                {/* ... */}
+                <div>
+                    <Label htmlFor="descricaoServicos">Descrição dos Serviços/Produtos</Label>
+                    <Input id="descricaoServicos" {...form.register('descricaoServicos')} className={inputStyles} />
+                    {form.formState.errors.descricaoServicos && <p className="text-xs text-red-400 mt-1">{form.formState.errors.descricaoServicos.message}</p>}
+                </div>
+
+                 <div>
+                    <Label htmlFor="issueDate">Data</Label>
+                    <Controller
+                        control={form.control}
+                        name="issueDate"
+                        render={({ field }) => (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={'outline'}
+                                        className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground", inputStyles)}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? format(field.value, 'PPP', { locale: ptBR }) : <span>Selecione a data</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        )}
+                    />
+                    {form.formState.errors.issueDate && <p className="text-xs text-red-400 mt-1">{form.formState.errors.issueDate.message}</p>}
+                </div>
+                 <div>
+                    <Label htmlFor="prestadorRazaoSocial">Razão Social do Prestador</Label>
+                    <Input id="prestadorRazaoSocial" {...form.register('prestadorRazaoSocial')} className={inputStyles} />
+                </div>
+                 <div>
+                    <Label htmlFor="prestadorCnpj">CNPJ do Prestador</Label>
+                    <Input id="prestadorCnpj" {...form.register('prestadorCnpj')} className={inputStyles} />
+                </div>
+                <div>
+                    <Label htmlFor="tomadorRazaoSocial">Razão Social do Tomador</Label>
+                    <Input id="tomadorRazaoSocial" {...form.register('tomadorRazaoSocial')} className={inputStyles} />
+                </div>
+                <div>
+                    <Label htmlFor="tomadorCnpj">CNPJ do Tomador</Label>
+                    <Input id="tomadorCnpj" {...form.register('tomadorCnpj')} className={inputStyles} />
+                </div>
+                <div>
+                    <Label htmlFor="numeroNota">Número da Nota Fiscal</Label>
+                    <Input id="numeroNota" {...form.register('numeroNota')} className={inputStyles} />
+                </div>
+                 <div>
+                    <Label htmlFor="dataEmissao">Data de Emissão (Extraída)</Label>
+                    <Input id="dataEmissao" {...form.register('dataEmissao')} className={inputStyles} />
+                </div>
+                 <div>
+                    <Label htmlFor="valorTotal">Valor Total (R$)</Label>
+                    <Input id="valorTotal" {...form.register('valorTotal')} className={inputStyles} />
+                </div>
             </div>
             
             <div className="flex space-x-4 pt-4">

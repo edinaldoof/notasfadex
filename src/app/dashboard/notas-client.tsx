@@ -24,6 +24,7 @@ import {
   User,
   Banknote,
   FileText,
+  XCircle, // Ícone para Rejeitada
 } from 'lucide-react';
 import { FiscalNote, InvoiceStatus } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -75,7 +76,7 @@ const formatDateTime = (date: Date | string) => {
     return new Date(date).toLocaleString('pt-BR', { timeZone: 'UTC' });
 };
 
-const validStatuses = ['all', 'atestada', 'pendente', 'expirada'];
+const validStatuses = ['all', 'atestada', 'pendente', 'expirada', 'rejeitada'];
 
 export default function NotasClientPage() {
   const searchParams = useSearchParams();
@@ -161,6 +162,12 @@ export default function NotasClientPage() {
           color: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
           icon: <AlertTriangle className="w-4 h-4" />,
           text: 'Expirada'
+        };
+      case 'REJEITADA':
+        return {
+          color: 'bg-red-500/10 text-red-400 border-red-500/20',
+          icon: <XCircle className="w-4 h-4" />,
+          text: 'Rejeitada'
         };
       default:
         return {
@@ -289,6 +296,7 @@ export default function NotasClientPage() {
                 <option value="atestada">Atestadas</option>
                 <option value="pendente">Pendentes</option>
                 <option value="expirada">Expiradas</option>
+                <option value="rejeitada">Rejeitadas</option>
               </select>
             </div>
           </div>
@@ -306,8 +314,8 @@ export default function NotasClientPage() {
                 <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Status</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Valor</th>
-                <th className="text-left p-4 font-semibold text-slate-300">Atesto</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Ações</th>
+                <th className="text-left p-4 font-semibold text-slate-300"></th>
               </tr>
             </thead>
             <tbody>
@@ -330,7 +338,9 @@ export default function NotasClientPage() {
                   const statusConfig = getStatusConfig(dynamicStatus);
                   const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
                   const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
-                  
+                  const isOwner = note.userId === session?.user?.id;
+                  const canEdit = isOwner && dynamicStatus === 'REJEITADA';
+
                   return (
                     <tr 
                       key={note.id} 
@@ -452,8 +462,8 @@ export default function NotasClientPage() {
                              <TooltipContent><p>Baixar Original</p></TooltipContent>
                           </Tooltip>
                            <Tooltip>
-                              <TooltipTrigger asChild><Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary" disabled><Edit className="w-4 h-4" /></Button></TooltipTrigger>
-                              <TooltipContent><p>Editar (Em breve)</p></TooltipContent>
+                              <TooltipTrigger asChild><Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary" disabled={!canEdit}><Edit className="w-4 h-4" /></Button></TooltipTrigger>
+                              <TooltipContent><p>{canEdit ? "Editar Nota Rejeitada" : "Editar (indisponível)"}</p></TooltipContent>
                           </Tooltip>
                           <Tooltip>
                              <TooltipTrigger asChild><Button variant="ghost" size="icon" className="text-slate-400 hover:text-destructive" disabled><Trash2 className="w-4 h-4" /></Button></TooltipTrigger>
@@ -497,5 +507,3 @@ export default function NotasClientPage() {
     </TooltipProvider>
   )
 }
-
-    

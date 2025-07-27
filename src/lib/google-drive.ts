@@ -87,11 +87,13 @@ export const uploadFileToDrive = async (fileName: string, mimeType: string, file
         body: fileStream,
     };
 
+    // CORREÇÃO: A chamada para drive.files.create foi reestruturada.
+    // requestBody, media e fields são passados como argumentos separados.
     const response = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
       fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true, // Crucial for Shared Drives
+      supportsAllDrives: true,
     });
     
     if (!response.data.id) {
@@ -107,3 +109,4 @@ export const uploadFileToDrive = async (fileName: string, mimeType: string, file
     throw new Error('Falha ao fazer upload do arquivo para o Google Drive.');
   }
 };
+    

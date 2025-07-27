@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,7 +16,13 @@ import {
   ChevronRight,
   Target,
   Zap,
-  FileText
+  FileText,
+  Stamp,
+  PlusCircle,
+  Undo2,
+  Edit,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -23,9 +30,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getDashboardSummary } from './actions';
+import { getDashboardSummary, getRecentActivities } from './actions';
 import { CheckBadge } from '@/components/icons/check-badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { HistoryType } from '@prisma/client';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // Interface para o summary
 interface DashboardSummary {
@@ -34,6 +45,9 @@ interface DashboardSummary {
   pendingNotes: number;
   totalAmount: number;
 }
+
+// Tipagem para as atividades recentes
+type RecentActivityEvent = Awaited<ReturnType<typeof getRecentActivities>>[0];
 
 const GREETING_TIMES = {
   MORNING: 12,
@@ -92,7 +106,7 @@ const EnhancedStatCard = ({
           {trend !== undefined && (
             <div className={cn(
               "flex items-center gap-1 text-sm px-2 py-1 rounded-full",
-              trend > 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+              trend >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
             )}>
               <TrendingUp className={cn("w-3 h-3", trend < 0 && "rotate-180")} />
               <span>{Math.abs(trend)}%</span>
@@ -121,11 +135,12 @@ const EnhancedStatCard = ({
   return href ? <Link href={href}>{content}</Link> : content;
 };
 
-// Componente de Ação Rápida
+
 const QuickAction = ({ 
   icon, 
   title, 
   description, 
+  href,
   onClick,
   color,
   delay = 0 
@@ -133,44 +148,68 @@ const QuickAction = ({
   icon: React.ReactNode;
   title: string;
   description: string;
-  onClick: () => void;
+  href?: string;
+  onClick?: () => void;
   color: string;
   delay?: number;
-}) => (
-  <motion.button
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.5, delay }}
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    onClick={onClick}
-    className={cn(
-      "p-4 rounded-xl border border-slate-700/50 hover:border-slate-600/50",
-      "bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl",
-      "transition-all duration-300 text-left w-full group",
-      "hover:shadow-xl hover:shadow-slate-900/50"
-    )}
-  >
-    <div className="flex items-start gap-3">
-      <div className={cn(
-        "p-2 rounded-lg transition-all duration-300",
-        "bg-gradient-to-br from-slate-800/50 to-slate-700/50",
-        "group-hover:scale-110",
-        color
-      )}>
-        {icon}
+}) => {
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, delay }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className={cn(
+        "p-4 rounded-xl border border-slate-700/50 hover:border-slate-600/50",
+        "bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl",
+        "transition-all duration-300 text-left w-full group",
+        "hover:shadow-xl hover:shadow-slate-900/50"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn(
+          "p-2 rounded-lg transition-all duration-300",
+          "bg-gradient-to-br from-slate-800/50 to-slate-700/50",
+          "group-hover:scale-110",
+          color
+        )}>
+          {icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-white mb-1">{title}</h3>
+          <p className="text-sm text-slate-400">{description}</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors mt-1" />
       </div>
-      <div className="flex-1">
-        <h3 className="font-semibold text-white mb-1">{title}</h3>
-        <p className="text-sm text-slate-400">{description}</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors mt-1" />
-    </div>
-  </motion.button>
-);
+    </motion.div>
+  );
 
-// Componente de Atividade Recente (placeholder)
-const RecentActivity = ({ delay = 0 }: { delay?: number }) => (
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+  
+  return <button onClick={onClick} className="w-full text-left">{content}</button>;
+};
+
+const getEventTypeConfig = (type: HistoryType) => {
+    switch(type) {
+        case 'CREATED': return { icon: <PlusCircle className="w-4 h-4 text-emerald-400" />, text: 'criou a nota' };
+        case 'ATTESTED': return { icon: <Stamp className="w-4 h-4 text-blue-400" />, text: 'atestou a nota' };
+        case 'REVERTED': return { icon: <Undo2 className="w-4 h-4 text-amber-400" />, text: 'desfez o atesto da nota' };
+        case 'EDITED': return { icon: <Edit className="w-4 h-4 text-purple-400" />, text: 'editou a nota' };
+        case 'EXPIRED': return { icon: <AlertTriangle className="w-4 h-4 text-rose-400" />, text: 'expirou para a nota' };
+        case 'REJECTED': return { icon: <XCircle className="w-4 h-4 text-red-400" />, text: 'rejeitou a nota' };
+        default: return { icon: <FileText className="w-4 h-4 text-slate-400" />, text: 'realizou um evento na nota' };
+    }
+}
+
+const getInitials = (name: string | null) => {
+    if (!name) return '??';
+    return name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+};
+
+const RecentActivity = ({ activities, loading, delay = 0 }: { activities: RecentActivityEvent[], loading: boolean, delay?: number }) => (
   <motion.div
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -187,30 +226,64 @@ const RecentActivity = ({ delay = 0 }: { delay?: number }) => (
         <Activity className="w-5 h-5 text-primary" />
         Atividade Recente
       </h3>
-      <Link href="/dashboard/notas" className="text-sm text-primary hover:text-primary/80 transition-colors">
+      <Link href="/dashboard/timeline" className="text-sm text-primary hover:text-primary/80 transition-colors">
         Ver todas
       </Link>
     </div>
     
     <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: delay + (i * 0.1) }}
-          className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors"
-        >
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          <div className="flex-1">
-            <p className="text-sm text-white">Nova nota fiscal adicionada</p>
-            <p className="text-xs text-slate-400">Há {i * 2} horas</p>
-          </div>
-        </motion.div>
-      ))}
+        {loading ? (
+             Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/4" />
+                    </div>
+                </div>
+             ))
+        ) : activities.length > 0 ? (
+            activities.map((activity, i) => {
+                const eventConfig = getEventTypeConfig(activity.type);
+                const userName = activity.author?.name || activity.userName || 'Sistema';
+                const userImage = activity.author?.image;
+                const noteReference = `Nota ${activity.note.numeroNota || 'S/N'} - CC: ${activity.note.projectAccountNumber}`;
+
+                return (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: delay + (i * 0.1) }}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors"
+                    >
+                      <Avatar className="h-8 w-8 mt-1 border-2 border-slate-700">
+                        <AvatarImage src={userImage ?? undefined} />
+                        <AvatarFallback className="text-xs bg-slate-600">
+                          {getInitials(userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="text-sm text-white">
+                          <span className="font-semibold">{userName}</span> {eventConfig.text} <span className="font-semibold text-primary/80">"{noteReference}"</span>.
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                            {eventConfig.icon}
+                            {formatDistanceToNow(new Date(activity.date), { addSuffix: true, locale: ptBR })}
+                        </p>
+                      </div>
+                    </motion.div>
+                )
+            })
+        ) : (
+            <div className="text-center py-8 text-slate-500">
+                <p>Nenhuma atividade recente.</p>
+            </div>
+        )}
     </div>
   </motion.div>
 );
+
 
 // Componente Principal do Dashboard
 export default function DashboardPage() {
@@ -220,7 +293,9 @@ export default function DashboardPage() {
     pendingNotes: 0, 
     totalAmount: 0 
   });
-  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<RecentActivityEvent[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingActivities, setLoadingActivities] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const { data: session, status } = useSession();
   const [greeting, setGreeting] = useState('');
@@ -251,28 +326,34 @@ export default function DashboardPage() {
     setCurrentDate(today.toLocaleDateString('pt-BR', options));
   }, []);
   
-  const fetchSummaryData = async () => {
-    setLoading(true);
+  const fetchData = async () => {
+    setLoadingSummary(true);
+    setLoadingActivities(true);
     try {
-      const data = await getDashboardSummary();
-      setSummary(data);
+      const [summaryData, activitiesData] = await Promise.all([
+        getDashboardSummary(),
+        getRecentActivities()
+      ]);
+      setSummary(summaryData);
+      setActivities(activitiesData);
       setError(null);
     } catch(error) {
       setError('Erro ao carregar dados do dashboard');
-      console.error("Failed to fetch summary:", error);
+      console.error("Failed to fetch dashboard data:", error);
     } finally {
-      setLoading(false);
+      setLoadingSummary(false);
+      setLoadingActivities(false);
     }
   };
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchSummaryData();
+      fetchData();
     }
   }, [status]);
   
   const handleNoteAdded = () => {
-    fetchSummaryData();
+    fetchData();
   }
 
   const getDisplayName = () => {
@@ -348,7 +429,7 @@ export default function DashboardPage() {
           title="Total de Notas"
           value={summary.totalNotes}
           icon={<FileSpreadsheet className="w-6 h-6 text-blue-400" />}
-          loading={loading || status !== 'authenticated'}
+          loading={loadingSummary || status !== 'authenticated'}
           color="bg-blue-500"
           href="/dashboard/notas?status=all"
           delay={0.1}
@@ -357,7 +438,7 @@ export default function DashboardPage() {
           title="Notas Atestadas"
           value={summary.attestedNotes}
           icon={<CheckBadge className="w-6 h-6 text-green-400" />}
-          loading={loading || status !== 'authenticated'}
+          loading={loadingSummary || status !== 'authenticated'}
           trend={attestedPercentage}
           color="bg-green-500"
           href="/dashboard/notas?status=atestada"
@@ -367,7 +448,7 @@ export default function DashboardPage() {
           title="Pendentes"
           value={summary.pendingNotes}
           icon={<Clock className="w-6 h-6 text-amber-400" />}
-          loading={loading || status !== 'authenticated'}
+          loading={loadingSummary || status !== 'authenticated'}
           color="bg-amber-500"
           href="/dashboard/notas?status=pendente"
           delay={0.3}
@@ -376,7 +457,7 @@ export default function DashboardPage() {
           title="Valor Total"
           value={`R$ ${summary.totalAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`}
           icon={<BarChart3 className="w-6 h-6 text-purple-400" />}
-          loading={loading || status !== 'authenticated'}
+          loading={loadingSummary || status !== 'authenticated'}
           color="bg-purple-500"
           delay={0.4}
         />
@@ -409,7 +490,7 @@ export default function DashboardPage() {
               icon={<BarChart3 className="w-5 h-5 text-purple-400" />}
               title="Ver Relatórios"
               description="Análise detalhada das notas"
-              onClick={() => window.location.href = '/dashboard/reports '}
+              href="/dashboard/reports"
               color="text-purple-400"
               delay={0.7}
             />
@@ -417,7 +498,7 @@ export default function DashboardPage() {
               icon={<Target className="w-5 h-5 text-green-400" />}
               title="Metas do Mês"
               description="Acompanhe seus objetivos"
-              onClick={() => window.location.href = '/dashboard/metas'}
+              href="/dashboard/metas"
               color="text-green-400"
               delay={0.8}
             />
@@ -425,7 +506,7 @@ export default function DashboardPage() {
               icon={<Activity className="w-5 h-5 text-orange-400" />}
               title="Histórico"
               description="Veja todas as atividades"
-              onClick={() => window.location.href = '/dashboard/historico'}
+              href="/dashboard/timeline"
               color="text-orange-400"
               delay={0.9}
             />
@@ -433,7 +514,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Atividade Recente */}
-        <RecentActivity delay={1} />
+        <RecentActivity activities={activities} loading={loadingActivities} delay={1} />
       </div>
 
       {/* Card de Visão Geral Melhorado */}

@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Clock,
   ClipboardCheck,
-  ExternalLink
+  ExternalLink,
+  XCircle,
 } from "lucide-react";
 import { User, Role, Settings, EmailTemplate } from "@prisma/client";
 import { 
@@ -45,17 +46,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -107,17 +99,23 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
+        { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
         { placeholder: '[LinkAteste]', description: 'Link direto para a página de atesto da nota.' },
     ],
     ATTESTATION_REMINDER: [
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
+        { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
         { placeholder: '[DiasRestantes]', description: 'Número de dias restantes antes do prazo expirar.' },
         { placeholder: '[LinkAteste]', description: 'Link direto para a página de atesto da nota.' },
     ],
     ATTESTATION_CONFIRMATION: [
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
+        { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
         { placeholder: '[NomeAtestador]', description: 'Nome do usuário que atestou a nota.' },
         { placeholder: '[DataAtesto]', description: 'Data e hora em que a nota foi atestada.' },
         { placeholder: '[ObservacaoAtesto]', description: 'Observações adicionadas durante o atesto.' },
@@ -126,6 +124,8 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que deveria ter atestado.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
+        { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
         { placeholder: '[DataExpiracao]', description: 'Data em que o prazo para atesto expirou.' },
     ],
     ATTESTATION_CONFIRMATION_COORDINATOR: [
@@ -133,6 +133,13 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[DataAtesto]', description: 'Data e hora em que a nota foi atestada.' },
         { placeholder: '[ObservacaoAtesto]', description: 'Observações deixadas no momento do ateste.' },
+    ],
+    NOTE_REJECTED: [
+        { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que solicitou a nota.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que rejeitou a nota.' },
+        { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
+        { placeholder: '[DataRejeicao]', description: 'Data e hora da rejeição.' },
+        { placeholder: '[MotivoRejeicao]', description: 'O motivo informado pelo coordenador para a rejeição.' },
     ]
 };
 
@@ -367,12 +374,13 @@ export default function SettingsPage() {
             </p>
             
             <Tabs defaultValue="ATTESTATION_REQUEST">
-                <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 h-auto">
+                <TabsList className="grid w-full grid-cols-1 md:grid-cols-6 h-auto">
                     <TabsTrigger value="ATTESTATION_REQUEST"><Mail className="w-4 h-4 mr-2"/> Solicitação</TabsTrigger>
                     <TabsTrigger value="ATTESTATION_REMINDER"><Clock className="w-4 h-4 mr-2"/> Lembrete</TabsTrigger>
                     <TabsTrigger value="ATTESTATION_CONFIRMATION"><CheckCircle2 className="w-4 h-4 mr-2"/> Confirmação (Solicitante)</TabsTrigger>
                     <TabsTrigger value="ATTESTATION_CONFIRMATION_COORDINATOR"><ClipboardCheck className="w-4 h-4 mr-2"/> Confirmação (Coordenador)</TabsTrigger>
                     <TabsTrigger value="NOTE_EXPIRED"><AlertTriangle className="w-4 h-4 mr-2"/> Expiração</TabsTrigger>
+                    <TabsTrigger value="NOTE_REJECTED"><XCircle className="w-4 h-4 mr-2"/> Rejeição</TabsTrigger>
                 </TabsList>
 
                 {(Object.keys(placeholderMap) as Array<keyof typeof placeholderMap>).map(type => (
@@ -627,13 +635,11 @@ function RoleSwitcher({
   targetUser: User,
   onRoleChange: (userId: string, role: 'USER' | 'MANAGER') => Promise<void>,
 }) {
-  const [open, setOpen] = useState(false);
   const [isUpdating, startUpdateTransition] = useTransition();
   
   const selectedRole = targetUser.role;
 
   const handleSelect = (newRole: 'USER' | 'MANAGER') => {
-    setOpen(false);
     if (newRole !== selectedRole) {
       startUpdateTransition(async () => {
         await onRoleChange(targetUser.id, newRole);
@@ -645,7 +651,7 @@ function RoleSwitcher({
   const isSelf = targetUser.id === currentUserId;
   const canManageRoles = currentUserRole === 'OWNER';
   
-  const isDisabled = isOwner || isSelf || !canManageRoles;
+  const isDisabled = isOwner || isSelf || !canManageRoles || isUpdating;
   
   if (isOwner) {
     return (
@@ -657,46 +663,21 @@ function RoleSwitcher({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[140px] justify-between bg-slate-800/50 border-border hover:bg-slate-800"
-          disabled={isUpdating || isDisabled}
-        >
-          {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : (roles.find(r => r.value === selectedRole)?.label || 'Selecione...')}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[140px] p-0">
-        <Command>
-          <CommandGroup>
-            <CommandList>
-              {roles.map((role) => (
-                <CommandItem
-                  key={role.value}
-                  value={role.label}
-                  onSelect={() => {
-                    handleSelect(role.value as 'USER' | 'MANAGER');
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedRole === role.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {role.label}
-                </CommandItem>
-              ))}
-            </CommandList>
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <Select 
+        value={selectedRole}
+        onValueChange={handleSelect}
+        disabled={isDisabled}
+    >
+      <SelectTrigger className="w-[140px] bg-slate-800/50 border-border hover:bg-slate-800">
+        <SelectValue placeholder="Selecione um cargo" />
+      </SelectTrigger>
+      <SelectContent>
+        {roles.map((role) => (
+          <SelectItem key={role.value} value={role.value}>
+            {role.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
-
-    

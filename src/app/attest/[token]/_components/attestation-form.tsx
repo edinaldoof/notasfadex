@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -8,12 +9,11 @@ import {
   Loader2, 
   UploadCloud, 
   File, 
-  ShieldCheck, 
-  CheckCircle, 
   Mail, 
   User, 
   X,
-  AlertCircle 
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -57,11 +57,11 @@ type AttestationFormValues = z.infer<typeof formSchema>;
 
 interface AttestationFormProps {
   token: string;
+  onSuccess: () => void;
 }
 
-export default function AttestationForm({ token }: AttestationFormProps) {
+export default function AttestationForm({ token, onSuccess }: AttestationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -162,11 +162,7 @@ export default function AttestationForm({ token }: AttestationFormProps) {
       const result = await attestNotePublic(formData);
 
       if (result.success) {
-        setIsSuccess(true);
-        toast({
-          title: 'Ateste realizado com sucesso!',
-          description: 'Um e-mail de confirmação foi enviado para você.',
-        });
+        onSuccess(); // Chama a função de sucesso do pai em vez de gerir o estado localmente
       } else {
         throw new Error(result.message || 'Erro desconhecido');
       }
@@ -185,22 +181,6 @@ export default function AttestationForm({ token }: AttestationFormProps) {
     }
   };
   
-  if (isSuccess) {
-    return (
-      <div 
-        className="flex flex-col items-center justify-center text-center p-8 bg-green-900/30 border border-green-500/30 rounded-lg"
-        role="alert"
-        aria-live="polite"
-      >
-        <CheckCircle className="w-16 h-16 text-green-400 mb-4" aria-hidden="true" />
-        <h2 className="text-2xl font-bold text-white">Atesto Concluído!</h2>
-        <p className="text-slate-300 mt-2">
-          A nota fiscal foi atestada com sucesso. Um e-mail de confirmação foi enviado para você.
-        </p>
-      </div>
-    );
-  }
-
   const { errors, isValid } = form.formState;
 
   return (
@@ -328,7 +308,7 @@ export default function AttestationForm({ token }: AttestationFormProps) {
                 {dragActive ? 'Solte o arquivo aqui' : 'Clique ou arraste o arquivo PDF aqui'}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Máximo {Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB
+                Máximo ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB
               </p>
             </>
           )}

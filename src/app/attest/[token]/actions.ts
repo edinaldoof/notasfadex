@@ -7,7 +7,68 @@ import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
 import { verifyAttestationToken } from '@/lib/token-utils';
-import { sendAttestationConfirmationToCoordinator } from '@/lib/email-actions';
+import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
+import type { FiscalNote } from '@/lib/types';
+
+
+// Esta função agora está corretamente em uma Server Action.
+export async function getNoteFromToken(token: string): Promise<{
+  note?: FiscalNote;
+  error?: string;
+}> {
+  try {
+    if (!token || typeof token !== 'string') {
+      return { error: 'Token não fornecido ou inválido.' };
+    }
+
+    const decoded = verifyAttestationToken(token);
+    if (!decoded || !decoded.noteId) {
+      return { error: 'Token inválido ou expirado.' };
+    }
+
+    const note = await prisma.fiscalNote.findUnique({
+      where: { id: decoded.noteId },
+      select: {
+        id: true,
+        requester: true,
+        projectAccountNumber: true,
+        numeroNota: true,
+        amount: true,
+        issueDate: true,
+        description: true,
+        originalFileUrl: true,
+        status: true,
+        user: {
+            select: { email: true, name: true }
+        }
+      },
+    });
+
+    if (!note) {
+      return { error: 'Nota fiscal não encontrada.' };
+    }
+
+    if (note.status !== 'PENDENTE') {
+      return { error: 'Esta nota fiscal não está mais pendente de ateste.' };
+    }
+
+    return { note: note as FiscalNote };
+  } catch (err) {
+    console.error('Error verifying token:', err);
+    
+    if (err instanceof Error) {
+      if (err.name === 'TokenExpiredError') {
+        return { error: 'Este link de ateste expirou.' };
+      }
+      if (err.name === 'JsonWebTokenError') {
+        return { error: 'Este link de ateste é inválido.' };
+      }
+    }
+    
+    return { error: 'Ocorreu um erro ao verificar o link.' };
+  }
+}
+
 
 const attestNoteSchema = z.object({
   coordinatorName: z.string().min(3, 'O nome do coordenador é obrigatório.'),
@@ -52,7 +113,7 @@ export async function attestNotePublic(formData: FormData) {
 
         note = await prisma.fiscalNote.findUnique({
             where: { id: noteId },
-            include: { user: { select: { email: true } } }
+            include: { user: { select: { email: true, id: true, name: true } } }
         });
 
         if (!note) {
@@ -61,8 +122,8 @@ export async function attestNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não está mais pendente de ateste.' };
         }
-         if (!note.user || !note.user.email) {
-            return { success: false, message: 'Não foi possível encontrar o e-mail do solicitante original para notificação.' };
+         if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+            return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
         const fileBuffer = Buffer.from(await attestedFile.arrayBuffer());
@@ -94,7 +155,7 @@ export async function attestNotePublic(formData: FormData) {
             data: {
                 status: 'ATESTADA',
                 attestedAt: attestationDate,
-                attestedById: null, 
+                attestedById: note.user.id, 
                 attestedBy: coordinatorName,
                 observation: observation,
                 attestedDriveFileId: attestedDriveFileId,
@@ -102,8 +163,9 @@ export async function attestNotePublic(formData: FormData) {
                 history: {
                     create: {
                         type: 'ATTESTED',
-                        user: `Sistema (Ateste Público)`,
                         details: historyDetails,
+                        userId: note.user.id,
+                        userName: coordinatorName,
                     }
                 }
             },
@@ -134,6 +196,91 @@ export async function attestNotePublic(formData: FormData) {
         const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
         if (error instanceof Error && (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError')) {
             return { success: false, message: 'Seu link de ateste é inválido ou expirou. Por favor, solicite um novo.' };
+        }
+        return { success: false, message };
+    }
+}
+
+const rejectNoteSchema = z.object({
+  rejectionReason: z.string().min(10, 'O motivo da rejeição deve ter pelo menos 10 caracteres.'),
+  coordinatorName: z.string().min(3, 'O nome do coordenador é obrigatório.'),
+  noteId: z.string().min(1, 'ID da nota ausente.'),
+  token: z.string().min(1, 'Token de autenticação ausente.'),
+});
+
+export async function rejectNotePublic(formData: FormData) {
+    const rawData = Object.fromEntries(formData.entries());
+
+    const validated = rejectNoteSchema.safeParse(rawData);
+    if (!validated.success) {
+        console.error("Validation error:", validated.error.flatten().fieldErrors);
+        const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
+        return { success: false, message: firstError || 'Dados inválidos para a rejeição.' };
+    }
+
+    const { token, noteId, coordinatorName, rejectionReason } = validated.data;
+
+    try {
+        const decodedToken = verifyAttestationToken(token);
+        if (!decodedToken || decodedToken.noteId !== noteId) {
+            return { success: false, message: 'Token inválido ou não corresponde à nota.' };
+        }
+
+        const note = await prisma.fiscalNote.findUnique({
+            where: { id: noteId },
+            include: { user: { select: { email: true, id: true, name: true } } }
+        });
+
+        if (!note) {
+            return { success: false, message: 'Nota fiscal não encontrada.' };
+        }
+        if (note.status !== 'PENDENTE') {
+            return { success: false, message: 'Esta nota não pode mais ser rejeitada.' };
+        }
+        if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+            return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
+        }
+
+        const rejectionDate = new Date();
+        const historyDetails = `Nota rejeitada por ${coordinatorName}. Motivo: "${rejectionReason}"`;
+
+        await prisma.fiscalNote.update({
+            where: { id: noteId },
+            data: {
+                status: 'REJEITADA',
+                observation: rejectionReason,
+                history: {
+                    create: {
+                        type: 'REJECTED',
+                        details: historyDetails,
+                        userId: note.userId,
+                        userName: coordinatorName,
+                    }
+                }
+            }
+        });
+
+        revalidatePath('/dashboard/notas');
+        revalidatePath('/dashboard/colaboradores');
+        revalidatePath('/dashboard/timeline');
+        
+        await sendRejectionNotificationEmail({
+            noteId: note.id,
+            coordinatorName: coordinatorName,
+            requesterEmail: note.user.email,
+            noteDescription: note.description,
+            rejectionReason: rejectionReason,
+            rejectionDate: rejectionDate,
+            requesterName: note.user.name,
+        });
+
+        return { success: true, message: 'Nota rejeitada com sucesso!' };
+
+    } catch (error) {
+        console.error("Erro ao rejeitar nota publicamente:", error);
+        const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
+        if (error instanceof Error && (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError')) {
+            return { success: false, message: 'Seu link de ação é inválido ou expirou. Por favor, solicite um novo.' };
         }
         return { success: false, message };
     }

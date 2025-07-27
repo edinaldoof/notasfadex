@@ -1,20 +1,31 @@
 
+
 import { 
   FiscalNote as PrismaFiscalNote, 
   NoteHistoryEvent as PrismaNoteHistoryEvent, 
   HistoryType,
-  InvoiceStatus,
+  InvoiceStatus as PrismaInvoiceStatus, // Renomeado para evitar conflito
   InvoiceType,
   Role,
   User as PrismaUser,
 } from '@prisma/client';
 
+// Adicionando 'REJEITADA' ao enum local
+export const InvoiceStatus = { ...PrismaInvoiceStatus, REJEITADA: 'REJEITADA' } as const;
+export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
+
+
 // Re-export Prisma types to be used across the application
-export { HistoryType, InvoiceStatus, InvoiceType, Role };
+export { HistoryType, InvoiceType, Role };
 
-export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {}
+// ALTERADO: Adicionado 'author' opcional (a relação) e userName (string)
+export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {
+  author?: Partial<PrismaUser> | null;
+  userName?: string | null;
+}
 
-export interface FiscalNote extends PrismaFiscalNote {
+export interface FiscalNote extends Omit<PrismaFiscalNote, 'status'> {
+  status: InvoiceStatus; // Usa o nosso enum customizado
   history?: NoteHistoryEvent[];
   attestedBy?: string | null;
   attestedAt?: Date | null;
@@ -45,6 +56,9 @@ export interface AttestationEmailPayload {
     driveFileId: string;
     fileName: string;
     fileType: string;
+    numeroNota: string | null;
+    projectAccountNumber: string;
+    secureLink?: string; // Optional because it's generated within the action
 }
 
 export interface CoordinatorConfirmationEmailPayload {
@@ -57,4 +71,23 @@ export interface CoordinatorConfirmationEmailPayload {
     attestedFileName: string;
     attestationDate: Date;
     attestationObservation?: string | null;
+    numeroNota: string | null;
+    projectAccountNumber: string;
+}
+
+export interface RejectionEmailPayload {
+    noteId: string;
+    coordinatorName: string;
+    requesterName: string;
+    requesterEmail: string;
+    noteDescription: string;
+    rejectionReason: string;
+    rejectionDate: Date;
+    numeroNota: string | null;
+    projectAccountNumber: string;
+}
+
+export interface EmailTemplateParts {
+  subject: string;
+  body: string;
 }
