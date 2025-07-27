@@ -53,7 +53,7 @@ export async function POST(request: Request) {
              }
          });
       }
-      return NextResponse.json({ error: newTokens.error || 'Failed to refresh token' }, { status: 500 });
+      return NextResponse.json({ error: newTokens.error_description || newTokens.error || 'Failed to refresh token' }, { status: response.status });
     }
 
     // Atualiza a conta no banco de dados com os novos tokens

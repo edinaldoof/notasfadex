@@ -31,9 +31,16 @@ function Loading() {
 }
 
 
-export default function NotasPage() {
+export default async function NotasPage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const page = Number(searchParams?.page) || 1;
+  const limit = Number(searchParams?.limit) || 10;
+  
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<Loading />} key={page + '_' + limit}>
       <NotasClientPage />
     </Suspense>
   );

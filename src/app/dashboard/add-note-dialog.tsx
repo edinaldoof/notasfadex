@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -230,6 +231,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   }
 
   const onSubmit = async (data: AddNoteFormValues) => {
+    setIsSubmitting(true);
     if (data.numeroNota && data.projectAccountNumber) {
         const isDuplicate = await checkExistingNote({
             numeroNota: data.numeroNota,
@@ -238,6 +240,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
 
         if (isDuplicate) {
             setShowDuplicateWarning(true);
+            setIsSubmitting(false); // Stop submission until user confirms
             return;
         }
     }
