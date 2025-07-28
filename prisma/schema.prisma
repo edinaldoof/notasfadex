@@ -10,40 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =================================================================
-// Enums - Tipos de dados pré-definidos
-// =================================================================
+// ===================================
+//              AUTH
+// ===================================
 
-enum Role {
-  USER
-  MANAGER
-  OWNER
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  notes         FiscalNote[] @relation("NoteCreator")
+  attestedNotes FiscalNote[] @relation("Attestor")
+  historyEvents NoteHistoryEvent[] @relation("EventAuthor")
 }
-
-enum InvoiceStatus {
-  PENDENTE
-  ATESTADA
-  EXPIRADA
-  REJEITADA
-}
-
-enum HistoryType {
-  CREATED
-  ATTESTED
-  REVERTED
-  EDITED
-  EXPIRED
-  REJECTED
-}
-
-enum InvoiceType {
-  SERVICO
-  PRODUTO
-}
-
-// =================================================================
-// Modelos de Autenticação - Gerenciados pelo NextAuth.js
-// =================================================================
 
 model Account {
   id                String  @id @default(cuid())
@@ -51,12 +34,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -74,95 +57,119 @@ model Session {
 
 model VerificationToken {
   identifier String
-  token      String   @unique
+  token      String
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          Role      @default(USER)
-  accounts      Account[]
-  sessions      Session[]
-  notes         FiscalNote[]
-  history       NoteHistoryEvent[]
+enum Role {
+  USER
+  MANAGER
+  OWNER
 }
 
-// =================================================================
-// Modelos da Aplicação
-// =================================================================
+
+// ===================================
+//          APP-SPECIFIC
+// ===================================
 
 model FiscalNote {
-  id                   String        @id @default(cuid())
-  description          String
-  requester            String
-  issueDate            DateTime
-  status               InvoiceStatus @default(PENDENTE)
-  amount               Float?
-  fileType             String
-  fileName             String
-  originalFileUrl      String
-  driveFileId          String        @unique
-  category             String?
-  attestedFileUrl      String?
-  attestedDriveFileId  String?
-  attestedAt           DateTime?
-  observation          String?
-  attestedById         String?
-  attestedBy           String?
+  id                    String        @id @default(cuid())
+  description           String
+  requester             String
+  issueDate             DateTime
+  attestationDeadline   DateTime
+  status                InvoiceStatus @default(PENDENTE)
+  fileType              String
+  fileName              String
+  originalFileUrl       String
+  driveFileId           String
+  amount                Float?
+  invoiceType           InvoiceType   @default(SERVICO)
+  projectTitle          String?
+  projectAccountNumber  String
+  hasWithholdingTax     Boolean       @default(false)
 
-  // Relação com o usuário que fez o upload
-  userId               String
-  user                 User          @relation(fields: [userId], references: [id])
+  // Coordenador (para atesto externo)
+  coordinatorEmail      String
+  coordinatorName       String
 
-  // Campos adicionais (RF02)
-  projectAccountNumber String
-  invoiceType          InvoiceType   @default(SERVICO)
-  hasWithholdingTax    Boolean       @default(false)
-  coordinatorName      String
-  coordinatorEmail     String
-  attestationDeadline  DateTime?
+  // Dados extraídos da nota (pela IA ou manualmente)
+  prestadorRazaoSocial  String?
+  prestadorCnpj         String?
+  tomadorRazaoSocial    String?
+  tomadorCnpj           String?
+  numeroNota            String?
+  dataEmissao           String?       
 
-  // Campos extraídos pela IA
-  prestadorRazaoSocial String?
-  prestadorCnpj        String?
-  tomadorRazaoSocial   String?
-  tomadorCnpj          String?
-  numeroNota           String?
-  dataEmissao          String?
+  // Dados do atesto (quando realizado)
+  attestedBy            String? // Nome de quem atestou
+  attestedAt            DateTime?
+  observation           String?
+  attestedFileUrl       String?
+  attestedDriveFileId   String?
 
-  // Histórico de eventos da nota
-  history              NoteHistoryEvent[]
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  // Relacionamentos
+  user                  User              @relation("NoteCreator", fields: [userId], references: [id])
+  userId                String
+  attestor              User?             @relation("Attestor", fields: [attestedById], references: [id])
+  attestedById          String?
+  history               NoteHistoryEvent[]
+
+  // Timestamps
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 }
 
 model NoteHistoryEvent {
-  id           String      @id @default(cuid())
-  fiscalNoteId String
-  date         DateTime    @default(now())
-  type         HistoryType
-  details      String
-  // userName     String? 
-  userId       String?
+  id            String      @id @default(cuid())
+  date          DateTime    @default(now())
+  type          HistoryType
+  details       String
+  
+  // Relação com a nota
+  note          FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  fiscalNoteId  String
 
-  author User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  note   FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  // Relação com o autor do evento (usuário logado)
+  author        User        @relation("EventAuthor", fields: [userId], references: [id])
+  userId        String
 }
 
+enum InvoiceStatus {
+  PENDENTE
+  ATESTADA
+  EXPIRADA
+  REJEITADA
+}
+
+enum InvoiceType {
+  PRODUTO
+  SERVICO
+}
+
+enum HistoryType {
+  CREATED
+  ATTESTED
+  REVERTED
+  EDITED
+  EXPIRED
+  REJECTED
+}
+
+
 model Settings {
-  id                      String @id @default("default")
+  id                       String @id @default("default")
   attestationDeadlineInDays Int    @default(30)
-  reminderFrequencyInDays Int    @default(7)
+  reminderFrequencyInDays  Int    @default(3)
 }
 
 model EmailTemplate {
-  type    String @id @unique
-  subject String
-  body    String @db.Text
+  id        String   @id @default(cuid())
+  type      String   @unique
+  subject   String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

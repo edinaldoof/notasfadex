@@ -121,14 +121,13 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
 
 /**
  * Fetches all notes for a specific user.
- * Only accessible by OWNER or MANAGER.
+ * Now accessible by any authenticated user.
  */
 export async function getNotesByUserId(userId: string) {
     const session = await auth();
-    const userRole = session?.user?.role;
 
-    if (userRole !== Role.OWNER && userRole !== Role.MANAGER) {
-        throw new Error('Acesso não autorizado para visualizar notas de outros usuários.');
+    if (!session?.user?.id) {
+        throw new Error('Acesso não autorizado. Você precisa estar logado.');
     }
     
     try {

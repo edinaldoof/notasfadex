@@ -23,6 +23,7 @@ import {
   Edit,
   AlertTriangle,
   XCircle,
+  Calculator,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -44,6 +45,7 @@ interface DashboardSummary {
   attestedNotes: number;
   pendingNotes: number;
   totalAmount: number;
+  resolutionRate: number;
 }
 
 // Tipagem para as atividades recentes
@@ -291,7 +293,8 @@ export default function DashboardPage() {
     totalNotes: 0, 
     attestedNotes: 0, 
     pendingNotes: 0, 
-    totalAmount: 0 
+    totalAmount: 0,
+    resolutionRate: 0,
   });
   const [activities, setActivities] = useState<RecentActivityEvent[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
@@ -572,10 +575,10 @@ export default function DashboardPage() {
             </div>
             
             <div className="p-4 bg-slate-800/50 rounded-xl backdrop-blur-sm">
-              <p className="text-sm text-slate-400 mb-1">Produtividade</p>
+              <p className="text-sm text-slate-400 mb-1">Taxa de Resolução (30d)</p>
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-green-400" />
-                <span className="text-xl font-bold text-white">+23%</span>
+                <span className="text-xl font-bold text-white">{summary.resolutionRate}%</span>
               </div>
             </div>
           </div>

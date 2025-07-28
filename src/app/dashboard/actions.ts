@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -8,7 +9,7 @@ import { auth } from '@/auth';
 import { InvoiceStatus, InvoiceType, Role } from '@prisma/client';
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
-import { addDays } from 'date-fns';
+import { addDays, subDays } from 'date-fns';
 import { sendAttestationRequestEmail } from '@/lib/email-actions';
 
 // Regex robusto para validação de e-mail (deve ser o mesmo do frontend)
@@ -19,6 +20,7 @@ const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *
 const addNoteSchema = z.object({
   invoiceType: z.nativeEnum(InvoiceType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
+  projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
   coordinatorName: z.string().min(1, 'O nome do coordenador é obrigatório.'),
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
@@ -69,6 +71,7 @@ export async function addNote(formData: FormData) {
       valorTotal, 
       invoiceType,
       hasWithholdingTax,
+      projectTitle,
       coordinatorEmail,
       coordinatorName,
       projectAccountNumber,
@@ -101,6 +104,7 @@ export async function addNote(formData: FormData) {
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
         userId: requesterId,
         invoiceType: invoiceType,
+        projectTitle: projectTitle,
         projectAccountNumber: projectAccountNumber,
         hasWithholdingTax: hasWithholdingTax,
         coordinatorEmail: coordinatorEmail,
@@ -131,6 +135,7 @@ export async function addNote(formData: FormData) {
       fileName: newNote.fileName,
       fileType: newNote.fileType,
       numeroNota: newNote.numeroNota,
+      projectTitle: newNote.projectTitle,
       projectAccountNumber: newNote.projectAccountNumber,
     });
 
@@ -322,6 +327,7 @@ export async function getDashboardSummary() {
         attestedNotes: 0,
         pendingNotes: 0,
         totalAmount: 0,
+        resolutionRate: 0,
       };
     }
 
@@ -340,12 +346,34 @@ export async function getDashboardSummary() {
     const attestedNotes = notes.filter((note) => note.status === 'ATESTADA').length;
     const pendingNotes = notes.filter((note) => note.status === 'PENDENTE').length;
     const totalAmount = notes.reduce((sum, note) => sum + (note.amount || 0), 0);
+
+    // ✅ CÁLCULO DA NOVA MÉTRICA
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const recentNotes = await prisma.fiscalNote.findMany({
+        where: {
+            ...whereClause,
+            createdAt: {
+                gte: thirtyDaysAgo,
+            },
+        },
+        select: {
+            status: true,
+        },
+    });
+
+    const totalRecent = recentNotes.length;
+    const resolvedRecent = recentNotes.filter(
+        note => note.status === 'ATESTADA' || note.status === 'REJEITADA'
+    ).length;
+
+    const resolutionRate = totalRecent > 0 ? Math.round((resolvedRecent / totalRecent) * 100) : 0;
     
     return {
       totalNotes,
       attestedNotes,
       pendingNotes,
       totalAmount,
+      resolutionRate, // ✅ RETORNA A NOVA MÉTRICA
     };
   } catch (error) {
     console.error('Failed to fetch dashboard summary:', error);
@@ -354,6 +382,7 @@ export async function getDashboardSummary() {
       attestedNotes: 0,
       pendingNotes: 0,
       totalAmount: 0,
+      resolutionRate: 0,
     };
   }
 }

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,7 +38,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy } from 'lucide-react';
+import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,7 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { extractNoteData } from '@/app/dashboard/notas/actions';
 import { addNote, checkExistingNote } from '@/app/dashboard/actions';
 import { getExistingAccountNumbers } from '@/app/dashboard/actions';
-import { cn, maskCnpj, maskProjectAccount } from '@/lib/utils'; 
+import { cn, maskCnpj } from '@/lib/utils'; 
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,6 +66,7 @@ const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *
 const addNoteFormSchema = z.object({
   invoiceType: z.enum(["PRODUTO", "SERVICO"], { required_error: 'O tipo de nota é obrigatório.' }),
   hasWithholdingTax: z.boolean().default(false),
+  projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
   coordinatorName: z.string().min(3, { message: 'O nome do coordenador é obrigatório.' }),
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
@@ -121,6 +123,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     defaultValues: {
       invoiceType: "SERVICO",
       hasWithholdingTax: false,
+      projectTitle: "",
       coordinatorName: "",
       coordinatorEmail: "",
       projectAccountNumber: "",
@@ -365,6 +368,19 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                    <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">3. Detalhes Financeiros do Projeto</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
+                          <FormField
+                            control={form.control}
+                            name="projectTitle"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><FileSignature className='w-4 h-4 text-slate-400' />Título do Projeto</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Ex: 1111-1 - INOVA UFPI - FADEX' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                            <FormField
                                 control={form.control}
                                 name="projectAccountNumber"
@@ -379,7 +395,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                                             role="combobox"
                                             className="w-full justify-between"
                                           >
-                                            {field.value ? maskProjectAccount(field.value) : "Selecione ou digite..."}
+                                            {field.value || "Selecione ou digite..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                           </Button>
                                         </FormControl>
@@ -641,5 +657,3 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     </>
   );
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -20,6 +21,7 @@ const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *
 const addNoteSchema = z.object({
   invoiceType: z.nativeEnum(InvoiceType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
+  projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
   coordinatorName: z.string().min(1, 'O nome do coordenador é obrigatório.'),
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
@@ -75,6 +77,7 @@ export async function addNote(formData: FormData) {
       valorTotal, 
       invoiceType,
       hasWithholdingTax,
+      projectTitle,
       coordinatorEmail,
       coordinatorName,
       projectAccountNumber,
@@ -125,6 +128,7 @@ export async function addNote(formData: FormData) {
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
         userId: userId,
         invoiceType: invoiceType,
+        projectTitle: projectTitle,
         projectAccountNumber: projectAccountNumber,
         hasWithholdingTax: hasWithholdingTax,
         coordinatorEmail: coordinatorEmail,
@@ -135,8 +139,9 @@ export async function addNote(formData: FormData) {
           create: {
             type: 'CREATED',
             details: `Nota fiscal criada por ${userName} e atribuída a ${coordinatorName} para atesto. Arquivo '${file.name}' salvo na pasta da conta ${projectAccountNumber} no Drive.`,
-            userId: userId,
-            userName: userName,
+            author: {
+              connect: { id: userId },
+            },
           }
         }
       }
@@ -154,6 +159,7 @@ export async function addNote(formData: FormData) {
       fileName: newNote.fileName,
       fileType: newNote.fileType,
       numeroNota: newNote.numeroNota,
+      projectTitle: newNote.projectTitle,
       projectAccountNumber: newNote.projectAccountNumber,
     });
 
@@ -247,8 +253,9 @@ export async function attestNote(formData: FormData) {
                 create: {
                     type: 'ATTESTED',
                     details: historyDetails,
-                    userId: userId,
-                    userName: userName,
+                    author: {
+                      connect: { id: userId }
+                    }
                 }
             }
         },
@@ -273,7 +280,7 @@ export async function revertAttestation(noteId: string) {
         return { success: false, message: 'Acesso negado.' };
     }
 
-    const { id: userId, name: userName } = session.user;
+    const { id: userId } = session.user;
     
     await prisma.fiscalNote.update({
         where: { id: noteId },
@@ -289,8 +296,9 @@ export async function revertAttestation(noteId: string) {
                 create: {
                     type: 'REVERTED',
                     details: 'O atesto da nota foi desfeito.',
-                    userId: userId,
-                    userName: userName,
+                    author: {
+                      connect: { id: userId }
+                    }
                 }
             }
         }
@@ -348,5 +356,3 @@ export async function extractNoteData(input: ExtractNoteDataInput): Promise<Extr
       throw error;
   }
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -98,13 +99,15 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
     ATTESTATION_REQUEST: [
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
         { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
         { placeholder: '[LinkAteste]', description: 'Link direto para a página de atesto da nota.' },
     ],
     ATTESTATION_REMINDER: [
-        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo atesto.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
         { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
@@ -113,6 +116,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
     ],
     ATTESTATION_CONFIRMATION: [
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
         { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
@@ -123,6 +127,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
     NOTE_EXPIRED: [
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que deveria ter atestado.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
         { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
@@ -130,6 +135,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
     ],
     ATTESTATION_CONFIRMATION_COORDINATOR: [
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que realizou o atesto.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[DataAtesto]', description: 'Data e hora em que a nota foi atestada.' },
         { placeholder: '[ObservacaoAtesto]', description: 'Observações deixadas no momento do atesto.' },
@@ -137,6 +143,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
     NOTE_REJECTED: [
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que solicitou a nota.' },
         { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que rejeitou a nota.' },
+        { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[DataRejeicao]', description: 'Data e hora da rejeição.' },
         { placeholder: '[MotivoRejeicao]', description: 'O motivo informado pelo coordenador para a rejeição.' },
@@ -717,5 +724,3 @@ function RoleSwitcher({
     </Select>
   );
 }
-
-    

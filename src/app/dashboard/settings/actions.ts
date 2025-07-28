@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import prisma from '@/lib/prisma';
@@ -153,6 +154,7 @@ export async function sendTestEmail(recipientEmail: string, subject: string, bod
             'DataRejeicao': new Date().toLocaleString('pt-BR'),
             'MotivoRejeicao': 'O valor da nota não corresponde ao serviço prestado.',
             'NumeroNota': 'NF-12345',
+            'TituloProjeto': 'Desenvolvimento do Novo Portal (Exemplo)',
             'ContaProjeto': 'CP-98765'
         };
 

@@ -77,9 +77,9 @@ export default async function LoginPage(): Promise<JSX.Element> {
       
       <div className="relative z-10">
       <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent mb-4"></div>
-      <p className="text-xs text-slate-500 leading-relaxed">
-        🔒 Acesso restrito a funcionários autorizados<br/>
-        <span className="text-slate-600">Seus dados estão protegidos</span>
+      <p className="text-xs text-slate-400 leading-relaxed">
+        🔒 Acesso restrito a funcionários autorizados @fadex.org.br<br/>
+        <span className="text-slate-500">Vamos bater as metas!</span>
       </p>
       </div>
       </div>

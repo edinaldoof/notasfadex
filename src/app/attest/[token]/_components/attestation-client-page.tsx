@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { 
@@ -14,6 +15,7 @@ import {
   Hash,
   XCircle,
   CheckCircle,
+  FileSignature,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -203,6 +205,11 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                 </h2>
                 
                 <div className="space-y-4 text-slate-300 mb-8">
+                   <InfoItem 
+                    icon={FileSignature}
+                    label="Título do Projeto" 
+                    value={note.projectTitle} 
+                  />
                   <InfoItem 
                     icon={UserIcon}
                     label="Solicitante" 

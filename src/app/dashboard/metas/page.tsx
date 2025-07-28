@@ -156,7 +156,7 @@ export default function MetasPage() {
         fetchData();
     }, []);
 
-    const monthlySpendingGoal = 50000;
+    const monthlySpendingGoal = 1000000;
     const attestationTimeGoal = 10; // dias
     const notesProcessedGoal = 100;
 

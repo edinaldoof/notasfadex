@@ -21,7 +21,6 @@ export { HistoryType, InvoiceType, Role };
 // ALTERADO: Adicionado 'author' opcional (a relação) e userName (string)
 export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {
   author?: Partial<PrismaUser> | null;
-  userName?: string | null;
 }
 
 export interface FiscalNote extends Omit<PrismaFiscalNote, 'status'> {
@@ -31,6 +30,7 @@ export interface FiscalNote extends Omit<PrismaFiscalNote, 'status'> {
   attestedAt?: Date | null;
   observation?: string | null;
   user?: Partial<PrismaUser>; // Include user for accessing email
+  projectTitle?: string | null;
 }
 
 export interface SendEmailOptions {
@@ -57,6 +57,7 @@ export interface AttestationEmailPayload {
     fileName: string;
     fileType: string;
     numeroNota: string | null;
+    projectTitle: string | null;
     projectAccountNumber: string;
     secureLink?: string; // Optional because it's generated within the action
 }
@@ -72,6 +73,7 @@ export interface CoordinatorConfirmationEmailPayload {
     attestationDate: Date;
     attestationObservation?: string | null;
     numeroNota: string | null;
+    projectTitle: string | null;
     projectAccountNumber: string;
 }
 
@@ -84,6 +86,7 @@ export interface RejectionEmailPayload {
     rejectionReason: string;
     rejectionDate: Date;
     numeroNota: string | null;
+    projectTitle: string | null;
     projectAccountNumber: string;
 }
 

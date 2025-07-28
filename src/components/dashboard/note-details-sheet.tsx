@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -9,7 +10,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { FiscalNote, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare } from 'lucide-react';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import { Button } from '../ui/button';
 
@@ -73,7 +74,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
              Detalhes da Nota Fiscal
           </SheetTitle>
           <SheetDescription className="text-slate-400">
-            {note.description}
+            {note.projectTitle}
           </SheetDescription>
         </SheetHeader>
         
@@ -117,11 +118,12 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
             <div>
                 <h3 className='text-lg font-semibold mb-4 text-slate-300'>Responsáveis e Projeto</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
-                    <DetailItem icon={User} label="Solicitante" value={note.requester} />
+                    <DetailItem icon={User} label="Analista" value={note.requester} />
                     <DetailItem icon={Calendar} label="Data de Envio" value={new Date(note.issueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} />
-                    <DetailItem icon={User} label="Coordenador (Ateste)" value={note.coordinatorName} />
-                    <DetailItem icon={Mail} label="E-mail do Coordenador" value={note.coordinatorEmail} />
-                    <DetailItem icon={Banknote} label="Conta do Projeto" value={note.projectAccountNumber} fullWidth />
+                    <DetailItem icon={FileSignature} label="Título do Projeto" value={note.projectTitle} />
+                    <DetailItem icon={Banknote} label="Conta do Projeto" value={note.projectAccountNumber} />
+                    <DetailItem icon={User} label="Coordenador (Ateste)" value={note.coordinatorName} fullWidth />
+                    <DetailItem icon={Mail} label="E-mail do Coordenador" value={note.coordinatorEmail} fullWidth />
                 </div>
             </div>
 
@@ -171,7 +173,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                                         </p>
                                         <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
                                             <User className="w-3 h-3"/>
-                                            <span>{event.userName}</span>
+                                            <span>{event.author?.name || "Sistema"}</span>
                                         </div>
                                     </div>
                                 </div>

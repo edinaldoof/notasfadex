@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -31,6 +32,7 @@ export async function getNoteFromToken(token: string): Promise<{
       select: {
         id: true,
         requester: true,
+        projectTitle: true,
         projectAccountNumber: true,
         numeroNota: true,
         amount: true,
@@ -160,14 +162,16 @@ export async function attestNotePublic(formData: FormData) {
                     create: {
                         type: 'ATTESTED',
                         details: historyDetails,
-                        userId: note.user.id,
+                        author: {
+                          connect: { id: note.user.id }
+                        }
                     }
                 }
             },
         });
         
         revalidatePath('/dashboard/notas');
-        revalidatePath('/dashboard/colaboradores');
+        revalidatePath('/dashboard/analistas');
         revalidatePath('/dashboard/timeline');
 
         await sendAttestationConfirmationToCoordinator({
@@ -181,6 +185,7 @@ export async function attestNotePublic(formData: FormData) {
             attestationDate: attestationDate,
             attestationObservation: observation,
             numeroNota: note.numeroNota,
+            projectTitle: note.projectTitle,
             projectAccountNumber: note.projectAccountNumber
         });
 
@@ -248,14 +253,16 @@ export async function rejectNotePublic(formData: FormData) {
                     create: {
                         type: 'REJECTED',
                         details: historyDetails,
-                        userId: note.userId,
+                        author: {
+                          connect: { id: note.userId }
+                        }
                     }
                 }
             }
         });
 
         revalidatePath('/dashboard/notas');
-        revalidatePath('/dashboard/colaboradores');
+        revalidatePath('/dashboard/analistas');
         revalidatePath('/dashboard/timeline');
         
         await sendRejectionNotificationEmail({
@@ -267,6 +274,7 @@ export async function rejectNotePublic(formData: FormData) {
             rejectionDate: rejectionDate,
             requesterName: note.user.name,
             numeroNota: note.numeroNota,
+            projectTitle: note.projectTitle,
             projectAccountNumber: note.projectAccountNumber
         });
 

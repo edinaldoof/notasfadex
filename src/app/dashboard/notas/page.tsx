@@ -122,7 +122,7 @@ function TableSkeleton() {
           <thead className="bg-secondary/50">
             <tr className="whitespace-nowrap">
               <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
-              <th className="text-left p-4 font-semibold text-slate-300">Solicitante / Coordenador</th>
+              <th className="text-left p-4 font-semibold text-slate-300">Analista / Coordenador</th>
               <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
               <th className="text-left p-4 font-semibold text-slate-300">Status</th>
               <th className="text-left p-4 font-semibold text-slate-300">Valor</th>
@@ -322,7 +322,7 @@ function NotasClient() {
             <thead className="bg-secondary/50">
               <tr className="whitespace-nowrap">
                 <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
-                <th className="text-left p-4 font-semibold text-slate-300">Solicitante / Coordenador</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Analista / Coordenador</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Status</th>
                 <th className="text-left p-4 font-semibold text-slate-300">Valor</th>

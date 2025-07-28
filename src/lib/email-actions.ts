@@ -1,3 +1,5 @@
+
+
 'use server';
 
 import { getDriveService } from './google-drive';
@@ -16,7 +18,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'ATTESTATION_REQUEST':
             return {
                 type: 'ATTESTATION_REQUEST',
-                subject: '🔔 Atesto Requerido | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                subject: '🔔 Atesto Requerido | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">📋 Solicitação de Atesto</h1>
@@ -31,12 +33,16 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
             <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 18px;">📄 Detalhes da Nota Fiscal</h3>
             <table style="width: 100%; border-collapse: collapse;">
+                 <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Título do Projeto:</td>
+                    <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[TituloProjeto]</td>
+                </tr>
                 <tr>
                     <td style="padding: 8px 0; color: #666; font-weight: 500;">Solicitante:</td>
                     <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[NomeSolicitante]</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Projeto:</td>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Conta do Projeto:</td>
                     <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[ContaProjeto]</td>
                 </tr>
                 <tr>
@@ -70,7 +76,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'ATTESTATION_REMINDER':
             return {
                 type: 'ATTESTATION_REMINDER',
-                subject: '⏰ Lembrete Urgente | Atesto Pendente | NF: [NumeroNota]',
+                subject: '⏰ Lembrete Urgente | Atesto Pendente | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #ff9500 0%, #ff5722 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">⏰ Lembrete de Pendência</h1>
@@ -87,7 +93,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
                 ⚠️ Nota Fiscal Pendente de Atesto
             </h3>
             <p style="color: #bf360c; font-size: 15px; margin: 0; line-height: 1.5;">
-                A nota fiscal "<strong>[DescricaoNota]</strong>" ainda aguarda seu Atesto.
+                A nota fiscal "<strong>[DescricaoNota]</strong>" para o projeto "<strong>[TituloProjeto]</strong>" ainda aguarda seu Atesto.
             </p>
         </div>
         
@@ -117,7 +123,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'ATTESTATION_CONFIRMATION':
             return {
                 type: 'ATTESTATION_CONFIRMATION',
-                subject: '✅ Nota Fiscal Aprovada | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                subject: '✅ Nota Fiscal Aprovada | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">✅ Atesto Confirmado</h1>
@@ -132,7 +138,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; border-left: 4px solid #4caf50; margin: 20px 0;">
             <h3 style="color: #2e7d32; margin: 0 0 15px 0; font-size: 18px;">🎉 Aprovação Concluída</h3>
             <p style="color: #388e3c; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
-                A nota fiscal "<strong>[DescricaoNota]</strong>" foi atestada com sucesso!
+                A nota fiscal "<strong>[DescricaoNota]</strong>" para o projeto "<strong>[TituloProjeto]</strong>" foi atestada com sucesso!
             </p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -167,7 +173,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'NOTE_EXPIRED':
             return {
                 type: 'NOTE_EXPIRED',
-                subject: '🚨 URGENTE | Prazo de Atesto Expirado | NF: [NumeroNota]',
+                subject: '🚨 URGENTE | Prazo de Atesto Expirado | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">🚨 Prazo Expirado</h1>
@@ -178,7 +184,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #d32f2f; margin: 20px 0;">
             <h3 style="color: #c62828; margin: 0 0 15px 0; font-size: 18px;">⚠️ Atesto Não Realizado</h3>
             <p style="color: #d32f2f; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
-                A nota fiscal "<strong>[DescricaoNota]</strong>" expirou sem Atesto.
+                 A nota fiscal "<strong>[DescricaoNota]</strong>" para o projeto "<strong>[TituloProjeto]</strong>" expirou sem Atesto.
             </p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -213,7 +219,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'ATTESTATION_CONFIRMATION_COORDINATOR':
             return {
                 type: 'ATTESTATION_CONFIRMATION_COORDINATOR',
-                subject: '📋 Confirmação de Atesto Realizado | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                subject: '📋 Confirmação de Atesto Realizado | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">📋 Atesto Confirmado</h1>
@@ -232,12 +238,16 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
             </p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                 <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Título do Projeto:</td>
+                    <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[TituloProjeto]</td>
+                </tr>
                 <tr>
                     <td style="padding: 8px 0; color: #666; font-weight: 500;">Data do Atesto:</td>
                     <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[DataAtesto]</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Projeto:</td>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Conta do Projeto:</td>
                     <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[ContaProjeto]</td>
                 </tr>
                 <tr>
@@ -253,7 +263,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         
         <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="color: #7b1fa2; font-size: 14px; margin: 0; text-align: center;">
-                📎 Uma cópia do documento de atest está anexa para seus registros.
+                📎 Uma cópia do documento de ateste está anexa para seus registros.
             </p>
         </div>
         
@@ -271,7 +281,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'NOTE_REJECTED':
             return {
                 type: 'NOTE_REJECTED',
-                subject: '❌ Nota Fiscal Rejeitada | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                subject: '❌ Nota Fiscal Rejeitada | Projeto: [TituloProjeto] | NF: [NumeroNota]',
                 body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
     <div style="background: linear-gradient(135deg, #e53935 0%, #c62828 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">❌ Nota Fiscal Rejeitada</h1>
@@ -286,7 +296,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #e53935; margin: 20px 0;">
             <h3 style="color: #c62828; margin: 0 0 15px 0; font-size: 18px;">🚫 Nota Fiscal Não Aprovada</h3>
             <p style="color: #d32f2f; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
-                Infelizmente, a nota fiscal referente a "<strong>[DescricaoNota]</strong>" foi rejeitada.
+                 Infelizmente, a nota fiscal referente a "<strong>[DescricaoNota]</strong>" para o projeto "<strong>[TituloProjeto]</strong>" foi rejeitada.
             </p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -397,6 +407,7 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             'LinkAteste': publicAttestationLink,
             'DescricaoNota': payload.noteDescription,
             'NumeroNota': payload.numeroNota,
+            'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };
 
@@ -458,6 +469,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
             'DataAtesto': payload.attestationDate.toLocaleString('pt-BR'),
             'ObservacaoAtesto': payload.attestationObservation || 'Nenhuma',
             'NumeroNota': payload.numeroNota,
+            'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };
 
@@ -494,6 +506,7 @@ export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayl
             'MotivoRejeicao': payload.rejectionReason,
             'DataRejeicao': payload.rejectionDate.toLocaleString('pt-BR'),
             'NumeroNota': payload.numeroNota,
+            'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };
         

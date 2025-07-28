@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { FiscalNote, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, Filter, AlertTriangle, XCircle, FileSpreadsheet } from 'lucide-react';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, Filter, AlertTriangle, XCircle, FileSpreadsheet, FileSignature } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -150,6 +151,7 @@ export default function TimelinePage() {
   useEffect(() => {
     const filtered = notes.filter(note => 
         note.numeroNota?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.projectTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.requester?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.projectAccountNumber?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -207,7 +209,7 @@ export default function TimelinePage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
         <Input
-          placeholder="Buscar por número, descrição ou solicitante..."
+          placeholder="Buscar por nº, título, descrição ou solicitante..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 bg-secondary/80 border-border"
@@ -242,7 +244,7 @@ export default function TimelinePage() {
                             <div className='flex flex-col items-start flex-1'>
                                 <div className="flex items-center gap-3 mb-2">
                                   <h2 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
-                                      {note.numeroNota ? `Nota ${note.numeroNota}` : note.description}
+                                      {note.projectTitle || `Nota ${note.numeroNota || 'S/N'}`}
                                   </h2>
                                   {getStatusBadge(note)}
                                 </div>
@@ -251,7 +253,7 @@ export default function TimelinePage() {
                                   {note.projectAccountNumber && (
                                     <div className="flex items-center gap-2 text-slate-400">
                                       <Calendar className="w-4 h-4" />
-                                      <span>Projeto: {note.projectAccountNumber}</span>
+                                      <span>Conta: {note.projectAccountNumber}</span>
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2 text-slate-400">
@@ -281,7 +283,7 @@ export default function TimelinePage() {
                                           const isFirst = index === 0;
                                           
                                           // Lógica para obter nome e imagem, agora segura
-                                          const eventUserName = event.author?.name || event.userName || event.user || "Sistema";
+                                          const eventUserName = event.author?.name || "Sistema";
                                           const eventUserImage = event.author?.image;
 
                                           return (
@@ -379,4 +381,3 @@ export default function TimelinePage() {
     </div>
   );
 }
-
