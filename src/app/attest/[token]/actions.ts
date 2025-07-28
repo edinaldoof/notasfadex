@@ -49,7 +49,7 @@ export async function getNoteFromToken(token: string): Promise<{
     }
 
     if (note.status !== 'PENDENTE') {
-      return { error: 'Esta nota fiscal não está mais pendente de ateste.' };
+      return { error: 'Esta nota fiscal não está mais pendente para atesto.' };
     }
 
     return { note: note as FiscalNote };
@@ -58,10 +58,10 @@ export async function getNoteFromToken(token: string): Promise<{
     
     if (err instanceof Error) {
       if (err.name === 'TokenExpiredError') {
-        return { error: 'Este link de ateste expirou.' };
+        return { error: 'Este link de atesto expirou.' };
       }
       if (err.name === 'JsonWebTokenError') {
-        return { error: 'Este link de ateste é inválido.' };
+        return { error: 'Este link de atesto é inválido.' };
       }
     }
     
@@ -116,7 +116,7 @@ export async function attestNotePublic(formData: FormData) {
             return { success: false, message: 'Nota fiscal não encontrada.' };
         }
         if (note.status !== 'PENDENTE') {
-            return { success: false, message: 'Esta nota não está mais pendente de ateste.' };
+            return { success: false, message: 'Esta nota não está mais pendente de atesto.' };
         }
          if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
@@ -161,7 +161,6 @@ export async function attestNotePublic(formData: FormData) {
                         type: 'ATTESTED',
                         details: historyDetails,
                         userId: note.user.id,
-                        userName: coordinatorName,
                     }
                 }
             },
@@ -191,7 +190,7 @@ export async function attestNotePublic(formData: FormData) {
         console.error("Erro ao atestar nota publicamente:", error);
         const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
         if (error instanceof Error && (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError')) {
-            return { success: false, message: 'Seu link de ateste é inválido ou expirou. Por favor, solicite um novo.' };
+            return { success: false, message: 'Seu link de atesto é inválido ou expirou. Por favor, solicite um novo.' };
         }
         return { success: false, message };
     }
@@ -250,7 +249,6 @@ export async function rejectNotePublic(formData: FormData) {
                         type: 'REJECTED',
                         details: historyDetails,
                         userId: note.userId,
-                        userName: coordinatorName,
                     }
                 }
             }
@@ -283,5 +281,3 @@ export async function rejectNotePublic(formData: FormData) {
         return { success: false, message };
     }
 }
-
-    

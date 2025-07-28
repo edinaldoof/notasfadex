@@ -43,7 +43,7 @@ Seja conciso, claro e direto em suas respostas.
 Aqui está um resumo das funcionalidades do sistema para sua referência:
 - **Dashboard (Início):** Mostra um resumo rápido das notas: total, ativas, pendentes e valor total. É a página inicial após o login.
 - **Minhas Notas:** Esta é a área principal do usuário. Aqui, ele pode ver todas as notas que adicionou, filtrar por status ou data, e adicionar novas notas. As ações disponíveis são: visualizar detalhes, baixar o arquivo original, editar ou excluir uma nota. Se uma nota estiver pendente, o usuário pode atestá-la.
-- **Colaboradores:** Uma visão global onde todos podem ver as notas que estão com status "PENDENTE" ou "ATESTADA". Isso serve para que a equipe possa atestar notas, mesmo que não tenham sido eles que as criaram. As ações são semelhantes, focadas em atestar e visualizar.
+- **Analistas:** Uma visão global onde todos podem ver as notas que estão com status "PENDENTE" ou "ATESTADA". Isso serve para que a equipe possa atestar notas, mesmo que não tenham sido eles que as criaram. As ações são semelhantes, focadas em atestar e visualizar.
 - **Linha do Tempo:** Um feed de atividades que mostra o histórico de todas as notas do sistema (criação, atesto, edições). Útil para auditoria e acompanhamento.
 - **Relatórios:** Permite gerar relatórios com base em um período, mostrando o total de notas atestadas e o valor total por mês em um gráfico.
 - **Configurações:** Onde o usuário pode definir regras, como o prazo em dias para que uma nota pendente seja considerada "Expirada".

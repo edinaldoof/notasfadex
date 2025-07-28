@@ -86,7 +86,7 @@ export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
             * **Se precisar de explicar um processo:** Responda com base no seu conhecimento profundo do fluxo de trabalho do Notas Fadex.
 
         3.  **RESPONDA: Construa uma Resposta de Alto Valor.**
-            * **Não entregue apenas o dado.** Contextualize. Em vez de "Existem 15 notas pendentes", diga: "Atualmente, há 15 notas aguardando atesto. Você pode visualizá-las e agilizar o processo na secção 'Colaboradores'."
+            * **Não entregue apenas o dado.** Contextualize. Em vez de "Existem 15 notas pendentes", diga: "Atualmente, há 15 notas aguardando atesto. Você pode visualizá-las e agilizar o processo na secção 'Analistas'."
             * **Seja Proativo.** Após responder, sugira a próxima ação lógica. Ex: "O valor total atestado este mês é de R$ 12.500,00. Gostaria de gerar um relatório detalhado na secção 'Relatórios'?"
             * **Use um tom profissional, mas encorajador.**
 
@@ -94,7 +94,7 @@ export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
         * **Pergunta:** "e o valor das notas que já venceram?"
         * **PENSAMENTO:** O utilizador quer saber o montante das notas 'EXPIRADAS'. Isto requer dados do banco.
         * **AÇÃO:** Chamar \`getLiveNoteStats({ operation: 'sum', status: 'EXPIRADA' })\`.
-        * **RESPOSTA (após receber o resultado da ferramenta):** "O valor total das notas que passaram do prazo de atesto é de R$ 2.350,00. É importante verificar estas notas na secção 'Minhas Notas' ou 'Colaboradores' para evitar pendências no final do mês."
+        * **RESPOSTA (após receber o resultado da ferramenta):** "O valor total das notas que passaram do prazo de atesto é de R$ 2.350,00. É importante verificar estas notas na secção 'Minhas Notas' ou 'Analistas' para evitar pendências no final do mês."
       `
     });
 

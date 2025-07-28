@@ -24,7 +24,7 @@ import { InvoiceStatus, InvoiceType } from '@/lib/types';
 
 const reportTypes: { value: ReportType; label: string; description: string; disabled?: boolean }[] = [
     { value: 'totals_by_period', label: 'Totais por Período', description: 'Visão geral de valores e quantidade de notas atestadas.' },
-    { value: 'performance_by_collaborator', label: 'Desempenho por Colaborador', description: 'Análise de submissões por usuário.' },
+    { value: 'performance_by_collaborator', label: 'Desempenho por Analista', description: 'Análise de submissões por usuário.' },
     { value: 'status_distribution', label: 'Distribuição por Status', description: 'Proporção de notas em cada status.' },
     { value: 'spending_by_project', label: 'Gastos por Conta de Projeto', description: 'Visualize os gastos totais por conta.' },
     { value: 'type_analysis', label: 'Análise por Tipo de Nota', description: 'Compare gastos entre produtos e serviços.' },
@@ -171,7 +171,7 @@ export default function ReportsPage() {
         case 'performance_by_collaborator':
             return (
                  <div className="space-y-8 mt-8 animate-in fade-in-50 duration-500">
-                    <h2 className="text-2xl font-bold">Resultados: Desempenho por Colaborador</h2>
+                    <h2 className="text-2xl font-bold">Resultados: Desempenho por Analista</h2>
                     <Card>
                         <CardHeader>
                             <CardTitle className='flex items-center gap-2'><Users className='w-5 h-5'/> Ranking de Submissões</CardTitle>
@@ -180,7 +180,7 @@ export default function ReportsPage() {
                            <Table>
                                <TableHeader>
                                    <TableRow>
-                                       <TableHead>Colaborador</TableHead>
+                                       <TableHead>Analista</TableHead>
                                        <TableHead className="text-right">Qtd. Notas</TableHead>
                                        <TableHead className="text-right">Valor Total</TableHead>
                                    </TableRow>
@@ -244,11 +244,11 @@ export default function ReportsPage() {
                             </CardHeader>
                              <CardContent className='space-y-4'>
                                 <div className='p-4 bg-slate-800/50 rounded-lg'>
-                                    <p className="text-sm text-muted-foreground">Tempo Médio de Ateste</p>
+                                    <p className="text-sm text-muted-foreground">Tempo Médio de Atesto</p>
                                     <div className="text-3xl font-bold">
                                         {attestationTimeDays ? `${attestationTimeDays} dias` : 'N/A'}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Desde a criação até o ateste.</p>
+                                    <p className="text-xs text-muted-foreground">Desde a criação até o atesto.</p>
                                 </div>
                                 <div className='p-4 bg-slate-800/50 rounded-lg'>
                                     <p className="text-sm text-muted-foreground">Total de Notas no Período</p>
@@ -349,11 +349,21 @@ export default function ReportsPage() {
 
   return (
     <div className='space-y-8'>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-primary" />
-            Relatórios
-          </h1>
+      <div className="flex items-center gap-4">
+          <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl blur opacity-20"></div>
+              <div className="relative bg-gradient-to-r from-cyan-500 to-blue-600 p-3 rounded-2xl">
+                  <BarChart3 className="w-8 h-8 text-white" />
+              </div>
+          </div>
+          <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                  Relatórios
+              </h1>
+              <p className="text-slate-400 mt-1">
+                  Extraia insights e analise os dados das notas fiscais.
+              </p>
+          </div>
       </div>
 
       <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 border border-border space-y-6">
@@ -435,3 +445,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

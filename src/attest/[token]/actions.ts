@@ -167,7 +167,7 @@ export async function attestNotePublic(formData: FormData) {
         });
         
         revalidatePath('/dashboard/notas');
-        revalidatePath('/dashboard/colaboradores');
+        revalidatePath('/dashboard/analistas');
         revalidatePath('/dashboard/timeline');
 
         await sendAttestationConfirmationToCoordinator({
@@ -255,7 +255,7 @@ export async function rejectNotePublic(formData: FormData) {
         });
 
         revalidatePath('/dashboard/notas');
-        revalidatePath('/dashboard/colaboradores');
+        revalidatePath('/dashboard/analistas');
         revalidatePath('/dashboard/timeline');
         
         await sendRejectionNotificationEmail({

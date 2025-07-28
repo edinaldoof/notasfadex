@@ -1,3 +1,4 @@
+
 'use server';
 
 import prisma from '@/lib/prisma';
@@ -62,7 +63,6 @@ export async function getGoalsData(): Promise<GoalsData> {
                 gte: startOfCurrentMonth,
                 lte: endOfCurrentMonth,
             },
-            createdAt: { not: null }, // ✅ Correção aplicada aqui
         },
         select: { createdAt: true, attestedAt: true },
     });
@@ -70,7 +70,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     let totalDays = 0;
     if (attestedNotesForTiming.length > 0) {
         totalDays = attestedNotesForTiming.reduce((sum, note) => {
-            // ✅ Dupla garantia para evitar erro em 'differenceInDays'
+            // ✅ Garantia para evitar erro em 'differenceInDays' se alguma data for nula
             if (note.attestedAt && note.createdAt) {
                 return sum + differenceInDays(note.attestedAt, note.createdAt);
             }

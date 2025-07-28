@@ -174,7 +174,7 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
           <header className="flex justify-center mb-8 sm:mb-12">
             <div className="flex items-center space-x-4">
               <div className="bg-white w-14 h-14 rounded-2xl flex items-center justify-center border border-slate-200 shadow-lg">
-                <Layers className="w-8 h-8 text-slate-800" aria-hidden="true" />
+                 <img src="/favicon.ico" alt="Fadex Logo" className="w-8 h-8" />
               </div>
               <div className="text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">

@@ -255,7 +255,7 @@ export async function attestNote(formData: FormData) {
     });
     
     revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/colaboradores');
+    revalidatePath('/dashboard/analistas');
     revalidatePath('/dashboard/timeline');
 
     return { success: true, message: 'Nota atestada com sucesso!' };
@@ -297,7 +297,7 @@ export async function revertAttestation(noteId: string) {
     });
     
     revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/colaboradores');
+    revalidatePath('/dashboard/analistas');
     revalidatePath('/dashboard/timeline');
 
     return { success: true, message: 'Atesto desfeito com sucesso.' };

@@ -99,7 +99,7 @@ export async function addNote(formData: FormData) {
         originalFileUrl: `/api/download/${driveFile.id}`,
         driveFileId: driveFile.id,
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
-        userId: session.user.id,
+        userId: requesterId,
         invoiceType: invoiceType,
         projectAccountNumber: projectAccountNumber,
         hasWithholdingTax: hasWithholdingTax,
@@ -111,8 +111,9 @@ export async function addNote(formData: FormData) {
           create: {
             type: 'CREATED',
             details: `Nota fiscal criada e atribuída a ${coordinatorName} para atesto.`,
-            userId: requesterId,
-            userName: requesterName,
+            author: {
+              connect: { id: requesterId },
+            },
           }
         }
       }
@@ -130,7 +131,7 @@ export async function addNote(formData: FormData) {
       fileName: newNote.fileName,
       fileType: newNote.fileType,
       numeroNota: newNote.numeroNota,
-      projectAccountNumber: newNote.projectAccountNumber
+      projectAccountNumber: newNote.projectAccountNumber,
     });
 
     revalidatePath('/dashboard/notas');
@@ -183,7 +184,7 @@ export async function attestNote(formData: FormData) {
     
     let attestedDriveFileId: string | null = null;
     let attestedFileUrl: string | null = null;
-    let historyDetails = `Nota atestada.`;
+    let historyDetails = `Nota atestada por ${userName}.`;
 
     if (attestedFile && attestedFile.size > 0) {
         const fileBuffer = Buffer.from(await attestedFile.arrayBuffer());
@@ -223,15 +224,16 @@ export async function attestNote(formData: FormData) {
                 create: {
                     type: 'ATTESTED',
                     details: historyDetails,
-                    userId: userId,
-                    userName: userName,
+                    author: {
+                        connect: { id: userId },
+                    },
                 }
             }
         },
     });
     
     revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/colaboradores');
+    revalidatePath('/dashboard/analistas');
     revalidatePath('/dashboard/timeline');
     revalidatePath('/dashboard');
 
@@ -250,7 +252,7 @@ export async function revertAttestation(noteId: string) {
     if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
-     const { id: userId, name: userName } = session.user;
+     const { id: userId } = session.user;
     
      await prisma.fiscalNote.update({
         where: { id: noteId },
@@ -266,15 +268,16 @@ export async function revertAttestation(noteId: string) {
                 create: {
                     type: 'REVERTED',
                     details: 'O atesto da nota foi desfeito.',
-                    userId: userId,
-                    userName: userName,
+                    author: {
+                        connect: { id: userId },
+                    },
                 }
             }
         }
     });
     
     revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/colaboradores');
+    revalidatePath('/dashboard/analistas');
     revalidatePath('/dashboard/timeline');
     revalidatePath('/dashboard');
 
@@ -425,5 +428,3 @@ export async function checkExistingNote(input: { numeroNota: string; projectAcco
     return false;
   }
 }
-
-    

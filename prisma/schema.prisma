@@ -148,7 +148,7 @@ model NoteHistoryEvent {
   date         DateTime    @default(now())
   type         HistoryType
   details      String
-  // userName     String?   <-- ❌ CAMPO REMOVIDO PARA CORRIGIR O ERRO
+  // userName     String? 
   userId       String?
 
   author User?       @relation(fields: [userId], references: [id], onDelete: SetNull)

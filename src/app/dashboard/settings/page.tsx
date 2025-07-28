@@ -104,7 +104,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[LinkAteste]', description: 'Link direto para a página de atesto da nota.' },
     ],
     ATTESTATION_REMINDER: [
-        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo atesto.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
         { placeholder: '[ContaProjeto]', description: 'O número da conta do projeto.' },
@@ -129,10 +129,10 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[DataExpiracao]', description: 'Data em que o prazo para atesto expirou.' },
     ],
     ATTESTATION_CONFIRMATION_COORDINATOR: [
-        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que realizou o ateste.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador que realizou o atesto.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[DataAtesto]', description: 'Data e hora em que a nota foi atestada.' },
-        { placeholder: '[ObservacaoAtesto]', description: 'Observações deixadas no momento do ateste.' },
+        { placeholder: '[ObservacaoAtesto]', description: 'Observações deixadas no momento do atesto.' },
     ],
     NOTE_REJECTED: [
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que solicitou a nota.' },
@@ -248,7 +248,7 @@ export default function SettingsPage() {
               window.open(result.link, '_blank');
               toast({
                   title: 'Link de Visualização Gerado',
-                  description: 'A página de ateste foi aberta em uma nova aba.',
+                  description: 'A página de atesto foi aberta em uma nova aba.',
               })
           } else {
               toast({
@@ -263,10 +263,22 @@ export default function SettingsPage() {
   if (loading || status === 'loading') {
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-                <SettingsIcon className="w-8 h-8" />
-                Configurações
-            </h1>
+            <div className="flex items-center gap-4 mb-8">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-500 to-slate-600 rounded-2xl blur opacity-20"></div>
+                    <div className="relative bg-gradient-to-r from-slate-500 to-slate-600 p-3 rounded-2xl">
+                        <SettingsIcon className="w-8 h-8 text-white" />
+                    </div>
+                </div>
+                <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                        Configurações
+                    </h1>
+                    <p className="text-slate-400 mt-1">
+                        Ajuste as regras, automações e templates do sistema.
+                    </p>
+                </div>
+            </div>
             <SettingsSkeleton />
         </div>
     );
@@ -275,10 +287,22 @@ export default function SettingsPage() {
   if (!hasPermission) {
     return (
          <div>
-            <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-                <SettingsIcon className="w-8 h-8" />
-                Configurações
-            </h1>
+            <div className="flex items-center gap-4 mb-8">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-500 to-slate-600 rounded-2xl blur opacity-20"></div>
+                    <div className="relative bg-gradient-to-r from-slate-500 to-slate-600 p-3 rounded-2xl">
+                        <SettingsIcon className="w-8 h-8 text-white" />
+                    </div>
+                </div>
+                <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                        Configurações
+                    </h1>
+                    <p className="text-slate-400 mt-1">
+                        Ajuste as regras, automações e templates do sistema.
+                    </p>
+                </div>
+            </div>
             <AccessDenied />
         </div>
     )
@@ -286,16 +310,28 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8" />
-          Configurações
-        </h1>
-         <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {isSaving ? 'Salvando...' : 'Salvar Todas as Configurações'}
-        </Button>
-      </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-500 to-slate-600 rounded-2xl blur opacity-20"></div>
+                    <div className="relative bg-gradient-to-r from-slate-500 to-slate-600 p-3 rounded-2xl">
+                        <SettingsIcon className="w-8 h-8 text-white" />
+                    </div>
+                </div>
+                <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                        Configurações
+                    </h1>
+                    <p className="text-slate-400 mt-1">
+                        Ajuste as regras, automações e templates do sistema.
+                    </p>
+                </div>
+            </div>
+             <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                {isSaving ? 'Salvando...' : 'Salvar Todas as Configurações'}
+            </Button>
+        </div>
       
       <div className="grid gap-8">
         {/* Card de Automação */}
@@ -354,11 +390,11 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
                  <Button onClick={handleGetPreviewLink} disabled={isGettingPreview}>
                     {isGettingPreview ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                    {isGettingPreview ? 'Gerando...' : 'Visualizar Página de Ateste'}
+                    {isGettingPreview ? 'Gerando...' : 'Visualizar Página de Atesto'}
                 </Button>
             </div>
              <p className="text-xs text-slate-500 mt-2">
-                A visualização da página de ateste usará a nota pendente mais recente como exemplo.
+                A visualização da página de atesto usará a nota pendente mais recente como exemplo.
             </p>
         </div>
 
@@ -571,7 +607,7 @@ function UserManagement({ currentUserId, currentUserRole }: { currentUserId: str
             Gerenciamento de Cargos
         </h2>
         <p className="text-slate-400">
-          Atribua cargos de "Gerente" para permitir que usuários atestem notas de outros colaboradores.
+          Atribua cargos de "Gerente" para permitir que usuários atestem notas de outros Analistas.
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -681,3 +717,5 @@ function RoleSwitcher({
     </Select>
   );
 }
+
+    

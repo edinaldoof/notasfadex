@@ -73,7 +73,7 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
             };
         });
     } catch (error) {
-        console.error('Falha ao buscar colaboradores:', error);
+        console.error('Falha ao buscar Analistas:', error);
         return [];
     }
 }
@@ -115,7 +115,7 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
         };
     } catch (error) {
         console.error('Falha ao buscar estatísticas:', error);
-        throw new Error('Não foi possível buscar as estatísticas dos colaboradores.');
+        throw new Error('Não foi possível buscar as estatísticas dos Analistas.');
     }
 }
 
@@ -157,7 +157,7 @@ export async function getNotesByUserId(userId: string) {
         return notes;
     } catch (error) {
         console.error(`Falha ao buscar notas para o usuário ${userId}:`, error);
-        throw new Error('Não foi possível buscar as notas do colaborador.');
+        throw new Error('Não foi possível buscar as notas do Analista.');
     }
 }
 
@@ -185,8 +185,8 @@ export async function exportCollaboratorsData() {
         for (const user of users) {
             if (user.notes.length === 0) {
                 dataToExport.push({
-                    'Nome Colaborador': user.name,
-                    'Email Colaborador': user.email,
+                    'Nome Analista': user.name,
+                    'Email Analista': user.email,
                     'ID da Nota': 'N/A',
                     'Descrição': 'N/A',
                     'Status': 'N/A',
@@ -196,8 +196,8 @@ export async function exportCollaboratorsData() {
             } else {
                 for (const note of user.notes) {
                     dataToExport.push({
-                        'Nome Colaborador': user.name,
-                        'Email Colaborador': user.email,
+                        'Nome Analista': user.name,
+                        'Email Analista': user.email,
                         'ID da Nota': note.id,
                         'Descrição': note.description,
                         'Status': note.status,
@@ -222,7 +222,7 @@ export async function exportCollaboratorsData() {
         
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Colaboradores e Notas');
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Analistas e Notas');
 
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
         

@@ -15,24 +15,20 @@ function ErrorPage({ error }: { error: string }) {
           className="w-16 h-16 text-destructive mx-auto mb-6" 
           aria-hidden="true"
         />
-        <h1 className="text-3xl font-bold text-white mb-2">Acesso Inválido</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Agradecemos pelo acesso!</h1>
         <p className="text-slate-400 text-lg" role="alert">
           {error}
         </p>
         <Link 
           href="/" 
-          className="inline-block mt-8 text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-800 rounded"
-        >
-          Voltar para a página inicial
-        </Link>
+          className="inline-block mt-8 text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-800 rounded"></Link>
       </div>
     </main>
   );
 }
 
 // Este é agora um Server Component puro.
-export default async function AttestationPage({ params }: { params: { token: string }}) {
-  const token = params.token;
+export default async function AttestationPage({ params: { token } }: { params: { token: string }}) {
 
   if (!token) {
     return <ErrorPage error="Token não fornecido ou inválido." />;

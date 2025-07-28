@@ -192,7 +192,7 @@ export default function MetasPage() {
                     delay={0.1}
                 />
                 <GoalCard 
-                    title="Tempo Médio de Ateste"
+                    title="Tempo Médio de Atesto"
                     description="Média de dias para uma nota ser atestada após a criação."
                     icon={Clock}
                     currentValue={goalsData?.avgAttestationTimeInDays ?? 0}

@@ -30,7 +30,7 @@ type NavItemProps = {
 const navItems: NavItemProps[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/notas', label: 'Visão Geral', icon: FileSpreadsheet },
-  { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Users },
+  { href: '/dashboard/Analistas', label: 'Analistas', icon: Users },
   { href: '/dashboard/timeline', label: 'Linha do Tempo', icon: History },
   { href: '/dashboard/metas', label: 'Metas', icon: Target },
   { href: '/dashboard/reports', label: 'Relatórios', icon: BarChart3 },

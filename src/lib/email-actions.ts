@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getDriveService } from './google-drive';
@@ -17,71 +16,314 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         case 'ATTESTATION_REQUEST':
             return {
                 type: 'ATTESTATION_REQUEST',
-                subject: 'Ação Necessária: Ateste de Nota Fiscal - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Solicitação de Ateste de Nota Fiscal</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>A nota fiscal referente a "[DescricaoNota]", submetida por <strong>[NomeSolicitante]</strong>, requer sua atenção para ateste.</p>
-    <p>Por favor, revise os detalhes e aprove através do sistema.</p>
-    <a href="[LinkAteste]" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Nota</a>
+                subject: '🔔 Atesto Requerido | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">📋 Solicitação de Atesto</h1>
+        <p style="color: #e8f4fd; margin: 10px 0 0 0; font-size: 14px;">Ação necessária para aprovação de nota fiscal</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+            Olá, <strong style="color: #667eea;">[NomeCoordenador]</strong> 👋
+        </p>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
+            <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 18px;">📄 Detalhes da Nota Fiscal</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Solicitante:</td>
+                    <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[NomeSolicitante]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Projeto:</td>
+                    <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[ContaProjeto]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Número NF:</td>
+                    <td style="padding: 8px 0; color: #2c3e50; font-weight: 600;">[NumeroNota]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500; vertical-align: top;">Descrição:</td>
+                    <td style="padding: 8px 0; color: #2c3e50; font-weight: 600; line-height: 1.4;">[DescricaoNota]</td>
+                </tr>
+            </table>
+        </div>
+        
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0;">
+            Por favor, revise o documento anexo e proceda com o Atesto através do sistema. Sua análise é fundamental para o andamento do processo.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="[LinkAteste]" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">
+                🔍 Revisar e Atestar Nota Fiscal
+            </a>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">📧 Este é um e-mail automático do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
+
         case 'ATTESTATION_REMINDER':
             return {
                 type: 'ATTESTATION_REMINDER',
-                subject: 'Lembrete: Nota Fiscal Pendente de Ateste - [DescricaoNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Lembrete de Pendência</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>Esta é um lembrete de que a nota fiscal "[DescricaoNota]" ainda está pendente de seu ateste. O prazo para aprovação é de <strong>[DiasRestantes] dias</strong>.</p>
-    <a href="[LinkAteste]" style="background-color: #ffc107; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Revisar Pendência</a>
+                subject: '⏰ Lembrete Urgente | Atesto Pendente | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #ff9500 0%, #ff5722 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">⏰ Lembrete de Pendência</h1>
+        <p style="color: #ffe8d6; margin: 10px 0 0 0; font-size: 14px;">Ação necessária com urgência</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+            Olá, <strong style="color: #ff9500;">[NomeCoordenador]</strong> 👋
+        </p>
+        
+        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9500; margin: 20px 0;">
+            <h3 style="color: #e65100; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                ⚠️ Nota Fiscal Pendente de Atesto
+            </h3>
+            <p style="color: #bf360c; font-size: 15px; margin: 0; line-height: 1.5;">
+                A nota fiscal "<strong>[DescricaoNota]</strong>" ainda aguarda seu Atesto.
+            </p>
+        </div>
+        
+        <div style="background: #ffebee; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <p style="color: #c62828; font-size: 18px; font-weight: 600; margin: 0;">
+                ⏳ Prazo restante: <span style="color: #d32f2f;">[DiasRestantes] dias</span>
+            </p>
+        </div>
+        
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0;">
+            Para evitar atrasos no processo, solicitamos que realize o Atesto o mais breve possível. O documento está anexo para sua análise.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="[LinkAteste]" style="background: linear-gradient(135deg, #ff9500 0%, #ff5722 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4); transition: all 0.3s ease;">
+                🚀 Atestar Agora
+            </a>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">📧 Este é um lembrete automático do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
+
         case 'ATTESTATION_CONFIRMATION':
             return {
                 type: 'ATTESTATION_CONFIRMATION',
-                subject: 'Nota Fiscal Atestada com Sucesso - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Confirmação de Ateste</h2>
-    <p>Olá, [NomeSolicitante],</p>
-    <p>A nota fiscal "[DescricaoNota]" foi atestada com sucesso por <strong>[NomeAtestador]</strong> em [DataAtesto].</p>
-    <p><strong>Observação:</strong> [ObservacaoAtesto]</p>
+                subject: '✅ Nota Fiscal Aprovada | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">✅ Atesto Confirmado</h1>
+        <p style="color: #c8e6c9; margin: 10px 0 0 0; font-size: 14px;">Sua nota fiscal foi aprovada com sucesso</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+            Olá, <strong style="color: #4caf50;">[NomeSolicitante]</strong> 👋
+        </p>
+        
+        <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; border-left: 4px solid #4caf50; margin: 20px 0;">
+            <h3 style="color: #2e7d32; margin: 0 0 15px 0; font-size: 18px;">🎉 Aprovação Concluída</h3>
+            <p style="color: #388e3c; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
+                A nota fiscal "<strong>[DescricaoNota]</strong>" foi atestada com sucesso!
+            </p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Atestado por:</td>
+                    <td style="padding: 8px 0; color: #2e7d32; font-weight: 600;">[NomeAtestador]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Data do Atesto:</td>
+                    <td style="padding: 8px 0; color: #2e7d32; font-weight: 600;">[DataAtesto]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500; vertical-align: top;">Observação:</td>
+                    <td style="padding: 8px 0; color: #2e7d32; font-weight: 600; line-height: 1.4;">[ObservacaoAtesto]</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #7b1fa2; font-size: 14px; margin: 0; text-align: center;">
+                📋 O processo de aprovação foi concluído. A nota pode seguir para as próximas etapas.
+            </p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">✉️ Confirmação automática do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
+
         case 'NOTE_EXPIRED':
             return {
                 type: 'NOTE_EXPIRED',
-                subject: 'Alerta: Prazo de Ateste Expirado - [DescricaoNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2 style="color: #dc3545;">Prazo de Ateste Expirado</h2>
-    <p>A nota fiscal "[DescricaoNota]", enviada por [NomeSolicitante] e designada a [NomeCoordenador], expirou em <strong>[DataExpiracao]</strong> sem ateste.</p>
-    <p>Uma ação manual pode ser necessária.</p>
+                subject: '🚨 URGENTE | Prazo de Atesto Expirado | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">🚨 Prazo Expirado</h1>
+        <p style="color: #ffcdd2; margin: 10px 0 0 0; font-size: 14px;">Intervenção manual necessária</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #d32f2f; margin: 20px 0;">
+            <h3 style="color: #c62828; margin: 0 0 15px 0; font-size: 18px;">⚠️ Atesto Não Realizado</h3>
+            <p style="color: #d32f2f; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
+                A nota fiscal "<strong>[DescricaoNota]</strong>" expirou sem Atesto.
+            </p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Solicitante:</td>
+                    <td style="padding: 8px 0; color: #c62828; font-weight: 600;">[NomeSolicitante]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Responsável:</td>
+                    <td style="padding: 8px 0; color: #c62828; font-weight: 600;">[NomeCoordenador]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Data de expiração:</td>
+                    <td style="padding: 8px 0; color: #c62828; font-weight: 600;">[DataExpiracao]</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #e65100; font-size: 14px; margin: 0; text-align: center; font-weight: 500;">
+                🔧 Uma ação manual pode ser necessária para resolver esta pendência.
+            </p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">🤖 Alerta automático do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
+
         case 'ATTESTATION_CONFIRMATION_COORDINATOR':
             return {
                 type: 'ATTESTATION_CONFIRMATION_COORDINATOR',
-                subject: 'Confirmação: Você atestou a nota fiscal para o projeto [ContaProjeto] - Nota: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Confirmação de Ateste Realizado</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>Este e-mail confirma que você atestou a nota fiscal referente a "<strong>[DescricaoNota]</strong>" em <strong>[DataAtesto]</strong>.</p>
-    <p>Uma cópia do documento de ateste está anexa a este e-mail para seus registros.</p>
-    <p><strong>Observação deixada:</strong> [ObservacaoAtesto]</p>
-    <p>Obrigado pela sua colaboração.</p>
+                subject: '📋 Confirmação de Atesto Realizado | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">📋 Atesto Confirmado</h1>
+        <p style="color: #bbdefb; margin: 10px 0 0 0; font-size: 14px;">Registro da sua aprovação</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+            Olá, <strong style="color: #1976d2;">[NomeCoordenador]</strong> 👋
+        </p>
+        
+        <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #1976d2; margin: 20px 0;">
+            <h3 style="color: #0d47a1; margin: 0 0 15px 0; font-size: 18px;">✅ Confirmação de Atesto</h3>
+            <p style="color: #1565c0; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
+                Este e-mail confirma que você atestou com sucesso a nota fiscal referente a "<strong>[DescricaoNota]</strong>".
+            </p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Data do Atesto:</td>
+                    <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[DataAtesto]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Projeto:</td>
+                    <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[ContaProjeto]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Número NF:</td>
+                    <td style="padding: 8px 0; color: #0d47a1; font-weight: 600;">[NumeroNota]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500; vertical-align: top;">Observação:</td>
+                    <td style="padding: 8px 0; color: #0d47a1; font-weight: 600; line-height: 1.4;">[ObservacaoAtesto]</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #7b1fa2; font-size: 14px; margin: 0; text-align: center;">
+                📎 Uma cópia do documento de atest está anexa para seus registros.
+            </p>
+        </div>
+        
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0; text-align: center;">
+            Obrigado pela sua colaboração no processo de aprovação! 🙏
+        </p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">📧 Confirmação automática do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
+
         case 'NOTE_REJECTED':
             return {
                 type: 'NOTE_REJECTED',
-                subject: 'Ação Necessária: Nota Fiscal Rejeitada - Projeto: [ContaProjeto] - Nota: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2 style="color: #dc3545;">Nota Fiscal Rejeitada</h2>
-    <p>Olá, [NomeSolicitante],</p>
-    <p>A nota fiscal referente a "<strong>[DescricaoNota]</strong>" foi rejeitada por <strong>[NomeCoordenador]</strong> em <strong>[DataRejeicao]</strong>.</p>
-    <p><strong>Motivo da Rejeição:</strong></p>
-    <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 1rem; font-style: italic;">[MotivoRejeicao]</blockquote>
-    <p>Por favor, revise a nota fiscal e as informações fornecidas para tomar as ações necessárias.</p>
+                subject: '❌ Nota Fiscal Rejeitada | Projeto [ContaProjeto] | NF: [NumeroNota]',
+                body: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #e53935 0%, #c62828 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">❌ Nota Fiscal Rejeitada</h1>
+        <p style="color: #ffcdd2; margin: 10px 0 0 0; font-size: 14px;">Ação necessária para revisão</p>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <p style="font-size: 16px; color: #2c3e50; margin-bottom: 20px;">
+            Olá, <strong style="color: #e53935;">[NomeSolicitante]</strong> 👋
+        </p>
+        
+        <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #e53935; margin: 20px 0;">
+            <h3 style="color: #c62828; margin: 0 0 15px 0; font-size: 18px;">🚫 Nota Fiscal Não Aprovada</h3>
+            <p style="color: #d32f2f; font-size: 15px; margin: 0 0 15px 0; line-height: 1.5;">
+                Infelizmente, a nota fiscal referente a "<strong>[DescricaoNota]</strong>" foi rejeitada.
+            </p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Rejeitada por:</td>
+                    <td style="padding: 8px 0; color: #c62828; font-weight: 600;">[NomeCoordenador]</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #666; font-weight: 500;">Data da rejeição:</td>
+                    <td style="padding: 8px 0; color: #c62828; font-weight: 600;">[DataRejeicao]</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800; margin: 20px 0;">
+            <h4 style="color: #f57c00; margin: 0 0 10px 0; font-size: 16px;">📝 Motivo da Rejeição:</h4>
+            <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ffcc02;">
+                <p style="color: #e65100; font-size: 14px; margin: 0; line-height: 1.5; font-style: italic;">
+                    "[MotivoRejeicao]"
+                </p>
+            </div>
+        </div>
+        
+        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #2e7d32; font-size: 14px; margin: 0; text-align: center; font-weight: 500;">
+                💡 Por favor, revise as informações e corrija os pontos mencionados antes de reenviar.
+            </p>
+        </div>
+        
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0;">
+            Para dar continuidade ao processo, você pode corrigir os problemas identificados e reenviar a nota fiscal ou entrar em contato para esclarecimentos adicionais.
+        </p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+            <p style="margin: 0;">📧 Notificação automática do sistema de gestão de notas fiscais.</p>
+        </div>
+    </div>
 </div>`,
             };
     }

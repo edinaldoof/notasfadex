@@ -160,8 +160,8 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       if (key === 'file' && value?.[0]) {
         formData.append(key, value[0]);
       } else if (value !== undefined && value !== null) {
-        // Desmascarar CNPJ e conta antes de enviar
-        if ((key === 'prestadorCnpj' || key === 'tomadorCnpj' || key === 'projectAccountNumber') && typeof value === 'string') {
+        // Desmascarar CNPJ antes de enviar, mas MANTER a máscara da conta do projeto
+        if ((key === 'prestadorCnpj' || key === 'tomadorCnpj') && typeof value === 'string') {
           formData.append(key, value.replace(/\D/g, ''));
         } else {
           formData.append(key, String(value));
@@ -236,7 +236,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
               <FileUp className='w-6 h-6 text-primary' />
-              Nova Nota Fiscal para Ateste
+              Nova Nota Fiscal para Atesto
             </DialogTitle>
              <DialogDescription>
               Faça o upload do arquivo, revise os dados extraídos e envie para o coordenador responsável.
@@ -433,7 +433,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
 
 
                   <div>
-                     <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Ateste</Label>
+                     <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Atesto</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
                            <FormField
                             control={form.control}
@@ -613,7 +613,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                       disabled={isSubmitting || isExtracting || !session}
                   >
                       {(isSubmitting || isExtracting) ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-                      {isSubmitting ? 'Enviando...' : isExtracting ? 'Analisando...' : 'Enviar para Ateste'}
+                      {isSubmitting ? 'Enviando...' : isExtracting ? 'Analisando...' : 'Enviar para Atesto'}
                   </Button>
               </div>
             </form>

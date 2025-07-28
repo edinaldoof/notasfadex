@@ -18,6 +18,9 @@ import {
   Info,
   Loader2,
   MoreHorizontal,
+  XCircle,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import { FiscalNote, InvoiceStatus } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -63,6 +66,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
 import { attestNote } from './actions';
@@ -545,12 +549,27 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
 }) {
     return (
         <>
-            <div className="flex flex-col sm:flex-row justify-between items-start mb-8">
-                <h1 className="text-3xl font-bold">Visão Geral das Notas</h1>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl blur opacity-20"></div>
+                        <div className="relative bg-gradient-to-r from-emerald-500 to-green-600 p-3 rounded-2xl">
+                            <FileSpreadsheet className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                            Visão Geral
+                        </h1>
+                        <p className="text-slate-400 mt-1">
+                            Visualize, filtre e gerencie todas as notas fiscais do sistema.
+                        </p>
+                    </div>
+                </div>
                 <Button
                 onClick={onAddNote}
                 className={cn(
-                    'mt-4 sm:mt-0 px-6 py-2.5 font-semibold transition-all duration-300 flex items-center space-x-2 whitespace-nowrap',
+                    'w-full sm:w-auto px-6 py-2.5 font-semibold transition-all duration-300 flex items-center space-x-2 whitespace-nowrap',
                     'bg-primary text-primary-foreground',
                     'hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20'
                 )}

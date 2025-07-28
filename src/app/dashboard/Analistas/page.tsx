@@ -133,7 +133,7 @@ export default function CollaboratorsPage() {
             const data = await getCollaborators();
             setCollaborators(data);
         } catch (error) {
-            console.error('Erro ao carregar colaboradores:', error);
+            console.error('Erro ao carregar Analistas:', error);
         } finally {
             setIsLoading(false);
         }
@@ -182,7 +182,7 @@ export default function CollaboratorsPage() {
 
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
-                    link.download = `Relatorio_Colaboradores_Notas_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    link.download = `Relatorio_Analistas_Notas_${new Date().toISOString().split('T')[0]}.xlsx`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -277,11 +277,23 @@ export default function CollaboratorsPage() {
             <div className="space-y-8">
                 {/* Header com estatísticas */}
                 <div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-                        <h1 className="text-3xl font-bold flex items-center gap-3">
-                            <Users className="w-8 h-8 text-primary" />
-                            Colaboradores
-                        </h1>
+                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
+                         <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl blur opacity-20"></div>
+                                <div className="relative bg-gradient-to-r from-purple-500 to-indigo-600 p-3 rounded-2xl">
+                                    <Users className="w-8 h-8 text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                                    Analistas
+                                </h1>
+                                <p className="text-slate-400 mt-1">
+                                    Gerencie usuários e visualize suas atividades no sistema.
+                                </p>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2 mt-4 sm:mt-0">
                             <Button variant="outline" size="sm" onClick={handleExportData} disabled={isExporting}>
                                 {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
@@ -343,7 +355,7 @@ export default function CollaboratorsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
-                    {/* Coluna da lista de colaboradores */}
+                    {/* Coluna da lista de Analistas */}
                     <div className="xl:col-span-2 space-y-6">
                         {/* Filtros */}
                         <Card className="bg-slate-900/50 border-border">
@@ -405,7 +417,7 @@ export default function CollaboratorsPage() {
                                 {/* Contador de resultados */}
                                 <div className="text-sm text-slate-400 flex items-center justify-between">
                                     <span>
-                                        {filteredAndSortedCollaborators.length} de {collaborators.length} colaboradores
+                                        {filteredAndSortedCollaborators.length} de {collaborators.length} Analistas
                                     </span>
                                     {(searchTerm || roleFilter !== 'all') && (
                                         <Button
@@ -424,7 +436,7 @@ export default function CollaboratorsPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Lista de colaboradores */}
+                        {/* Lista de Analistas */}
                         <div className="space-y-3">
                             {isLoading ? (
                                 <CollaboratorSkeleton />
@@ -433,7 +445,7 @@ export default function CollaboratorsPage() {
                                     <CardContent className="p-8 text-center">
                                         <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                                         <h3 className="text-lg font-semibold text-white mb-2">
-                                            Nenhum colaborador encontrado
+                                            Nenhum Analista encontrado
                                         </h3>
                                         <p className="text-slate-400 text-sm">
                                             Tente ajustar os filtros de busca
@@ -489,7 +501,7 @@ export default function CollaboratorsPage() {
                         </div>
                     </div>
 
-                    {/* Coluna das notas do colaborador selecionado */}
+                    {/* Coluna das notas do Analista selecionado */}
                     <div className="xl:col-span-3">
                         <Card className="bg-slate-900/50 backdrop-blur-sm border-border min-h-[70vh]">
                             {!selectedCollaborator ? (
@@ -498,9 +510,9 @@ export default function CollaboratorsPage() {
                                         <div className="bg-gradient-to-br from-slate-700 to-slate-800 p-6 rounded-full mb-6">
                                             <Users className="w-16 h-16 text-slate-400" />
                                         </div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">Selecione um Colaborador</h3>
+                                        <h3 className="text-2xl font-bold text-white mb-2">Selecione um Analista</h3>
                                         <p className="text-slate-400 max-w-md leading-relaxed">
-                                            Clique em um colaborador na lista ao lado para visualizar todas as notas fiscais 
+                                            Clique em um Analista na lista ao lado para visualizar todas as notas fiscais 
                                             submetidas por ele e acompanhar seu histórico de atividades.
                                         </p>
                                     </div>
@@ -640,3 +652,5 @@ function NoteItem({ note }: { note: FiscalNote }) {
         </>
     );
 }
+
+    
