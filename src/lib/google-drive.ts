@@ -109,4 +109,3 @@ export const uploadFileToDrive = async (fileName: string, mimeType: string, file
     throw new Error('Falha ao fazer upload do arquivo para o Google Drive.');
   }
 };
-    

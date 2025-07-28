@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { sendEmail } from '@/lib/email';
 import { z } from 'zod';
 import { generateAttestationToken } from '@/lib/token-utils';
+import { getOrCreateEmailTemplate, getDefaultTemplate } from '@/lib/email-actions';
 
 /**
  * Fetches all users from the database.
@@ -99,25 +100,20 @@ export async function saveSettings(data: Partial<Settings>) {
 }
 
 export async function getEmailTemplates(): Promise<EmailTemplate[]> {
-    const templates = await prisma.emailTemplate.findMany();
     const allTypes: EmailTemplate['type'][] = [
         'ATTESTATION_REQUEST', 
         'ATTESTATION_REMINDER', 
         'ATTESTATION_CONFIRMATION', 
         'NOTE_EXPIRED',
         'ATTESTATION_CONFIRMATION_COORDINATOR',
-        'NOTE_REJECTED' // Add new template type
+        'NOTE_REJECTED'
     ];
     
-    // Ensure all template types exist, create with defaults if not
-    for (const type of allTypes) {
-        if (!templates.some(t => t.type === type)) {
-            const newTemplate = await prisma.emailTemplate.create({
-                data: getDefaultTemplate(type)
-            });
-            templates.push(newTemplate);
-        }
-    }
+    // Use Promise.all to fetch/create all templates in parallel
+    const templates = await Promise.all(
+        allTypes.map(type => getOrCreateEmailTemplate(type))
+    );
+    
     return templates;
 }
 
@@ -210,83 +206,5 @@ export async function getPreviewAttestationLink(): Promise<{ success: boolean; l
         console.error("Erro ao gerar link de visualização de ateste:", error);
         const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
         return { success: false, message };
-    }
-}
-
-
-// --- Helper for Default Templates ---
-
-function getDefaultTemplate(type: EmailTemplate['type']): EmailTemplate {
-    switch (type) {
-        case 'ATTESTATION_REQUEST':
-            return {
-                type: 'ATTESTATION_REQUEST',
-                subject: 'Ação Necessária: Ateste de Nota Fiscal - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Solicitação de Ateste de Nota Fiscal</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>A nota fiscal referente a "[DescricaoNota]", submetida por <strong>[NomeSolicitante]</strong>, requer sua atenção para ateste.</p>
-    <p>Por favor, revise os detalhes e aprove através do sistema.</p>
-    <a href="[LinkAteste]" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Nota</a>
-</div>`,
-            };
-        case 'ATTESTATION_REMINDER':
-            return {
-                type: 'ATTESTATION_REMINDER',
-                subject: 'Lembrete: Nota Fiscal Pendente de Ateste - [DescricaoNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Lembrete de Pendência</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>Esta é um lembrete de que a nota fiscal "[DescricaoNota]" ainda está pendente de seu ateste. O prazo para aprovação é de <strong>[DiasRestantes] dias</strong>.</p>
-    <a href="[LinkAteste]" style="background-color: #ffc107; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Revisar Pendência</a>
-</div>`,
-            };
-        case 'ATTESTATION_CONFIRMATION':
-            return {
-                type: 'ATTESTATION_CONFIRMATION',
-                subject: 'Nota Fiscal Atestada com Sucesso - Projeto: [ContaProjeto] - Nota Fiscal: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Confirmação de Ateste</h2>
-    <p>Olá, [NomeSolicitante],</p>
-    <p>A nota fiscal "[DescricaoNota]" foi atestada com sucesso por <strong>[NomeAtestador]</strong> em [DataAtesto].</p>
-    <p><strong>Observação:</strong> [ObservacaoAtesto]</p>
-</div>`,
-            };
-        case 'NOTE_EXPIRED':
-            return {
-                type: 'NOTE_EXPIRED',
-                subject: 'Alerta: Prazo de Ateste Expirado - [DescricaoNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2 style="color: #dc3545;">Prazo de Ateste Expirado</h2>
-    <p>A nota fiscal "[DescricaoNota]", enviada por [NomeSolicitante] e designada a [NomeCoordenador], expirou em <strong>[DataExpiracao]</strong> sem ateste.</p>
-    <p>Uma ação manual pode ser necessária.</p>
-</div>`,
-            };
-        case 'ATTESTATION_CONFIRMATION_COORDINATOR':
-            return {
-                type: 'ATTESTATION_CONFIRMATION_COORDINATOR',
-                subject: 'Confirmação: Você atestou a nota fiscal para o projeto [ContaProjeto] - Nota: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2>Confirmação de Ateste Realizado</h2>
-    <p>Olá, [NomeCoordenador],</p>
-    <p>Este e-mail confirma que você atestou a nota fiscal referente a "<strong>[DescricaoNota]</strong>" em <strong>[DataAtesto]</strong>.</p>
-    <p>Uma cópia do documento de ateste está anexa a este e-mail para seus registros.</p>
-    <p><strong>Observação deixada:</strong> [ObservacaoAtesto]</p>
-    <p>Obrigado pela sua colaboração.</p>
-</div>`,
-            };
-        case 'NOTE_REJECTED':
-            return {
-                type: 'NOTE_REJECTED',
-                subject: 'Ação Necessária: Nota Fiscal Rejeitada - Projeto: [ContaProjeto] - Nota: [NumeroNota]',
-                body: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">
-    <h2 style="color: #dc3545;">Nota Fiscal Rejeitada</h2>
-    <p>Olá, [NomeSolicitante],</p>
-    <p>A nota fiscal referente a "<strong>[DescricaoNota]</strong>" foi rejeitada por <strong>[NomeCoordenador]</strong> em <strong>[DataRejeicao]</strong>.</p>
-    <p><strong>Motivo da Rejeição:</strong></p>
-    <blockquote style="border-left: 4px solid #ccc; padding-left: 1rem; margin-left: 1rem; font-style: italic;">[MotivoRejeicao]</blockquote>
-    <p>Por favor, revise a nota fiscal e as informações fornecidas para tomar as ações necessárias.</p>
-</div>`,
-            };
     }
 }

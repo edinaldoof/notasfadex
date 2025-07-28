@@ -313,4 +313,3 @@ export async function getUserActivitySummary(userId: string) {
         throw new Error('Não foi possível buscar o resumo de atividade do usuário.');
     }
 }
-    

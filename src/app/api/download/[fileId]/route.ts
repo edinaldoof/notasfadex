@@ -38,7 +38,7 @@ export async function GET(
          return new NextResponse("Acesso não autorizado", { status: 401 });
     }
 
-    const { fileId } = params;
+    const fileId = params.fileId;
 
     try {
         // Find the note associated with the fileId

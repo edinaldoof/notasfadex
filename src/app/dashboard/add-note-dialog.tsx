@@ -32,6 +32,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,7 +119,21 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const form = useForm<AddNoteFormValues>({
     resolver: zodResolver(addNoteFormSchema),
     defaultValues: {
-        hasWithholdingTax: false,
+      invoiceType: "SERVICO",
+      hasWithholdingTax: false,
+      coordinatorName: "",
+      coordinatorEmail: "",
+      projectAccountNumber: "",
+      ccEmails: "",
+      file: undefined,
+      descricaoServicos: "",
+      prestadorRazaoSocial: "",
+      prestadorCnpj: "",
+      tomadorRazaoSocial: "",
+      tomadorCnpj: "",
+      numeroNota: "",
+      dataEmissao: "",
+      valorTotal: "",
     }
   });
 
@@ -134,49 +150,6 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     }
     fetchAccounts();
   }, [open]);
-
-  const originalFileOnChange = form.register('file').onChange;
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    await originalFileOnChange(event);
-
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setIsExtracting(true);
-      try {
-        const dataUri = await fileToDataURI(file);
-        // We now call the server action that wraps the extraction
-        const extractedData = await extractNoteData({ documentUri: dataUri });
-        
-        if (extractedData.type) form.setValue('invoiceType', extractedData.type);
-        if (extractedData.descricaoServicos) form.setValue('descricaoServicos', extractedData.descricaoServicos);
-        if (extractedData.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extractedData.prestadorRazaoSocial);
-        if (extractedData.prestadorCnpj) form.setValue('prestadorCnpj', maskCnpj(extractedData.prestadorCnpj));
-        if (extractedData.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extractedData.tomadorRazaoSocial);
-        if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', maskCnpj(extractedData.tomadorCnpj));
-        if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
-        if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
-        if (extractedData.valorTotal) form.setValue('valorTotal', String(extractedData.valorTotal));
-        
-        toast({
-          title: "Extração Concluída",
-          description: `Dados extraídos. Tipo de nota identificado: ${extractedData.type || 'N/A'}. Revise os campos.`,
-        });
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Não foi possível analisar o arquivo. Por favor, preencha os dados manualmente.";
-        toast({
-          title: "Erro na Extração",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } finally {
-        setIsExtracting(false);
-      }
-    }
-  };
-
 
   const proceedWithSubmit = async (forceCreate = false) => {
     setIsSubmitting(true);
@@ -256,27 +229,6 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     onOpenChange(isOpen);
   };
   
-  const FormField = ({ id, label, icon: Icon, children, error, className }: { id: string, label: string, icon: React.ElementType, children: React.ReactNode, error?: string, className?: string }) => (
-    <div className={cn('space-y-2', className)}>
-        <Label htmlFor={id} className='flex items-center gap-2 text-slate-300'>
-            <Icon className='w-4 h-4 text-slate-400' />
-            {label}
-        </Label>
-        {children}
-        {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-    </div>
-  );
-
-  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: "prestadorCnpj" | "tomadorCnpj") => {
-    const { value } = e.target;
-    form.setValue(fieldName, maskCnpj(value));
-  };
-  
-  const handleAccountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    form.setValue('projectAccountNumber', maskProjectAccount(value), { shouldValidate: true });
-  }
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -291,137 +243,191 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
-              <div>
-                  <Label className="block text-sm font-medium text-slate-300 mb-2">1. Upload do Arquivo (PDF, XML, JPG)</Label>
-                  <div className="relative border-2 border-dashed border-slate-700/50 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
-                      {isExtracting ? (
-                          <div className='flex flex-col items-center justify-center'>
-                             <Loader2 className='w-8 h-8 text-primary animate-spin mx-auto mb-2' />
-                             <p className="text-slate-400">Analisando nota...</p>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+                <FormField
+                  control={form.control}
+                  name="file"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="block text-sm font-medium text-slate-300 mb-2">1. Upload do Arquivo (PDF, XML, JPG)</FormLabel>
+                      <FormControl>
+                          <div className="relative border-2 border-dashed border-slate-700/50 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                              {isExtracting ? (
+                                  <div className='flex flex-col items-center justify-center'>
+                                     <Loader2 className='w-8 h-8 text-primary animate-spin mx-auto mb-2' />
+                                     <p className="text-slate-400">Analisando nota...</p>
+                                  </div>
+                              ) : (
+                                  <>
+                                   <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                                   <p className="text-slate-400 mb-2">
+                                      {fileName ? `Arquivo: ${fileName}` : "Clique ou arraste o arquivo aqui"}
+                                   </p>
+                                   <p className="text-sm text-slate-500">Tamanho máximo de 10MB</p>
+                                   <Input 
+                                      type="file" 
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                      accept=".pdf,.xml,.jpg,.jpeg,.png" 
+                                      onChange={async (e) => {
+                                        field.onChange(e.target.files);
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setFileName(file.name);
+                                          setIsExtracting(true);
+                                          try {
+                                            const dataUri = await fileToDataURI(file);
+                                            const extractedData = await extractNoteData({ documentUri: dataUri });
+                                            
+                                            if (extractedData.type) form.setValue('invoiceType', extractedData.type);
+                                            if (extractedData.descricaoServicos) form.setValue('descricaoServicos', extractedData.descricaoServicos);
+                                            if (extractedData.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extractedData.prestadorRazaoSocial);
+                                            if (extractedData.prestadorCnpj) form.setValue('prestadorCnpj', maskCnpj(extractedData.prestadorCnpj));
+                                            if (extractedData.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extractedData.tomadorRazaoSocial);
+                                            if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', maskCnpj(extractedData.tomadorCnpj));
+                                            if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
+                                            if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
+                                            if (extractedData.valorTotal) form.setValue('valorTotal', String(extractedData.valorTotal));
+                                            
+                                            toast({
+                                              title: "Extração Concluída",
+                                              description: `Dados extraídos. Tipo de nota identificado: ${extractedData.type || 'N/A'}. Revise os campos.`,
+                                            });
+                                          } catch (error) {
+                                            const errorMessage = error instanceof Error ? error.message : "Não foi possível analisar o arquivo. Por favor, preencha os dados manualmente.";
+                                            toast({
+                                              title: "Erro na Extração",
+                                              description: errorMessage,
+                                              variant: "destructive",
+                                            });
+                                          } finally {
+                                            setIsExtracting(false);
+                                          }
+                                        }
+                                      }}
+                                      disabled={isExtracting || isSubmitting}
+                                   />
+                                  </>
+                              )}
                           </div>
-                      ) : (
-                          <>
-                           <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                           <p className="text-slate-400 mb-2">
-                              {fileName ? `Arquivo: ${fileName}` : "Clique ou arraste o arquivo aqui"}
-                           </p>
-                           <p className="text-sm text-slate-500">Tamanho máximo de 10MB</p>
-                           <Input 
-                              type="file" 
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                              accept=".pdf,.xml,.jpg,.jpeg,.png" 
-                              {...form.register('file')}
-                              onChange={handleFileChange}
-                              disabled={isExtracting || isSubmitting}
-                           />
-                          </>
-                      )}
-                  </div>
-                   {form.formState.errors.file && <p className="text-xs text-red-400 mt-1">{form.formState.errors.file.message as string}</p>}
-              </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               
               <div className={cn("space-y-6", (isExtracting || isSubmitting) && "opacity-50 pointer-events-none")}>
                   <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">2. Detalhes da Nota e Retenção</Label>
                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
-                          <FormField id='invoiceType' label='Tipo de Nota' icon={Briefcase} error={form.formState.errors.invoiceType?.message}>
-                             <Controller
-                                  control={form.control}
-                                  name="invoiceType"
-                                  render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                      <SelectTrigger id='invoiceType'>
-                                          <SelectValue placeholder="Selecione o tipo de nota" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          {invoiceTypes.map(pt => (
-                                              <SelectItem key={pt.value} value={pt.value}>{pt.label}</SelectItem>
-                                          ))}
-                                      </SelectContent>
-                                  </Select>
-                                  )}
-                              />
-                          </FormField>
-                          <div className='flex items-center space-x-3 bg-slate-900/50 p-3 rounded-md'>
-                              <Label htmlFor="hasWithholdingTax" className="flex items-center gap-2 text-slate-300 cursor-pointer">
-                                  Possui Retenção de Impostos?
-                              </Label>
-                               <Controller
-                                  control={form.control}
-                                  name="hasWithholdingTax"
-                                  render={({ field }) => (
-                                      <Switch
-                                          id="hasWithholdingTax"
-                                          checked={field.value}
-                                          onCheckedChange={field.onChange}
-                                      />
-                                  )}
-                              />
-                          </div>
+                          <FormField
+                            control={form.control}
+                            name="invoiceType"
+                            render={({ field }) => (
+                               <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Briefcase className='w-4 h-4 text-slate-400' />Tipo de Nota</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger id='invoiceType'>
+                                            <SelectValue placeholder="Selecione o tipo de nota" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {invoiceTypes.map(pt => (
+                                            <SelectItem key={pt.value} value={pt.value}>{pt.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                               </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="hasWithholdingTax"
+                            render={({ field }) => (
+                              <FormItem className='flex items-center justify-between space-x-3 bg-slate-900/50 p-3 rounded-md h-full'>
+                                <FormLabel className="flex items-center gap-2 text-slate-300 cursor-pointer mb-0">
+                                    Possui Retenção de Impostos?
+                                </FormLabel>
+                                <FormControl>
+                                  <Switch
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
                      </div>
                   </div>
 
                    <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">3. Detalhes Financeiros do Projeto</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
-                           <FormField id='projectAccountNumber' label='Conta Corrente do Projeto' icon={Banknote} error={form.formState.errors.projectAccountNumber?.message}>
-                              <Controller
+                           <FormField
                                 control={form.control}
                                 name="projectAccountNumber"
                                 render={({ field }) => (
-                                  <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={comboboxOpen}
-                                        className="w-full justify-between"
-                                      >
-                                        {field.value
-                                          ? existingAccounts.find(
-                                              (account) => account === field.value
-                                            ) || field.value
-                                          : "Selecione ou digite uma conta..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-full p-0">
-                                      <Command>
-                                        <CommandInput 
-                                          placeholder="Buscar ou digitar nova conta..." 
-                                          value={field.value}
-                                          onValueChange={(currentValue) => form.setValue('projectAccountNumber', maskProjectAccount(currentValue))}
-                                        />
-                                        <CommandList>
-                                          <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
-                                          <CommandGroup>
-                                            {existingAccounts.map((account) => (
-                                              <CommandItem
-                                                key={account}
-                                                value={account}
-                                                onSelect={(currentValue) => {
-                                                  form.setValue("projectAccountNumber", currentValue === field.value ? "" : currentValue, { shouldValidate: true });
-                                                  setComboboxOpen(false);
-                                                }}
-                                              >
-                                                <Check
-                                                  className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    field.value === account ? "opacity-100" : "opacity-0"
-                                                  )}
-                                                />
-                                                {account}
-                                              </CommandItem>
-                                            ))}
-                                          </CommandGroup>
-                                        </CommandList>
-                                      </Command>
-                                    </PopoverContent>
-                                  </Popover>
+                                  <FormItem className="flex flex-col">
+                                    <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Conta Corrente do Projeto</FormLabel>
+                                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                         <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className="w-full justify-between"
+                                          >
+                                            {field.value ? maskProjectAccount(field.value) : "Selecione ou digite..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command
+                                          filter={(value, search) => {
+                                            if (value.includes(search)) return 1
+                                            return 0
+                                          }}
+                                        >
+                                          <CommandInput
+                                            placeholder="Buscar ou digitar nova conta..."
+                                            value={field.value}
+                                            onValueChange={(currentValue) => {
+                                              form.setValue('projectAccountNumber', currentValue, { shouldValidate: true });
+                                            }}
+                                          />
+                                          <CommandList>
+                                            <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                                            <CommandGroup>
+                                              {existingAccounts.map((account) => (
+                                                <CommandItem
+                                                  key={account}
+                                                  value={account}
+                                                  onSelect={(currentValue) => {
+                                                    form.setValue("projectAccountNumber", currentValue, { shouldValidate: true });
+                                                    setComboboxOpen(false);
+                                                  }}
+                                                >
+                                                  <Check
+                                                    className={cn(
+                                                      "mr-2 h-4 w-4",
+                                                      field.value === account ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                  />
+                                                  {account}
+                                                </CommandItem>
+                                              ))}
+                                            </CommandGroup>
+                                          </CommandList>
+                                        </Command>
+                                      </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                  </FormItem>
                                 )}
                               />
-                           </FormField>
                       </div>
                   </div>
 
@@ -429,23 +435,49 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                   <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Ateste</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
-                           <FormField id='coordinatorName' label='Nome do Coordenador' icon={User} error={form.formState.errors.coordinatorName?.message}>
-                              <Input id='coordinatorName' placeholder='Nome completo' {...form.register('coordinatorName')} />
-                           </FormField>
-                           <FormField id='coordinatorEmail' label='E-mail do Coordenador' icon={Mail} error={form.formState.errors.coordinatorEmail?.message}>
-                              <Input id='coordinatorEmail' type="email" placeholder='email@exemplo.com' {...form.register('coordinatorEmail')} />
-                           </FormField>
+                           <FormField
+                            control={form.control}
+                            name="coordinatorName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><User className='w-4 h-4 text-slate-400' />Nome do Coordenador</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Nome completo' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                           <FormField
+                            control={form.control}
+                            name="coordinatorEmail"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Mail className='w-4 h-4 text-slate-400' />E-mail do Coordenador</FormLabel>
+                                <FormControl>
+                                  <Input type="email" placeholder='email@exemplo.com' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                            <div className="md:col-span-2">
-                               <FormField id='ccEmails' label='Enviar Cópia para (CC)' icon={Copy} error={form.formState.errors.ccEmails?.message}>
-                                  <Input 
-                                      id='ccEmails' 
-                                      placeholder='email1@exemplo.com,email2@exemplo.com' 
-                                      {...form.register('ccEmails')} 
-                                  />
-                                  <p className='text-xs text-slate-500 mt-1'>
-                                      O seu e-mail será incluído automaticamente. Separe múltiplos e-mails por vírgula.
-                                  </p>
-                               </FormField>
+                                <FormField
+                                  control={form.control}
+                                  name="ccEmails"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />Enviar Cópia para (CC)</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder='email1@exemplo.com,email2@exemplo.com' {...field} />
+                                      </FormControl>
+                                      <FormDescription>
+                                        O seu e-mail será incluído automaticamente. Separe múltiplos e-mails por vírgula.
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
                            </div>
                       </div>
                   </div>
@@ -456,52 +488,110 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                       5. Dados Extraídos da Nota (revise se necessário)
                      </p>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                           <FormField id='descricaoServicos' label='Descrição' icon={FileText} error={form.formState.errors.descricaoServicos?.message}>
-                              <Input id='descricaoServicos' placeholder='Descrição dos serviços/produtos' {...form.register('descricaoServicos')} />
-                           </FormField>
-                            <FormField id='valorTotal' label='Valor Total (R$)' icon={Receipt}>
-                              <Input id='valorTotal' placeholder='0,00' {...form.register('valorTotal')} />
-                           </FormField>
-                           <FormField id='numeroNota' label='Número da Nota' icon={FileText}>
-                              <Input id='numeroNota' placeholder='Número' {...form.register('numeroNota')} />
-                           </FormField>
-                           <FormField id='dataEmissao' label='Data de Emissão (Extraída)' icon={FileText}>
-                              <Input id='dataEmissao' placeholder='DD/MM/AAAA' {...form.register('dataEmissao')} />
-                           </FormField>
-                           <FormField id='prestadorRazaoSocial' label='Razão Social do Prestador' icon={Building}>
-                              <Input id='prestadorRazaoSocial' placeholder='Nome da empresa prestadora' {...form.register('prestadorRazaoSocial')} />
-                           </FormField>
-                           <FormField id='prestadorCnpj' label='CNPJ do Prestador' icon={Building}>
-                             <Controller
-                                  control={form.control}
-                                  name="prestadorCnpj"
-                                  render={({ field }) => (
-                                      <Input 
-                                          {...field}
-                                          id='prestadorCnpj' 
-                                          placeholder='00.000.000/0000-00' 
-                                          onChange={(e) => handleCnpjChange(e, "prestadorCnpj")}
-                                      />
-                                  )}
-                              />
-                           </FormField>
-                           <FormField id='tomadorRazaoSocial' label='Razão Social do Tomador' icon={Building}>
-                              <Input id='tomadorRazaoSocial' placeholder='Sua empresa' {...form.register('tomadorRazaoSocial')} />
-                           </FormField>
-                           <FormField id='tomadorCnpj' label='CNPJ do Tomador' icon={Building}>
-                               <Controller
-                                  control={form.control}
-                                  name="tomadorCnpj"
-                                  render={({ field }) => (
-                                      <Input 
-                                          {...field}
-                                          id='tomadorCnpj' 
-                                          placeholder='00.000.000/0000-00' 
-                                          onChange={(e) => handleCnpjChange(e, "tomadorCnpj")}
-                                      />
-                                  )}
-                              />
-                           </FormField>
+                          <FormField
+                            control={form.control}
+                            name="descricaoServicos"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><FileText className='w-4 h-4 text-slate-400' />Descrição</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Descrição dos serviços/produtos' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="valorTotal"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Valor Total (R$)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='0,00' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="numeroNota"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Receipt className='w-4 h-4 text-slate-400' />Número da Nota</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Número' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="dataEmissao"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Briefcase className='w-4 h-4 text-slate-400' />Data de Emissão (Extraída)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='DD/MM/AAAA' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="prestadorRazaoSocial"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Building className='w-4 h-4 text-slate-400' />Razão Social do Prestador</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Nome da empresa prestadora' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="prestadorCnpj"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />CNPJ do Prestador</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='00.000.000/0000-00' {...field} onChange={(e) => field.onChange(maskCnpj(e.target.value))} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="tomadorRazaoSocial"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Building className='w-4 h-4 text-slate-400' />Razão Social do Tomador</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='Sua empresa' {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="tomadorCnpj"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />CNPJ do Tomador</FormLabel>
+                                <FormControl>
+                                  <Input placeholder='00.000.000/0000-00' {...field} onChange={(e) => field.onChange(maskCnpj(e.target.value))} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                       </div>
                   </div>
               </div>
@@ -526,7 +616,8 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                       {isSubmitting ? 'Enviando...' : isExtracting ? 'Analisando...' : 'Enviar para Ateste'}
                   </Button>
               </div>
-          </form>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
       
@@ -550,3 +641,5 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     </>
   );
 }
+
+    

@@ -4,12 +4,12 @@ import { InvoiceStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-    try {
-        const authHeader = request.headers.get('authorization');
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            return new NextResponse('Unauthorized', { status: 401 });
-        }
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return new NextResponse('Unauthorized', { status: 401 });
+    }
 
+    try {
         const now = new Date();
 
         // 1. Find all notes that are pending and their deadline has passed
@@ -63,5 +63,3 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Erro interno do servidor', { status: 500 });
     }
 }
-
-    

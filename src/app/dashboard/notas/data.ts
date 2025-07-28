@@ -94,25 +94,11 @@ export async function getNotes({
       prisma.fiscalNote.count({ where }),
     ]);
 
-    return { notes, total };
+    return { notes: notes as FiscalNote[], total };
   } catch (error) {
     console.error('Failed to fetch notes from database:', error);
     return { notes: [], total: 0 };
   }
 }
 
-
-export async function getNotesCount() {
-    const session = await auth();
-    if (!session?.user?.id) return 0;
-
-    const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
-    const whereClause = isManagerOrOwner ? {} : { userId: session.user.id };
-
-    try {
-        return await prisma.fiscalNote.count({ where: whereClause });
-    } catch (error) {
-        console.error('Failed to get notes count:', error);
-        return 0;
-    }
-}
+    

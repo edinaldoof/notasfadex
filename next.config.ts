@@ -1,3 +1,4 @@
+
 // next.config.ts
 
 import type {NextConfig} from 'next';
@@ -27,6 +28,12 @@ const nextConfig: NextConfig = {
     ],
   },
   // ✅ ESTE É O BLOCO IMPORTANTE
+  experimental: {
+    // Aumenta o limite de tamanho para uploads em Server Actions
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   webpack: (config, { isServer }) => {
     // Adicionado para resolver o problema 'async_hooks' no cliente
     if (!isServer) {
@@ -41,3 +48,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+    

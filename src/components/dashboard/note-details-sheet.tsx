@@ -87,6 +87,13 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                     <DetailItem icon={Calendar} label="Data de Emissão (Extraída)" value={note.dataEmissao} />
                     <DetailItem icon={CircleDollarSign} label="Valor Total" value={note.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
                     <DetailItem icon={Percent} label="Possui Retenção" value={note.hasWithholdingTax} />
+                    <DetailItem icon={Download} label="Arquivo Original" fullWidth>
+                        <Button asChild variant="link" className="p-0 h-auto text-sm text-primary hover:underline">
+                            <a href={note.originalFileUrl} target="_blank" rel="noopener noreferrer">
+                                Baixar {note.fileName}
+                            </a>
+                        </Button>
+                    </DetailItem>
                     <DetailItem icon={FileText} label="Descrição dos Serviços" value={note.description} fullWidth />
                 </div>
             </div>
@@ -164,7 +171,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                                         </p>
                                         <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
                                             <User className="w-3 h-3"/>
-                                            <span>{event.user}</span>
+                                            <span>{event.userName}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -182,4 +189,3 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
     </Sheet>
   );
 }
-

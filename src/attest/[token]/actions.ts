@@ -161,7 +161,6 @@ export async function attestNotePublic(formData: FormData) {
                         type: 'ATTESTED',
                         details: historyDetails,
                         userId: note.user.id,
-                        userName: coordinatorName,
                     }
                 }
             },
@@ -250,7 +249,6 @@ export async function rejectNotePublic(formData: FormData) {
                         type: 'REJECTED',
                         details: historyDetails,
                         userId: note.userId,
-                        userName: coordinatorName,
                     }
                 }
             }
@@ -283,5 +281,3 @@ export async function rejectNotePublic(formData: FormData) {
         return { success: false, message };
     }
 }
-
-    

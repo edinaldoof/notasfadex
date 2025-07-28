@@ -16,6 +16,7 @@ import {
   LogOut,
   type LucideIcon,
   LayoutDashboard,
+  Target,
 } from 'lucide-react';
 import { Role } from '@prisma/client';
 
@@ -31,6 +32,7 @@ const navItems: NavItemProps[] = [
   { href: '/dashboard/notas', label: 'Visão Geral', icon: FileSpreadsheet },
   { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Users },
   { href: '/dashboard/timeline', label: 'Linha do Tempo', icon: History },
+  { href: '/dashboard/metas', label: 'Metas', icon: Target },
   { href: '/dashboard/reports', label: 'Relatórios', icon: BarChart3 },
   { href: '/dashboard/settings', label: 'Configurações', icon: Settings, requiredRole: [Role.OWNER, Role.MANAGER] },
 ];

@@ -81,12 +81,12 @@ model VerificationToken {
 }
 
 model User {
-  id            String       @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?      @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
-  role          Role         @default(USER)
+  role          Role      @default(USER)
   accounts      Account[]
   sessions      Session[]
   notes         FiscalNote[]
@@ -138,8 +138,8 @@ model FiscalNote {
 
   // Histórico de eventos da nota
   history              NoteHistoryEvent[]
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 }
 
 model NoteHistoryEvent {
@@ -148,7 +148,7 @@ model NoteHistoryEvent {
   date         DateTime    @default(now())
   type         HistoryType
   details      String
-  userName     String?
+  // userName     String?   <-- ❌ CAMPO REMOVIDO PARA CORRIGIR O ERRO
   userId       String?
 
   author User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
