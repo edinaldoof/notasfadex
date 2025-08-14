@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
@@ -18,19 +19,18 @@ export default function SessionHandler() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    // Se a sessão contiver o erro que definimos no backend,
-    // significa que a renovação do token falhou.
+    // Otimizado: Este efeito agora só é acionado quando o valor de session.error muda.
+    // Ele não causa mais chamadas repetitivas à API.
     if (session?.error === "RefreshAccessTokenError") {
-      // Em vez de deslogar, abre o modal de aviso.
       setIsModalOpen(true);
     }
-  }, [session]);
+  }, [session?.error]);
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' });
   };
   
-  // Este componente agora renderiza um modal quando necessário.
+  // O componente agora renderiza um modal de forma eficiente quando necessário.
   return (
     <AlertDialog open={isModalOpen}>
       <AlertDialogContent>

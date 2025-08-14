@@ -54,6 +54,7 @@
     "framer-motion": "^12.23.9",
     "genkit": "1.15.2",
     "googleapis": "^140.0.1",
+    "inquirer": "^12.9.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
@@ -65,6 +66,7 @@
     "react-hook-form": "^7.54.2",
     "react-textarea-autosize": "^8.5.3",
     "recharts": "^2.15.1",
+    "styled-jsx": "^5.1.7",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^9.0.1",
@@ -74,6 +76,7 @@
   "devDependencies": {
     "@tanstack/react-table-devtools": "^8.19.2",
     "@types/gapi": "^0.0.47",
+    "@types/inquirer": "^9.0.8",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20",
     "@types/react": "^18",

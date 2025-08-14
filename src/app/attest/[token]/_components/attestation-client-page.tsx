@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { 
@@ -16,12 +15,15 @@ import {
   XCircle,
   CheckCircle,
   FileSignature,
+  Paperclip,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { RejectionDialog } from './rejection-dialog';
 import AttestationForm from './attestation-form';
 import type { FiscalNote } from '@/lib/types';
+import { NotePreviewDialog } from '@/components/dashboard/note-preview-dialog';
 
 
 type SubmissionStatus = 'pending' | 'attested' | 'rejected';
@@ -71,23 +73,45 @@ const InfoItem = ({
   </div>
 );
 
-const DownloadButton = ({ 
-  downloadUrl, 
-  fileName 
-}: { 
-  downloadUrl: string; 
-  fileName: string;
-}) => (
-  <a 
-    href={downloadUrl}
-    download={fileName}
-    className="w-full inline-flex items-center justify-center px-6 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-primary/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-800"
-    aria-label={`Baixar ${fileName}`}
-  >
-    <Download className="w-5 h-5 mr-2" aria-hidden="true" />
-    Baixar Nota Original para Assinatura
-  </a>
-);
+const ActionButton = ({
+  onClick,
+  text,
+  icon: Icon,
+  variant = 'primary',
+  href
+}: {
+  onClick?: () => void;
+  text: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: 'primary' | 'secondary';
+  href?: string;
+}) => {
+  const commonClasses = "w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800";
+  const primaryClasses = "text-white bg-primary hover:bg-primary/90 focus:ring-primary";
+  const secondaryClasses = "text-slate-300 bg-slate-700/50 hover:bg-slate-700 border-slate-600 focus:ring-slate-500";
+  
+  const buttonContent = (
+      <>
+        <Icon className="w-5 h-5 mr-2" aria-hidden="true" />
+        {text}
+      </>
+  );
+  
+  if (href) {
+    return (
+      <a href={href} download className={`${commonClasses} ${variant === 'primary' ? primaryClasses : secondaryClasses}`}>
+        {buttonContent}
+      </a>
+    );
+  }
+
+  return (
+    <button onClick={onClick} className={`${commonClasses} ${variant === 'primary' ? primaryClasses : secondaryClasses}`}>
+      {buttonContent}
+    </button>
+  );
+};
+
 
 const GovBrSignatureInfo = () => (
   <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4">
@@ -159,16 +183,20 @@ const SuccessScreen = ({ title, message, icon }: { title: string; message: strin
 
 export default function AttestationClientPage({ initialNote, token }: AttestationClientPageProps) {
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('pending');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
   const note = initialNote;
 
-  const downloadUrl = note?.originalFileUrl.startsWith('/api') 
+  const originalFileUrl = note?.originalFileUrl.startsWith('/api') 
     ? `${note.originalFileUrl}?token=${token}` 
     : note?.originalFileUrl || '';
 
-  const fileName = `nota_fiscal_${note?.numeroNota || note?.id}.pdf`;
+  const reportFileUrl = note?.reportFileUrl?.startsWith('/api') 
+    ? `${note.reportFileUrl}?token=${token}` 
+    : note?.reportFileUrl || '';
 
   return (
+    <>
     <main className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="w-full max-w-6xl mx-auto">
@@ -243,10 +271,29 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                   />
                 </div>
                 
-                <DownloadButton 
-                  downloadUrl={downloadUrl} 
-                  fileName={fileName}
-                />
+                <div className="space-y-3">
+                  <ActionButton 
+                    onClick={() => setIsPreviewOpen(true)}
+                    text="Visualizar Nota Original"
+                    icon={Eye}
+                    variant="secondary"
+                  />
+                   <ActionButton 
+                    href={originalFileUrl}
+                    text="Baixar para Assinatura"
+                    icon={Download}
+                    variant="primary"
+                  />
+                  {note.reportFileUrl && (
+                     <ActionButton 
+                        href={reportFileUrl}
+                        text="Baixar Relatório Anexo"
+                        icon={Paperclip}
+                        variant="secondary"
+                     />
+                  )}
+                </div>
+
               </section>
 
               {/* Coluna do Formulário */}
@@ -291,5 +338,13 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
         </div>
       </div>
     </main>
+
+    <NotePreviewDialog 
+        open={isPreviewOpen} 
+        onOpenChange={setIsPreviewOpen}
+        fileUrl={originalFileUrl}
+        fileName={note.fileName || 'documento'}
+    />
+    </>
   );
 }

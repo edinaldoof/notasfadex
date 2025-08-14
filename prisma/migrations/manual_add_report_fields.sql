@@ -1,0 +1,4 @@
+ALTER TABLE "FiscalNote"
+  ADD COLUMN IF NOT EXISTS "reportFileName" TEXT,
+  ADD COLUMN IF NOT EXISTS "reportDriveFileId" TEXT,
+  ADD COLUMN IF NOT EXISTS "reportFileUrl" TEXT;

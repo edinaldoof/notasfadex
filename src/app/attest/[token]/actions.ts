@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { z } from 'zod';
@@ -40,6 +38,8 @@ export async function getNoteFromToken(token: string): Promise<{
         description: true,
         originalFileUrl: true,
         status: true,
+        fileName: true, // ✅ Adicionado para buscar o nome do arquivo
+        reportFileUrl: true, // Adicionado para baixar o relatório, se houver
         user: {
             select: { email: true, name: true }
         }
@@ -51,7 +51,7 @@ export async function getNoteFromToken(token: string): Promise<{
     }
 
     if (note.status !== 'PENDENTE') {
-      return { error: 'Esta nota fiscal não está mais pendente para atesto.' };
+      return { error: 'Esta nota fiscal não está mais pendente de atesto.' };
     }
 
     return { note: note as FiscalNote };

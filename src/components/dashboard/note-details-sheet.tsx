@@ -10,7 +10,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { FiscalNote, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature } from 'lucide-react';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature, Paperclip } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import { Button } from '../ui/button';
 
@@ -95,6 +95,15 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                             </a>
                         </Button>
                     </DetailItem>
+                    {note.reportFileUrl && (
+                      <DetailItem icon={Paperclip} label="Relatório Anexo" fullWidth>
+                          <Button asChild variant="link" className="p-0 h-auto text-sm text-primary hover:underline">
+                              <a href={note.reportFileUrl} target="_blank" rel="noopener noreferrer">
+                                  Baixar {note.reportFileName}
+                              </a>
+                          </Button>
+                      </DetailItem>
+                    )}
                     <DetailItem icon={FileText} label="Descrição dos Serviços" value={note.description} fullWidth />
                 </div>
             </div>

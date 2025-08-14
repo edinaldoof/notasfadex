@@ -38,7 +38,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature } from 'lucide-react';
+import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature, Paperclip } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -80,6 +80,8 @@ const addNoteFormSchema = z.object({
       'São aceitos apenas arquivos .pdf, .xml, .jpg e .png.'
     ),
   
+  reportFile: z.any().optional(),
+
   descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
   prestadorRazaoSocial: z.string().optional(),
   prestadorCnpj: z.string().optional(),
@@ -114,6 +116,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [reportFileName, setReportFileName] = useState<string | null>(null);
   const [existingAccounts, setExistingAccounts] = useState<string[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -129,6 +132,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       projectAccountNumber: "",
       ccEmails: "",
       file: undefined,
+      reportFile: undefined,
       descricaoServicos: "",
       prestadorRazaoSocial: "",
       prestadorCnpj: "",
@@ -162,8 +166,9 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'file' && value?.[0]) {
         formData.append(key, value[0]);
+      } else if (key === 'reportFile' && value?.[0]) {
+        formData.append(key, value[0]);
       } else if (value !== undefined && value !== null) {
-        // Desmascarar CNPJ antes de enviar, mas MANTER a máscara da conta do projeto
         if ((key === 'prestadorCnpj' || key === 'tomadorCnpj') && typeof value === 'string') {
           formData.append(key, value.replace(/\D/g, ''));
         } else {
@@ -185,6 +190,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
             });
             form.reset();
             setFileName(null);
+            setReportFileName(null);
             onOpenChange(false);
             onNoteAdded();
         } else {
@@ -228,6 +234,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     if (!isOpen) {
       form.reset();
       setFileName(null);
+      setReportFileName(null);
     }
     onOpenChange(isOpen);
   };
@@ -447,7 +454,6 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                       </div>
                   </div>
 
-
                   <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Atesto</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
@@ -610,6 +616,39 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                       </div>
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="reportFile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2 text-slate-300">
+                          <Paperclip className="w-4 h-4" />
+                          Anexar Relatório (Opcional)
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative border-2 border-dashed border-slate-700/50 rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+                            <p className="text-slate-400 mb-1 text-sm">
+                              {reportFileName ? `Arquivo: ${reportFileName}` : "Clique ou arraste o relatório"}
+                            </p>
+                            <Input
+                              type="file"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              onChange={(e) => {
+                                field.onChange(e.target.files);
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setReportFileName(file.name);
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
               </div>
 
               <Separator />

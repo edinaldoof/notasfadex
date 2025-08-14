@@ -1,19 +1,18 @@
 
-
 'use server';
 
 import { getDriveService } from './google-drive';
 import { sendEmail } from './email';
-import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload, EmailTemplateParts, RejectionEmailPayload } from './types';
+import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload, EmailTemplateParts, RejectionEmailPayload, ReminderEmailPayload } from './types';
 import prisma from './prisma';
 import { generateAttestationToken } from './token-utils';
-import type { EmailTemplate } from '@prisma/client';
+import type { EmailTemplate, TemplateType } from './types';
 
 // =================================================================
 // Funções Auxiliares de Template
 // =================================================================
 
-function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'> {
+function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'> {
     switch (type) {
         case 'ATTESTATION_REQUEST':
             return {
@@ -57,7 +56,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         </div>
         
         <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0;">
-            Por favor, revise o documento anexo e proceda com o Atesto através do sistema. Sua análise é fundamental para o andamento do processo.
+            Por favor, revise o documento e proceda com o Atesto através do sistema. Sua análise é fundamental para o andamento do processo.
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
@@ -104,7 +103,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
         </div>
         
         <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0;">
-            Para evitar atrasos no processo, solicitamos que realize o Atesto o mais breve possível. O documento está anexo para sua análise.
+            Para evitar atrasos no processo, solicitamos que realize o Atesto o mais breve possível.
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
@@ -119,7 +118,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
     </div>
 </div>`,
             };
-
+        
         case 'ATTESTATION_CONFIRMATION':
             return {
                 type: 'ATTESTATION_CONFIRMATION',
@@ -336,6 +335,36 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
     </div>
 </div>`,
             };
+        case 'OF_ENVIO':
+            return {
+                type: 'OF_ENVIO',
+                subject: 'Solicitação de Fornecimento | Pedido Nº [NumeroOF] | Projeto [NomeProjeto]',
+                body: `Corpo do e-mail para envio da Ordem de Fornecimento.`
+            };
+        case 'OF_LEMBRETE_CONFIRMACAO':
+            return {
+                type: 'OF_LEMBRETE_CONFIRMACAO',
+                subject: 'Lembrete: Confirmação Pendente da OF Nº [NumeroOF]',
+                body: `Corpo do e-mail de lembrete de confirmação da OF.`
+            };
+        case 'OF_CONFIRMACAO_INTERNA':
+            return {
+                type: 'OF_CONFIRMACAO_INTERNA',
+                subject: 'Ordem de Fornecimento Nº [NumeroOF] Confirmada pelo Fornecedor',
+                body: `Corpo do e-mail de confirmação interna.`
+            };
+        case 'OF_LEMBRETE_NF':
+            return {
+                type: 'OF_LEMBRETE_NF',
+                subject: 'Lembrete: Emissão da Nota Fiscal Pendente para a OF Nº [NumeroOF]',
+                body: `Corpo do e-mail de lembrete de emissão de NF.`
+            };
+        case 'OF_CANCELADA':
+            return {
+                type: 'OF_CANCELADA',
+                subject: 'Cancelamento da Ordem de Fornecimento Nº [NumeroOF]',
+                body: `Corpo do e-mail de cancelamento da OF.`
+            };
     }
 }
 
@@ -346,7 +375,7 @@ function getDefaultTemplate(type: EmailTemplate['type']): Omit<EmailTemplate, 'i
  * @param type The type of the email template to get or create.
  * @returns The found or newly created email template.
  */
-export async function getOrCreateEmailTemplate(type: EmailTemplate['type']): Promise<EmailTemplate> {
+export async function getOrCreateEmailTemplate(type: TemplateType): Promise<EmailTemplate> {
   const existingTemplate = await prisma.emailTemplate.findUnique({
     where: { type },
   });
@@ -358,10 +387,14 @@ export async function getOrCreateEmailTemplate(type: EmailTemplate['type']): Pro
   console.log(`Template '${type}' not found. Creating with default content.`);
   const defaultTemplateData = getDefaultTemplate(type);
   const newTemplate = await prisma.emailTemplate.create({
-    data: defaultTemplateData,
+    data: {
+        ...defaultTemplateData,
+        // @ts-ignore
+        type: type,
+    }
   });
   
-  return newTemplate;
+  return newTemplate as EmailTemplate;
 }
 
 
@@ -386,17 +419,6 @@ const processTemplate = (template: { subject: string; body: string }, replacemen
 
 export const sendAttestationRequestEmail = async (payload: AttestationEmailPayload) => {
     try {
-        const drive = getDriveService();
-        
-        const driveResponse = await drive.files.get(
-            { fileId: payload.driveFileId, alt: 'media' },
-            { responseType: 'arraybuffer' }
-        );
-        
-        if (!driveResponse.data) {
-            throw new Error(`Não foi possível buscar o arquivo ${payload.driveFileId} do Google Drive.`);
-        }
-
         const template = await getOrCreateEmailTemplate('ATTESTATION_REQUEST');
         
         const publicAttestationLink = generateAttestationToken(payload.noteId);
@@ -432,21 +454,47 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             cc: ccString,
             subject: emailSubject,
             body: emailBody,
-            attachment: {
-                filename: payload.fileName,
-                contentType: payload.fileType,
-                // @ts-ignore
-                content: Buffer.from(driveResponse.data).toString('base64'),
-            },
         });
         
-        console.log(`E-mail de atesto enviado com sucesso para ${payload.coordinatorEmail} (CC: ${ccString}) para a nota ${payload.noteId}`);
+        console.log(`E-mail de atesto (sem anexo) enviado com sucesso para ${payload.coordinatorEmail} (CC: ${ccString}) para a nota ${payload.noteId}`);
 
     } catch (error) {
         console.error(`Falha ao enviar e-mail de atesto para a nota ${payload.noteId}:`, error);
         throw error; // Re-throw to be caught by the calling action
     }
 };
+
+export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload) => {
+    try {
+        const template = await getOrCreateEmailTemplate('ATTESTATION_REMINDER');
+        
+        const publicAttestationLink = generateAttestationToken(payload.noteId);
+        
+        const replacements = {
+            'NomeCoordenador': payload.coordinatorName,
+            'LinkAteste': publicAttestationLink,
+            'DescricaoNota': payload.noteDescription,
+            'NumeroNota': payload.numeroNota,
+            'TituloProjeto': payload.projectTitle,
+            'DiasRestantes': String(payload.daysRemaining),
+        };
+
+        const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
+
+        await sendEmail({
+            to: payload.coordinatorEmail,
+            cc: payload.requesterEmail,
+            subject: emailSubject,
+            body: emailBody,
+        });
+        
+        console.log(`E-mail de lembrete de atesto enviado com sucesso para ${payload.coordinatorEmail} para a nota ${payload.noteId}`);
+
+    } catch (error) {
+        console.error(`Falha ao enviar e-mail de lembrete para a nota ${payload.noteId}:`, error);
+    }
+};
+
 
 export const sendAttestationConfirmationToCoordinator = async (payload: CoordinatorConfirmationEmailPayload) => {
      try {

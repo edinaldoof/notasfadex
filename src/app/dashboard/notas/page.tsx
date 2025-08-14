@@ -21,7 +21,8 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
-  Handshake,
+  Bell,
+  Building,
 } from 'lucide-react';
 import { FiscalNote, InvoiceStatus } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -55,7 +56,7 @@ import { Button } from '@/components/ui/button';
 import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getNotes } from './data';
-import { revertAttestation, attestNote } from './actions';
+import { revertAttestation, attestNote, notifyAllPendingCoordinators } from './actions';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -67,11 +68,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
-import { useAppMode } from '@/contexts/app-mode-context';
-import { motion, AnimatePresence } from 'framer-motion';
-import { pageTransitions, itemVariants, containerVariants, transitionPresets } from '@/lib/transition-utils';
+import { Role } from '@prisma/client';
 
 const formatDate = (date: Date | string) => {
   return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -124,7 +124,7 @@ function TableSkeleton() {
           <thead className="bg-secondary/50">
             <tr className="whitespace-nowrap">
               <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
-              <th className="text-left p-4 font-semibold text-slate-300">Solicitante / Coordenador</th>
+              <th className="text-left p-4 font-semibold text-slate-300">Prestador</th>
               <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
               <th className="text-left p-4 font-semibold text-slate-300">Status</th>
               <th className="text-left p-4 font-semibold text-slate-300">Valor</th>
@@ -159,7 +159,7 @@ function TableSkeleton() {
   );
 }
 
-function AttestModeClient() {
+function NotasClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
@@ -175,6 +175,7 @@ function AttestModeClient() {
   const [totalNotes, setTotalNotes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [isNotifying, startNotifyingTransition] = useTransition();
   const { toast } = useToast();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -247,6 +248,18 @@ function AttestModeClient() {
     });
   };
 
+  const handleNotifyAll = () => {
+    startNotifyingTransition(async () => {
+      toast({ title: 'Enviando Notificações...', description: 'Aguarde enquanto processamos os e-mails.' });
+      const result = await notifyAllPendingCoordinators();
+      if (result.success) {
+        toast({ title: 'Sucesso!', description: result.message });
+      } else {
+        toast({ title: 'Erro', description: result.message, variant: 'destructive' });
+      }
+    });
+  }
+
   const createQueryString = (params: Record<string, string | number | undefined>) => {
     const newParams = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(params)) {
@@ -288,8 +301,30 @@ function AttestModeClient() {
   }, [currentSearchTerm, currentStatusFilter, currentDate]);
 
 
+  if (loading) {
+    return (
+      <>
+        {/* Render filter controls even when loading */}
+        <FilterControls
+          searchTerm={currentSearchTerm}
+          setSearchTerm={setCurrentSearchTerm}
+          statusFilter={currentStatusFilter}
+          setStatusFilter={setCurrentStatusFilter}
+          date={currentDate}
+          setDate={setCurrentDate}
+          onAddNote={() => setShowAddModal(true)}
+          onNotifyAll={handleNotifyAll}
+          isNotifying={isNotifying}
+          canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
+        />
+        <TableSkeleton />
+        <AddNoteDialog open={showAddModal} onOpenChange={setShowAddModal} onNoteAdded={fetchNotes} />
+      </>
+    );
+  }
+  
   return (
-    <>
+    <TooltipProvider>
       <FilterControls
         searchTerm={currentSearchTerm}
         setSearchTerm={setCurrentSearchTerm}
@@ -298,228 +333,221 @@ function AttestModeClient() {
         date={currentDate}
         setDate={setCurrentDate}
         onAddNote={() => setShowAddModal(true)}
+        onNotifyAll={handleNotifyAll}
+        isNotifying={isNotifying}
+        canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
       />
-      
-      <div>
-        {loading ? (
-          <TableSkeleton />
-        ) : (
-          <TooltipProvider>
-            <div className="bg-background/80 backdrop-blur-sm rounded-xl border border-border/80 overflow-hidden">
-              <div className="overflow-x-auto">
-                <motion.table layout className="w-full text-sm">
-                  <thead className="bg-secondary/50">
-                    <tr className="whitespace-nowrap">
-                      <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
-                      <th className="text-left p-4 font-semibold text-slate-300">Solicitante / Coordenador</th>
-                      <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
-                      <th className="text-left p-4 font-semibold text-slate-300">Status</th>
-                      <th className="text-left p-4 font-semibold text-slate-300">Valor</th>
-                      <th className="text-left p-4 font-semibold text-slate-300">Atesto</th>
-                      <th className="text-center p-4 font-semibold text-slate-300">Ações</th>
-                    </tr>
-                  </thead>
-                  <motion.tbody layout>
-                    <AnimatePresence>
-                    {notes.length > 0 ? (
-                      notes.map((note) => {
-                        const dynamicStatus = getDynamicStatus(note);
-                        const statusConfig = getStatusConfig(dynamicStatus);
-                        const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
-                        const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
-                        const isOwner = note.userId === session?.user?.id;
-                        const canEdit = isOwner && dynamicStatus === 'REJEITADA';
+      <div className="bg-background/80 backdrop-blur-sm rounded-xl border border-border/80 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50">
+              <tr className="whitespace-nowrap">
+                <th className="text-left p-4 font-semibold text-slate-300">Nota Fiscal</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Prestador</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Data Envio</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Status</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Valor</th>
+                <th className="text-left p-4 font-semibold text-slate-300">Atesto</th>
+                <th className="text-center p-4 font-semibold text-slate-300">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notes.length > 0 ? (
+                notes.map((note) => {
+                  const dynamicStatus = getDynamicStatus(note);
+                  const statusConfig = getStatusConfig(dynamicStatus);
+                  const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
+                  const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
+                  const isOwner = note.userId === session?.user?.id;
+                  const canEdit = isOwner && dynamicStatus === 'REJEITADA';
 
-                        return (
-                          <motion.tr
-                            layout
-                            key={note.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -50 }}
-                            transition={{ duration: 0.3, ease: 'easeOut' }}
-                            className="border-t border-border hover:bg-accent/40 transition-colors"
-                          >
-                            <td className="p-4 align-top">
-                              <div className="flex items-center space-x-3 max-w-sm">
-                                <div className="bg-gradient-to-br from-slate-800 to-slate-700 p-2 rounded-lg border border-slate-600 flex-shrink-0">
-                                  <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-medium text-white truncate" title={`${note.projectAccountNumber} - ${note.numeroNota || 'S/N'}`}>
-                                      {note.projectAccountNumber} - {note.numeroNota || 'S/N'}
-                                    </p>
-                                    <p className="text-sm text-slate-400 truncate" title={note.description}>{note.description}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4 align-top">
-                              <div className="flex items-center space-x-2">
-                                <div className="min-w-0">
-                                  <div className="text-slate-300 truncate" title={note.requester}>{note.requester}</div>
-                                  <div className="text-xs text-slate-500 truncate" title={note.coordinatorName}>Coord: {note.coordinatorName}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4 align-top">
-                              <div className="flex items-center space-x-2 whitespace-nowrap">
-                                <span className="text-slate-300">
-                                  {formatDate(note.issueDate)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-4 align-top">
-                              <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border ${statusConfig.color} whitespace-nowrap`}>
-                                {statusConfig.icon}
-                                <span className="text-sm font-medium">{statusConfig.text}</span>
-                              </div>
-                            </td>
-                            <td className="p-4 align-top">
-                              <span className="text-slate-300 font-medium whitespace-nowrap">
-                                {note.amount ? `R$ ${note.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}
-                              </span>
-                            </td>
-                            <td className="p-4 align-top">
-                              {dynamicStatus === 'ATESTADA' && note.attestedBy && note.attestedAt ? (
-                                <div className="flex items-center space-x-2">
-                                  <div className="flex flex-col text-xs min-w-0">
-                                      <span className="font-semibold text-green-400 truncate">{note.attestedBy}</span>
-                                      <span className="text-slate-400 whitespace-nowrap">{formatDateTime(note.attestedAt)}</span>
-                                  </div>
-                                  {note.observation && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <button className="p-1.5 text-slate-400 hover:text-blue-400">
-                                            <Info className="w-4 h-4" />
-                                          </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className='max-w-xs bg-slate-950 border-slate-800 text-slate-300'>
-                                          <p>{note.observation}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                  )}
-                                </div>
-                              ) : dynamicStatus === 'PENDENTE' ? (
-                                <Button
-                                  onClick={() => handleOpenAttestModal(note)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex items-center space-x-2 text-amber-300 hover:text-amber-100 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 whitespace-nowrap"
-                                  disabled={isPending || !canAttest}
-                                >
-                                  <Stamp className="w-4 h-4" />
-                                  <span>Atestar</span>
-                                </Button>
-                              ) : (
-                                <span className="text-slate-500 text-xs">N/A</span>
-                              )}
-                            </td>
-                            <td className="p-4 align-top text-center">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-                                          <MoreHorizontal className="w-5 h-5" />
-                                      </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => handleOpenDetails(note)}>
-                                          <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem asChild>
-                                          <a href={note.originalFileUrl} target="_blank" rel="noopener noreferrer">
-                                              <Download className="mr-2 h-4 w-4" /> Baixar Original
-                                          </a>
-                                      </DropdownMenuItem>
-                                      {note.attestedFileUrl && (
-                                        <DropdownMenuItem asChild>
-                                          <a href={note.attestedFileUrl} target="_blank" rel="noopener noreferrer">
-                                            <Download className="mr-2 h-4 w-4" /> Baixar Atestado
-                                          </a>
-                                        </DropdownMenuItem>
-                                      )}
-                                      {dynamicStatus === 'ATESTADA' && canManage && (
-                                          <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                                      <Undo2 className="mr-2 h-4 w-4" /> Desfazer Atesto
-                                                  </DropdownMenuItem>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                  <AlertDialogHeader>
-                                                      <AlertDialogTitle>Desfazer Atesto?</AlertDialogTitle>
-                                                      <AlertDialogDescription>
-                                                          Esta ação reverterá a nota para "Pendente" e removerá os dados do atesto. O histórico será mantido. Deseja continuar?
-                                                      </AlertDialogDescription>
-                                                  </AlertDialogHeader>
-                                                  <AlertDialogFooter>
-                                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                      <AlertDialogAction onClick={() => handleUndoAttest(note.id)}>Sim, Desfazer</AlertDialogAction>
-                                                  </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                          </AlertDialog>
-                                      )}
-                                      <DropdownMenuItem disabled={!canEdit}>
-                                          <Edit className="mr-2 h-4 w-4" /> Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" disabled>
-                                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                      </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                            </td>
-                          </motion.tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={8}>
-                          <div className="text-center py-12">
-                            <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                            <p className="text-slate-400 mb-2">Nenhuma nota encontrada</p>
-                            <p className="text-slate-500 text-sm">Tente ajustar os filtros ou adicione uma nova nota</p>
+                  return (
+                    <tr 
+                      key={note.id} 
+                      className="border-t border-border hover:bg-accent/40 transition-colors"
+                    >
+                      <td className="p-4 align-top">
+                        <div className="flex items-center space-x-3 max-w-sm">
+                           <div className="bg-gradient-to-br from-slate-800 to-slate-700 p-2 rounded-lg border border-slate-600 flex-shrink-0">
+                             <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
+                           </div>
+                           <div className="min-w-0">
+                              <p className="font-medium text-white truncate" title={`${note.projectAccountNumber} - ${note.numeroNota || 'S/N'}`}>
+                                {note.projectAccountNumber} - {note.numeroNota || 'S/N'}
+                              </p>
+                              <p className="text-sm text-slate-400 truncate" title={note.description}>{note.description}</p>
+                           </div>
+                        </div>
+                      </td>
+                       <td className="p-4 align-top">
+                        <div className="flex items-center space-x-2">
+                          <div className="min-w-0">
+                            <div className="text-slate-300 truncate" title={note.prestadorRazaoSocial}>{note.prestadorRazaoSocial || 'Não informado'}</div>
+                            <div className="text-xs text-slate-500 truncate" title={note.prestadorCnpj}>CNPJ: {note.prestadorCnpj || 'N/A'}</div>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                    </AnimatePresence>
-                  </motion.tbody>
-                </motion.table>
-              </div>
-              <div className="flex items-center justify-between p-4">
-                <div className="text-sm text-muted-foreground">
-                  {totalNotes} notas no total.
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page <= 1}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="text-sm">
-                    Página {page} de {Math.ceil(totalNotes / limit)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page >= Math.ceil(totalNotes / limit)}
-                  >
-                    Próximo
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TooltipProvider>
-        )}
+                        </div>
+                      </td>
+                      <td className="p-4 align-top">
+                        <div className="flex items-center space-x-2 whitespace-nowrap">
+                          <span className="text-slate-300">
+                            {formatDate(note.issueDate)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-top">
+                        <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border ${statusConfig.color} whitespace-nowrap`}>
+                          {statusConfig.icon}
+                          <span className="text-sm font-medium">{statusConfig.text}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-top">
+                        <span className="text-slate-300 font-medium whitespace-nowrap">
+                          {note.amount ? `R$ ${note.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}
+                        </span>
+                      </td>
+                      <td className="p-4 align-top">
+                        {dynamicStatus === 'ATESTADA' && note.attestedBy && note.attestedAt ? (
+                          <div className="flex items-center space-x-2">
+                             <div className="flex flex-col text-xs min-w-0">
+                                <span className="font-semibold text-green-400 truncate">{note.attestedBy}</span>
+                                <span className="text-slate-400 whitespace-nowrap">{formatDateTime(note.attestedAt)}</span>
+                             </div>
+                             {note.observation && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="p-1.5 text-slate-400 hover:text-blue-400">
+                                      <Info className="w-4 h-4" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className='max-w-xs bg-slate-950 border-slate-800 text-slate-300'>
+                                    <p>{note.observation}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                             )}
+                          </div>
+                        ) : dynamicStatus === 'PENDENTE' ? (
+                          <Button
+                            onClick={() => handleOpenAttestModal(note)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center space-x-2 text-amber-300 hover:text-amber-100 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 whitespace-nowrap"
+                            disabled={isPending || !canAttest}
+                          >
+                            <Stamp className="w-4 h-4" />
+                            <span>Atestar</span>
+                          </Button>
+                        ) : (
+                          <span className="text-slate-500 text-xs">N/A</span>
+                        )}
+                      </td>
+                      <td className="p-4 align-top text-center">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleOpenDetails(note)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={note.originalFileUrl} target="_blank" rel="noopener noreferrer">
+                                        <Download className="mr-2 h-4 w-4" /> Baixar Original
+                                    </a>
+                                </DropdownMenuItem>
+                                {note.attestedFileUrl && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={note.attestedFileUrl} target="_blank" rel="noopener noreferrer">
+                                      <Download className="mr-2 h-4 w-4" /> Baixar Atestado
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                {note.reportFileUrl && (
+                                    <DropdownMenuItem asChild>
+                                        <a href={note.reportFileUrl} target="_blank" rel="noopener noreferrer">
+                                            <Download className="mr-2 h-4 w-4" /> Baixar Relatório
+                                        </a>
+                                    </DropdownMenuItem>
+                                )}
+                                {dynamicStatus === 'ATESTADA' && canManage && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                <Undo2 className="mr-2 h-4 w-4" /> Desfazer Atesto
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Desfazer Atesto?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Esta ação reverterá a nota para "Pendente" e removerá os dados do atesto. O histórico será mantido. Deseja continuar?
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleUndoAttest(note.id)}>Sim, Desfazer</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                                <DropdownMenuItem disabled={!canEdit}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" disabled>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={8}>
+                    <div className="text-center py-12">
+                      <FileSpreadsheet className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                      <p className="text-slate-400 mb-2">Nenhuma nota encontrada</p>
+                      <p className="text-slate-500 text-sm">Tente ajustar os filtros ou adicione uma nova nota</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between p-4">
+          <div className="text-sm text-muted-foreground">
+            {totalNotes} notas no total.
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Anterior
+            </Button>
+            <span className="text-sm">
+              Página {page} de {Math.ceil(totalNotes / limit)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= Math.ceil(totalNotes / limit)}
+            >
+              Próximo
+            </Button>
+          </div>
+        </div>
       </div>
-
-      {selectedNote && (
+       {selectedNote && (
         <AttestNoteDialog
           open={showAttestModal}
           onOpenChange={setShowAttestModal}
@@ -534,11 +562,11 @@ function AttestModeClient() {
         onOpenChange={setShowDetailsSheet}
       />
       <AddNoteDialog open={showAddModal} onOpenChange={setShowAddModal} onNoteAdded={fetchNotes} />
-    </>
-  );
+    </TooltipProvider>
+  )
 }
 
-function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilter, date, setDate, onAddNote }: {
+function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilter, date, setDate, onAddNote, onNotifyAll, isNotifying, canNotify }: {
     searchTerm: string;
     setSearchTerm: (value: string) => void;
     statusFilter: string;
@@ -546,10 +574,13 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
     date?: DateRange;
     setDate: (date?: DateRange) => void;
     onAddNote: () => void;
+    onNotifyAll: () => void;
+    isNotifying: boolean;
+    canNotify: boolean;
 }) {
     return (
-        <motion.div variants={containerVariants}>
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
                 <div className="flex items-center gap-4">
                     <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl blur opacity-20"></div>
@@ -559,27 +590,40 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
                     </div>
                     <div>
                         <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                            Visão Geral (Atesto)
+                            Visão Geral
                         </h1>
                         <p className="text-slate-400 mt-1">
                             Visualize, filtre e gerencie todas as notas fiscais do sistema.
                         </p>
                     </div>
                 </div>
-                <Button
-                onClick={onAddNote}
-                className={cn(
-                    'w-full sm:w-auto px-6 py-2.5 font-semibold transition-all duration-300 flex items-center space-x-2 whitespace-nowrap glow-on-hover',
-                    'bg-primary text-primary-foreground',
-                    'hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20'
-                )}
-                >
-                <Plus className="w-5 h-5" />
-                <span>Nova Nota</span>
-                </Button>
-            </motion.div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {canNotify && (
+                        <Button
+                            onClick={onNotifyAll}
+                            variant="outline"
+                            className="flex-1 sm:flex-none"
+                            disabled={isNotifying}
+                        >
+                            {isNotifying ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Bell className="w-4 h-4 mr-2" />}
+                            {isNotifying ? "Notificando..." : "Notificar Pendentes"}
+                        </Button>
+                    )}
+                    <Button
+                        onClick={onAddNote}
+                        className={cn(
+                            'flex-1 sm:flex-none px-6 py-2.5 font-semibold transition-all duration-300 flex items-center space-x-2 whitespace-nowrap',
+                            'bg-primary text-primary-foreground',
+                            'hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20'
+                        )}
+                        >
+                        <Plus className="w-5 h-5" />
+                        <span>Nova Nota</span>
+                    </Button>
+                </div>
+            </div>
             
-            <motion.div variants={itemVariants} className="bg-background/80 backdrop-blur-sm rounded-xl p-4 border border-border/80 mb-8 hover-lift">
+            <div className="bg-background/80 backdrop-blur-sm rounded-xl p-4 border border-border/80 mb-8">
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="flex-1 flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                     <div className="relative flex-1 w-full max-w-md">
@@ -646,69 +690,17 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
                     </div>
                 </div>
                 </div>
-            </motion.div>
-        </motion.div>
-    )
-}
-
-function RequestModeClient() {
-  return (
-    <motion.div variants={containerVariants} className="space-y-8 animate-in fade-in-50 duration-500">
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl blur opacity-20"></div>
-            <div className="relative bg-gradient-to-r from-blue-500 to-cyan-600 p-3 rounded-2xl">
-              <Handshake className="w-8 h-8 text-white" />
             </div>
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">
-              Visão Geral (Solicitações)
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie e acompanhe todos os pedidos de nota fiscal.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-      
-      <motion.div variants={itemVariants} className="text-center py-16 bg-card/50 backdrop-blur-sm rounded-2xl border border-border mt-8 hover-lift">
-        <Handshake className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-foreground mb-2">Módulo em Construção</h3>
-        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          A tabela com todas as solicitações aparecerá aqui. Em breve, você poderá criar, filtrar e gerenciar todos os seus pedidos.
-        </p>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function PageWithSuspense() {
-  const { mode } = useAppMode();
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={mode}
-        variants={pageTransitions.slidePerspective}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        transition={transitionPresets.smooth}
-        style={{ perspective: 1200 }}
-        className="gpu-accelerated"
-      >
-        {mode === 'attest' ? <AttestModeClient /> : <RequestModeClient />}
-      </motion.div>
-    </AnimatePresence>
-  );
+        </>
+    )
 }
 
 export default function NotasPage() {
   return (
     <Suspense fallback={<TableSkeleton />}>
-      <PageWithSuspense />
+      <NotasClient />
     </Suspense>
   )
 }
+
+    

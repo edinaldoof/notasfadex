@@ -57,8 +57,8 @@ export default function GoogleSignInButton() {
       onClick={handleSignIn}
       size="lg"
       className={cn(
-        'w-full font-semibold text-base py-6',
-        'bg-white text-slate-700 border border-slate-300',
+        'w-full font-semibold text-base py-6 text-slate-700',
+        'bg-white border border-slate-300',
         'hover:bg-slate-50 hover:shadow-md transition-all duration-300'
       )}
       disabled={isLoading}

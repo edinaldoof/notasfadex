@@ -1,5 +1,4 @@
 
-
 import { 
   FiscalNote as PrismaFiscalNote, 
   NoteHistoryEvent as PrismaNoteHistoryEvent, 
@@ -8,15 +7,49 @@ import {
   InvoiceType,
   Role,
   User as PrismaUser,
+  EmailTemplate as PrismaEmailTemplate,
 } from '@prisma/client';
 
 // Adicionando 'REJEITADA' ao enum local
 export const InvoiceStatus = { ...PrismaInvoiceStatus, REJEITADA: 'REJEITADA' } as const;
 export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
 
+// NOVO: Status para a Ordem de Fornecimento
+export enum StatusOF {
+  RASCUNHO = 'RASCUNHO',
+  AGUARDANDO_CONFIRMACAO = 'AGUARDANDO_CONFIRMACAO',
+  AGUARDANDO_NOTA = 'AGUARDANDO_NOTA',
+  NOTA_RECEBIDA = 'NOTA_RECEBIDA',
+  ATRASADO = 'ATRASADO',
+  CONCLUIDO = 'CONCLUIDO',
+  CANCELADO = 'CANCELADO',
+}
+
+// NOVO: Tipos de Email para o fluxo de Solicitação
+export const TemplateType = {
+  // Ateste
+  ATTESTATION_REQUEST: 'ATTESTATION_REQUEST',
+  ATTESTATION_REMINDER: 'ATTESTATION_REMINDER',
+  ATTESTATION_CONFIRMATION: 'ATTESTATION_CONFIRMATION',
+  NOTE_EXPIRED: 'NOTE_EXPIRED',
+  ATTESTATION_CONFIRMATION_COORDINATOR: 'ATTESTATION_CONFIRMATION_COORDINATOR',
+  NOTE_REJECTED: 'NOTE_REJECTED',
+  // Solicitação
+  OF_ENVIO: 'OF_ENVIO',
+  OF_LEMBRETE_CONFIRMACAO: 'OF_LEMBRETE_CONFIRMACAO',
+  OF_CONFIRMACAO_INTERNA: 'OF_CONFIRMACAO_INTERNA',
+  OF_LEMBRETE_NF: 'OF_LEMBRETE_NF',
+  OF_CANCELADA: 'OF_CANCELADA',
+} as const;
+export type TemplateType = typeof TemplateType[keyof typeof TemplateType];
+
 
 // Re-export Prisma types to be used across the application
 export { HistoryType, InvoiceType, Role };
+
+export interface EmailTemplate extends PrismaEmailTemplate {
+  type: TemplateType;
+}
 
 // ALTERADO: Adicionado 'author' opcional (a relação) e userName (string)
 export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {
@@ -31,6 +64,8 @@ export interface FiscalNote extends Omit<PrismaFiscalNote, 'status'> {
   observation?: string | null;
   user?: Partial<PrismaUser>; // Include user for accessing email
   projectTitle?: string | null;
+  reportFileName?: string | null;
+  reportFileUrl?: string | null;
 }
 
 export interface SendEmailOptions {
@@ -66,7 +101,7 @@ export interface CoordinatorConfirmationEmailPayload {
     noteId: string;
     coordinatorName: string;
     coordinatorEmail: string;
-    requesterEmail: string; // Add requester email to CC them
+    requesterEmail: string; // Add a requester email to CC them
     noteDescription: string;
     attestedFileId: string;
     attestedFileName: string;
@@ -88,6 +123,17 @@ export interface RejectionEmailPayload {
     numeroNota: string | null;
     projectTitle: string | null;
     projectAccountNumber: string;
+}
+
+export interface ReminderEmailPayload {
+    noteId: string;
+    coordinatorName: string;
+    coordinatorEmail: string;
+    requesterEmail: string;
+    noteDescription: string;
+    numeroNota: string | null;
+    projectTitle: string | null;
+    daysRemaining: number;
 }
 
 export interface EmailTemplateParts {

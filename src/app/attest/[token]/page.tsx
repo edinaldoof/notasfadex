@@ -28,8 +28,9 @@ function ErrorPage({ error }: { error: string }) {
 }
 
 // Este é agora um Server Component puro.
-export default async function AttestationPage({ params }: { params: { token: string }}) {
-  const token = params.token;
+export default async function AttestationPage({ params }: { params: Promise<{ token: string }> }) {
+  // Acessando o token diretamente dos parâmetros
+  const { token } = await params;
 
   if (!token) {
     return <ErrorPage error="Token não fornecido ou inválido." />;

@@ -23,7 +23,6 @@ import {
   Edit,
   AlertTriangle,
   XCircle,
-  Handshake,
   Calculator,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -39,8 +38,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { HistoryType } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useAppMode } from '@/contexts/app-mode-context';
-import { pageTransitions, itemVariants, containerVariants, transitionPresets } from '@/lib/transition-utils';
 
 // Interface para o summary
 interface DashboardSummary {
@@ -289,36 +286,95 @@ const RecentActivity = ({ activities, loading, delay = 0 }: { activities: Recent
   </motion.div>
 );
 
-function AttestModeDashboard({ summary, activities, loadingSummary, loadingActivities, onAddNote }) {
+
+// Componente Principal do Dashboard
+export default function DashboardPage() {
+  const [summary, setSummary] = useState<DashboardSummary>({ 
+    totalNotes: 0, 
+    attestedNotes: 0, 
+    pendingNotes: 0, 
+    totalAmount: 0,
+    resolutionRate: 0,
+  });
+  const [activities, setActivities] = useState<RecentActivityEvent[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   const { data: session, status } = useSession();
   const [greeting, setGreeting] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
     const getGreeting = () => {
       const currentHour = new Date().getHours();
-      if (currentHour < GREETING_TIMES.MORNING) return 'Bom dia';
-      if (currentHour < GREETING_TIMES.AFTERNOON) return 'Boa tarde';
-      return 'Boa noite';
+      if (currentHour < GREETING_TIMES.MORNING) {
+        return 'Bom dia';
+      } else if (currentHour < GREETING_TIMES.AFTERNOON) {
+        return 'Boa tarde';
+      } else {
+        return 'Boa noite';
+      }
     };
     setGreeting(getGreeting());
     
+    // Formatar data atual
     const today = new Date();
-    const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
     setCurrentDate(today.toLocaleDateString('pt-BR', options));
   }, []);
-
-  const getDisplayName = () => {
-    if (!session?.user?.name) return '';
-    const nameParts = session.user.name.split(' ');
-    if (nameParts.length > 1 && nameParts[0].toUpperCase() === 'FADEX') return nameParts[1];
-    return nameParts[0];
+  
+  const fetchData = async () => {
+    setLoadingSummary(true);
+    setLoadingActivities(true);
+    try {
+      const [summaryData, activitiesData] = await Promise.all([
+        getDashboardSummary(),
+        getRecentActivities()
+      ]);
+      setSummary(summaryData);
+      setActivities(activitiesData);
+      setError(null);
+    } catch(error) {
+      setError('Erro ao carregar dados do dashboard');
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoadingSummary(false);
+      setLoadingActivities(false);
+    }
   };
 
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchData();
+    }
+  }, [status]);
+  
+  const handleNoteAdded = () => {
+    fetchData();
+  }
+
+  const getDisplayName = () => {
+    if (!session?.user?.name) {
+      return '';
+    }
+    const nameParts = session.user.name.split(' ');
+    if (nameParts.length > 1 && nameParts[0].toUpperCase() === 'FADEX') {
+      return nameParts[1];
+    }
+    return nameParts[0];
+  }
+
+  // Calcular porcentagem de notas atestadas
   const attestedPercentage = summary.totalNotes > 0 
     ? Math.round((summary.attestedNotes / summary.totalNotes) * 100) 
     : 0;
-  
+
   return (
     <div className="space-y-8">
       {/* Header Melhorado */}
@@ -355,7 +411,7 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <Button
-              onClick={onAddNote}
+              onClick={() => setShowAddModal(true)}
               className={cn(
                 'px-6 py-3 font-semibold transition-all duration-300 flex items-center gap-2',
                 'bg-gradient-to-r from-emerald-500 to-green-600 text-white',
@@ -401,9 +457,9 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
           delay={0.3}
         />
         <EnhancedStatCard
-          title="Taxa de Resolução (30d)"
-          value={`${summary.resolutionRate}%`}
-          icon={<Calculator className="w-6 h-6 text-purple-400" />}
+          title="Valor Total"
+          value={`R$ ${summary.totalAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`}
+          icon={<BarChart3 className="w-6 h-6 text-purple-400" />}
           loading={loadingSummary || status !== 'authenticated'}
           color="bg-purple-500"
           delay={0.4}
@@ -412,6 +468,7 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
 
       {/* Seção de Ações Rápidas e Atividades */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ações Rápidas */}
         <div className="lg:col-span-2 space-y-4">
           <motion.h2 
             initial={{ opacity: 0 }}
@@ -424,15 +481,46 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
           </motion.h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <QuickAction icon={<FileText className="w-5 h-5" />} title="Adicionar Nota" description="Cadastre uma nova nota fiscal" onClick={onAddNote} color="text-blue-400" delay={0.6} />
-            <QuickAction icon={<BarChart3 className="w-5 h-5" />} title="Ver Relatórios" description="Análise detalhada das notas" href="/dashboard/reports" color="text-purple-400" delay={0.7} />
-            <QuickAction icon={<Target className="w-5 h-5" />} title="Metas do Mês" description="Acompanhe seus objetivos" href="/dashboard/metas" color="text-green-400" delay={0.8} />
-            <QuickAction icon={<Activity className="w-5 h-5" />} title="Histórico" description="Veja todas as atividades" href="/dashboard/timeline" color="text-orange-400" delay={0.9} />
+            <QuickAction
+              icon={<FileText className="w-5 h-5 text-blue-400" />}
+              title="Adicionar Nota"
+              description="Cadastre uma nova nota fiscal"
+              onClick={() => setShowAddModal(true)}
+              color="text-blue-400"
+              delay={0.6}
+            />
+            <QuickAction
+              icon={<BarChart3 className="w-5 h-5 text-purple-400" />}
+              title="Ver Relatórios"
+              description="Análise detalhada das notas"
+              href="/dashboard/reports"
+              color="text-purple-400"
+              delay={0.7}
+            />
+            <QuickAction
+              icon={<Target className="w-5 h-5 text-green-400" />}
+              title="Metas do Mês"
+              description="Acompanhe seus objetivos"
+              href="/dashboard/metas"
+              color="text-green-400"
+              delay={0.8}
+            />
+            <QuickAction
+              icon={<Activity className="w-5 h-5 text-orange-400" />}
+              title="Histórico"
+              description="Veja todas as atividades"
+              href="/dashboard/timeline"
+              color="text-orange-400"
+              delay={0.9}
+            />
           </div>
         </div>
+
+        {/* Atividade Recente */}
         <RecentActivity activities={activities} loading={loadingActivities} delay={1} />
       </div>
 
+      {/* Card de Visão Geral Melhorado */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -444,6 +532,7 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
           "shadow-xl"
         )}
       >
+        {/* Decoração de fundo */}
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
         <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
         
@@ -461,6 +550,7 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
             </div>
           </div>
           
+          {/* Estatísticas inline */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="p-4 bg-slate-800/50 rounded-xl backdrop-blur-sm">
               <p className="text-sm text-slate-400 mb-1">Taxa de Conclusão</p>
@@ -480,7 +570,7 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
             <div className="p-4 bg-slate-800/50 rounded-xl backdrop-blur-sm">
               <p className="text-sm text-slate-400 mb-1">Média Mensal</p>
               <p className="text-xl font-bold text-white">
-                R$ {(summary.totalAmount > 0 && summary.totalNotes > 0 ? summary.totalAmount / 12 : 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                R$ {(summary.totalAmount / 12).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
               </p>
             </div>
             
@@ -494,123 +584,13 @@ function AttestModeDashboard({ summary, activities, loadingSummary, loadingActiv
           </div>
         </div>
       </motion.div>
-    </div>
-  );
-}
 
-function RequestModeDashboard() {
-  return (
-    <motion.div variants={containerVariants} className="space-y-8 animate-in fade-in-50 duration-500">
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl blur opacity-20"></div>
-            <div className="relative bg-gradient-to-r from-blue-500 to-cyan-600 p-3 rounded-2xl">
-              <Handshake className="w-8 h-8 text-white" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">
-              Visão Geral (Solicitações)
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie e acompanhe todos os pedidos de nota fiscal.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-      
-      <motion.div variants={itemVariants} className="text-center py-16 bg-card/50 backdrop-blur-sm rounded-2xl border border-border mt-8 hover-lift">
-        <Handshake className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-foreground mb-2">Módulo em Construção</h3>
-        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          A tabela com todas as solicitações aparecerá aqui. Em breve, você poderá criar, filtrar e gerenciar todos os seus pedidos.
-        </p>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-
-// Componente Principal do Dashboard
-function PageContent() {
-  const { mode } = useAppMode();
-  const [summary, setSummary] = useState<DashboardSummary>({ 
-    totalNotes: 0, 
-    attestedNotes: 0, 
-    pendingNotes: 0, 
-    totalAmount: 0,
-    resolutionRate: 0,
-  });
-  const [activities, setActivities] = useState<RecentActivityEvent[]>([]);
-  const [loadingSummary, setLoadingSummary] = useState(true);
-  const [loadingActivities, setLoadingActivities] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const { status } = useSession();
-
-  const fetchData = async () => {
-    setLoadingSummary(true);
-    setLoadingActivities(true);
-    try {
-      const [summaryData, activitiesData] = await Promise.all([
-        getDashboardSummary(),
-        getRecentActivities()
-      ]);
-      setSummary(summaryData);
-      setActivities(activitiesData);
-    } catch(error) {
-      console.error("Failed to fetch dashboard data:", error);
-    } finally {
-      setLoadingSummary(false);
-      setLoadingActivities(false);
-    }
-  };
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchData();
-    }
-  }, [status]);
-  
-  const handleNoteAdded = () => {
-    fetchData();
-  };
-
-  return (
-    <>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={mode}
-          variants={pageTransitions.slidePerspective}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          transition={transitionPresets.smooth}
-          style={{ perspective: 1200 }}
-          className="gpu-accelerated"
-        >
-          {mode === 'attest' ? (
-            <AttestModeDashboard 
-              summary={summary}
-              activities={activities}
-              loadingSummary={loadingSummary}
-              loadingActivities={loadingActivities}
-              onAddNote={() => setShowAddModal(true)}
-            />
-          ) : (
-            <RequestModeDashboard />
-          )}
-        </motion.div>
-      </AnimatePresence>
+      {/* Modal de Adicionar Nota */}
       <AddNoteDialog 
         open={showAddModal} 
         onOpenChange={setShowAddModal} 
         onNoteAdded={handleNoteAdded} 
       />
-    </>
+    </div>
   );
-}
-
-export default function DashboardPage() {
-  return <PageContent />;
 }

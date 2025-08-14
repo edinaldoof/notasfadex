@@ -89,7 +89,10 @@ export async function addNote(formData: FormData) {
     }
 
     const submissionDate = new Date();
-    const attestationDeadline = addDays(submissionDate, 30); 
+    // Use as configurações do banco de dados para definir o prazo
+    const settings = await prisma.settings.findFirst();
+    const deadlineDays = settings?.attestationDeadlineInDays ?? 30; // Fallback para 30 dias
+    const attestationDeadline = addDays(submissionDate, deadlineDays); 
 
     const newNote = await prisma.fiscalNote.create({
       data: {

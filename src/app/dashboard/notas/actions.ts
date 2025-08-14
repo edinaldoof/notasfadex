@@ -1,16 +1,15 @@
 
-
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { InvoiceStatus, InvoiceType } from '@prisma/client';
+import { InvoiceStatus, InvoiceType, Role } from '@prisma/client';
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
-import { addDays } from 'date-fns';
-import { sendAttestationRequestEmail } from '@/lib/email-actions';
+import { addDays, differenceInDays } from 'date-fns';
+import { sendAttestationRequestEmail, sendAttestationReminderEmail } from '@/lib/email-actions';
 import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '@/ai/flows/extract-note-data-flow';
 
 // Regex robusto para validação de e-mail
@@ -26,7 +25,6 @@ const addNoteSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  // file is handled separately from FormData
   descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
   prestadorCnpj: z.string().optional(),
   tomadorRazaoSocial: z.string().optional(),
@@ -48,16 +46,17 @@ export async function addNote(formData: FormData) {
     
     const { id: userId, name: userName } = session.user;
 
-    // Manual file validation from FormData
     const file = formData.get('file') as File;
+    const reportFile = formData.get('reportFile') as File | null;
+
     if (!file || file.size === 0) {
-        return { success: false, message: 'O arquivo é obrigatório e não pode estar vazio.' };
+        return { success: false, message: 'O arquivo da nota fiscal é obrigatório.' };
     }
      if (file.size > 10000000) {
-        return { success: false, message: 'O tamanho máximo do arquivo é 10MB.' };
+        return { success: false, message: 'O tamanho máximo do arquivo da nota é 10MB.' };
     }
     if (!['application/pdf', 'text/xml', 'image/jpeg', 'image/png'].includes(file.type)) {
-        return { success: false, message: 'São aceitos apenas arquivos .pdf, .xml, .jpg e .png.' };
+        return { success: false, message: 'Formato de arquivo inválido para nota. São aceitos apenas .pdf, .xml, .jpg e .png.' };
     }
 
     const rawFormData = Object.fromEntries(formData.entries());
@@ -101,19 +100,38 @@ export async function addNote(formData: FormData) {
             };
         }
     }
-
+    
+    // Upload Nota Fiscal
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileStream = Readable.from(fileBuffer);
-    
     const driveFile = await uploadFileToDrive(`[NOTA] ${file.name}`, file.type, fileStream, projectAccountNumber);
-
     if (!driveFile || !driveFile.id) {
-      throw new Error("Falha ao fazer upload do arquivo para o Google Drive.");
+      throw new Error("Falha ao fazer upload da nota fiscal para o Google Drive.");
+    }
+
+    let reportDriveFileId: string | null = null;
+    let reportFileName: string | null = null;
+    let reportFileUrl: string | null = null;
+
+    // Upload Relatório Opcional
+    if (reportFile && reportFile.size > 0) {
+        const reportBuffer = Buffer.from(await reportFile.arrayBuffer());
+        const reportStream = Readable.from(reportBuffer);
+        const reportDriveFile = await uploadFileToDrive(`[RELATORIO] ${reportFile.name}`, reportFile.type, reportStream, projectAccountNumber);
+        if (!reportDriveFile || !reportDriveFile.id) {
+            console.warn("Falha ao fazer upload do relatório, mas a nota será criada mesmo assim.");
+        } else {
+            reportDriveFileId = reportDriveFile.id;
+            reportFileName = reportFile.name;
+            reportFileUrl = `/api/download/${reportDriveFile.id}`;
+        }
     }
 
     const submissionDate = new Date();
-    // TODO: Make this configurable in settings
-    const attestationDeadline = addDays(submissionDate, 30); 
+    // Use as configurações do banco de dados para definir o prazo
+    const settings = await prisma.settings.findFirst();
+    const deadlineDays = settings?.attestationDeadlineInDays ?? 30; // Fallback para 30 dias
+    const attestationDeadline = addDays(submissionDate, deadlineDays); 
 
     const newNote = await prisma.fiscalNote.create({
       data: {
@@ -125,6 +143,9 @@ export async function addNote(formData: FormData) {
         fileName: file.name,
         originalFileUrl: `/api/download/${driveFile.id}`,
         driveFileId: driveFile.id,
+        reportDriveFileId,
+        reportFileName,
+        reportFileUrl,
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
         userId: userId,
         invoiceType: invoiceType,
@@ -138,7 +159,7 @@ export async function addNote(formData: FormData) {
         history: {
           create: {
             type: 'CREATED',
-            details: `Nota fiscal criada por ${userName} e atribuída a ${coordinatorName} para atesto. Arquivo '${file.name}' salvo na pasta da conta ${projectAccountNumber} no Drive.`,
+            details: `Nota fiscal criada por ${userName} e atribuída a ${coordinatorName} para atesto. Arquivo '${file.name}' salvo.`,
             author: {
               connect: { id: userId },
             },
@@ -355,4 +376,60 @@ export async function extractNoteData(input: ExtractNoteDataInput): Promise<Extr
       // Re-throw the original error to be caught by the client
       throw error;
   }
+}
+
+export async function notifyAllPendingCoordinators(): Promise<{ success: boolean; message: string; notifiedCount?: number; }> {
+    const session = await auth();
+    if (session?.user?.role !== Role.OWNER && session?.user?.role !== Role.MANAGER) {
+        return { success: false, message: "Acesso negado. Apenas administradores podem executar esta ação." };
+    }
+
+    try {
+        const pendingNotes = await prisma.fiscalNote.findMany({
+            where: {
+                status: InvoiceStatus.PENDENTE,
+                attestationDeadline: {
+                    gte: new Date(), // Apenas notas não expiradas
+                },
+            },
+            include: {
+                user: {
+                    select: {
+                        email: true,
+                    },
+                },
+            },
+        });
+
+        if (pendingNotes.length === 0) {
+            return { success: true, message: "Nenhuma nota pendente para notificar.", notifiedCount: 0 };
+        }
+
+        const emailPromises = pendingNotes.map(note => {
+            if (!note.user.email) {
+                console.warn(`Nota ${note.id} não tem um solicitante com e-mail para ser copiado.`);
+                return Promise.resolve(); // Pula esta nota
+            }
+            // Calcula os dias restantes com base na data de expiração da nota
+            const daysRemaining = note.attestationDeadline ? differenceInDays(note.attestationDeadline, new Date()) : 0;
+            return sendAttestationReminderEmail({
+                noteId: note.id,
+                coordinatorEmail: note.coordinatorEmail,
+                coordinatorName: note.coordinatorName,
+                requesterEmail: note.user.email,
+                noteDescription: note.description,
+                projectTitle: note.projectTitle,
+                numeroNota: note.numeroNota,
+                daysRemaining: Math.max(0, daysRemaining),
+            });
+        });
+
+        await Promise.all(emailPromises);
+        
+        return { success: true, message: `${pendingNotes.length} lembretes de atesto foram enviados com sucesso.`, notifiedCount: pendingNotes.length };
+
+    } catch (error) {
+        console.error("Erro ao notificar coordenadores:", error);
+        return { success: false, message: "Ocorreu um erro no servidor ao tentar enviar as notificações." };
+    }
 }

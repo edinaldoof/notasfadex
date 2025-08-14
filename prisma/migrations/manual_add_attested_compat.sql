@@ -1,0 +1,3 @@
+ALTER TABLE "FiscalNote"
+  ADD COLUMN IF NOT EXISTS "attestedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "attestedByName" TEXT;

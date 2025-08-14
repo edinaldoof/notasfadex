@@ -51,7 +51,7 @@ export const authConfig = {
           access_type: 'offline',
           response_type: 'code',
           scope:
-            'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send',
         },
       },
     }),
@@ -78,30 +78,19 @@ export const authConfig = {
         // Persiste os tokens OAuth no banco de dados na primeira vez
         // A sintaxe aqui é crítica para evitar o erro P2025
         if (account.provider && account.providerAccountId) {
-            const dbAccount = await prisma.account.findUnique({
-                 where: {
+            await prisma.account.update({
+                where: {
                     provider_providerAccountId: {
                         provider: account.provider,
                         providerAccountId: account.providerAccountId,
                     },
-                }
+                },
+                data: {
+                    access_token: account.access_token,
+                    expires_at: account.expires_at,
+                    refresh_token: account.refresh_token,
+                },
             });
-
-            if (dbAccount) {
-                 await prisma.account.update({
-                    where: {
-                        provider_providerAccountId: {
-                            provider: account.provider,
-                            providerAccountId: account.providerAccountId,
-                        },
-                    },
-                    data: {
-                        access_token: account.access_token,
-                        expires_at: account.expires_at,
-                        refresh_token: account.refresh_token,
-                    },
-                });
-            }
         }
         
         token.accessToken = account.access_token;
@@ -170,3 +159,5 @@ export const authConfig = {
 } satisfies NextAuthConfig;
 
 export const { auth, signIn, signOut, handlers } = NextAuth(authConfig);
+
+    
