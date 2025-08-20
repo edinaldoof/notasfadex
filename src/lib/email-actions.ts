@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getDriveService } from './google-drive';
@@ -7,12 +6,67 @@ import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload, Emai
 import prisma from './prisma';
 import { generateAttestationToken } from './token-utils';
 import type { EmailTemplate, TemplateType } from './types';
-
 // =================================================================
 // Funções Auxiliares de Template
 // =================================================================
 
 function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'> {
+    // Versão melhorada do footer com instruções intuitivas e explicativas
+    const footerWithLinkFallback = `
+        <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); border-radius: 12px; border: 1px solid #dee2e6;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="display: inline-block; background: #fff; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <span style="font-size: 20px; vertical-align: middle;">🔗</span>
+                    <span style="font-size: 14px; color: #495057; font-weight: 600; margin-left: 8px; vertical-align: middle;">Link Alternativo</span>
+                </div>
+            </div>
+            
+            <p style="font-size: 14px; color: #6c757d; text-align: center; margin: 0 0 15px 0; line-height: 1.5;">
+                <strong>Problemas com o botão acima?</strong> Sem problemas! 
+                <br>Siga estes passos simples:
+            </p>
+            
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">1</div>
+                    <p style="margin: 0; font-size: 13px; color: #495057;">
+                        <strong>Copie o link abaixo</strong> (selecione todo o texto em azul)
+                    </p>
+                </div>
+                
+                <div style="background: #f0f9ff; border: 2px dashed #3b82f6; padding: 12px; border-radius: 6px; margin: 10px 0; position: relative;">
+                    <div style="position: absolute; top: -10px; right: 10px; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #3b82f6;">
+                        <span style="font-size: 11px; color: #3b82f6; font-weight: 600;">📋 COPIAR</span>
+                    </div>
+                    <p style="font-size: 13px; color: #1e40af; word-break: break-all; margin: 0; font-family: 'Courier New', monospace; line-height: 1.4; user-select: all; cursor: text;">
+                        [LinkAteste]
+                    </p>
+                </div>
+                
+                <div style="display: flex; align-items: center; margin-top: 12px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">2</div>
+                    <p style="margin: 0; font-size: 13px; color: #495057;">
+                        <strong>Abra uma nova aba</strong> no seu navegador
+                    </p>
+                </div>
+                
+                <div style="display: flex; align-items: center; margin-top: 12px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">3</div>
+                    <p style="margin: 0; font-size: 13px; color: #495057;">
+                        <strong>Cole o link</strong> na barra de endereços e pressione Enter
+                    </p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                <p style="font-size: 12px; color: #868e96; margin: 0;">
+                    💡 <strong>Dica:</strong> Use <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px;">Ctrl+C</span> para copiar e 
+                    <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px;">Ctrl+V</span> para colar (ou <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px;">Cmd</span> no Mac)
+                </p>
+            </div>
+        </div>
+    `;
+
     switch (type) {
         case 'ATTESTATION_REQUEST':
             return {
@@ -65,6 +119,8 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
             </a>
         </div>
         
+        ${footerWithLinkFallback}
+        
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
             <p style="margin: 0;">📧 Este é um e-mail automático do sistema de gestão de notas fiscais.</p>
         </div>
@@ -112,6 +168,8 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
             </a>
         </div>
         
+        ${footerWithLinkFallback}
+
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
             <p style="margin: 0;">📧 Este é um lembrete automático do sistema de gestão de notas fiscais.</p>
         </div>
@@ -204,7 +262,7 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
         
         <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="color: #e65100; font-size: 14px; margin: 0; text-align: center; font-weight: 500;">
-                🔧 Uma ação manual pode ser necessária para resolver esta pendência.
+                📧 Uma ação manual pode ser necessária para resolver esta pendência.
             </p>
         </div>
         
