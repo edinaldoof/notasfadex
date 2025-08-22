@@ -409,7 +409,22 @@ export default function DashboardPage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex items-center gap-2"
           >
+             <Button
+              variant="outline"
+              asChild
+              className={cn(
+                'px-4 py-3 font-semibold transition-all duration-300 flex items-center gap-2',
+                'bg-slate-800/50 border-slate-700/50 text-slate-300',
+                'hover:bg-slate-800 hover:text-white'
+              )}
+            >
+              <Link href="/dashboard/calendario">
+                <Calendar className="w-5 h-5" />
+                <span>Ver Calendário</span>
+              </Link>
+            </Button>
             <Button
               onClick={() => setShowAddModal(true)}
               className={cn(

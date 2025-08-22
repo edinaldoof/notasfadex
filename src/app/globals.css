@@ -483,4 +483,36 @@
       page-break-after: avoid;
     }
   }
+  /* Custom Calendar Styles */
+  .pending-day {
+      background-color: hsl(var(--warning) / 0.15) !important;
+      color: hsl(var(--warning-foreground) / 0.9) !important;
+      border: 1px solid hsl(var(--warning) / 0.3);
+  }
+   .pending-day:hover {
+      background-color: hsl(var(--warning) / 0.25) !important;
+  }
+  .attested-day {
+      background-color: hsl(var(--success) / 0.15) !important;
+      color: hsl(var(--success-foreground)) !important;
+      border: 1px solid hsl(var(--success) / 0.3);
+  }
+   .attested-day:hover {
+      background-color: hsl(var(--success) / 0.25) !important;
+  }
+  .past-day {
+    background-color: hsl(var(--destructive) / 0.1) !important;
+    color: hsl(var(--destructive) / 0.8) !important;
+    border: 1px solid hsl(var(--destructive) / 0.2);
+    text-decoration: line-through;
+    opacity: 0.8;
+  }
+  .today-day {
+      border: 2px solid hsl(var(--primary));
+  }
+  .rdp-day_selected {
+     background-color: hsl(var(--primary) / 0.9) !important;
+     color: hsl(var(--primary-foreground)) !important;
+     border-color: hsl(var(--primary)) !important;
+  }
 }
