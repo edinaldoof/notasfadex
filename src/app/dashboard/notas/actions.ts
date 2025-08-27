@@ -128,9 +128,8 @@ export async function addNote(formData: FormData) {
     }
 
     const submissionDate = new Date();
-    // Use as configurações do banco de dados para definir o prazo
     const settings = await prisma.settings.findFirst();
-    const deadlineDays = settings?.attestationDeadlineInDays ?? 30; // Fallback para 30 dias
+    const deadlineDays = settings?.attestationDeadlineInDays ?? 30;
     const attestationDeadline = addDays(submissionDate, deadlineDays); 
 
     const newNote = await prisma.fiscalNote.create({
@@ -288,7 +287,7 @@ export async function attestNote(formData: FormData) {
 
     return { success: true, message: 'Nota atestada com sucesso!' };
   } catch (error) {
-    console.error("Erro ao atestar nota:", error);
+    console.error("Erro ao atestar nota:", error instanceof Error ? error.message : "Unknown error");
     const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
     return { success: false, message };
   }
@@ -331,7 +330,7 @@ export async function revertAttestation(noteId: string) {
 
     return { success: true, message: 'Atesto desfeito com sucesso.' };
   } catch (error) {
-    console.error("Erro ao reverter atesto:", error);
+    console.error("Erro ao reverter atesto:", error instanceof Error ? error.message : "Unknown error");
     return { success: false, message: 'Erro no servidor ao reverter o atesto.' };
   }
 }
@@ -358,7 +357,7 @@ export async function checkExistingNote(input: { numeroNota: string; projectAcco
     });
     return !!existing;
   } catch (error) {
-    console.error("Error checking for existing note:", error);
+    console.error("Error checking for existing note:", error instanceof Error ? error.message : "Unknown error");
     return false;
   }
 }
@@ -429,7 +428,7 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
         return { success: true, message: `${pendingNotes.length} lembretes de atesto foram enviados com sucesso.`, notifiedCount: pendingNotes.length };
 
     } catch (error) {
-        console.error("Erro ao notificar coordenadores:", error);
+        console.error("Erro ao notificar coordenadores:", error instanceof Error ? error.message : "Unknown error");
         return { success: false, message: "Ocorreu um erro no servidor ao tentar enviar as notificações." };
     }
 }

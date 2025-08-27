@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -38,8 +39,8 @@ export async function getNoteFromToken(token: string): Promise<{
         description: true,
         originalFileUrl: true,
         status: true,
-        fileName: true, // ✅ Adicionado para buscar o nome do arquivo
-        reportFileUrl: true, // Adicionado para baixar o relatório, se houver
+        fileName: true,
+        reportFileUrl: true,
         user: {
             select: { email: true, name: true }
         }
@@ -56,15 +57,14 @@ export async function getNoteFromToken(token: string): Promise<{
 
     return { note: note as FiscalNote };
   } catch (err) {
-    console.error('Error verifying token:', err);
+    const error = err instanceof Error ? err : new Error('An unknown error occurred');
+    console.error(`Error verifying token: ${error.name} - ${error.message}`);
     
-    if (err instanceof Error) {
-      if (err.name === 'TokenExpiredError') {
-        return { error: 'Este link de atesto expirou.' };
-      }
-      if (err.name === 'JsonWebTokenError') {
-        return { error: 'Este link de atesto é inválido.' };
-      }
+    if (error.name === 'TokenExpiredError') {
+      return { error: 'Este link de atesto expirou.' };
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return { error: 'Este link de atesto é inválido.' };
     }
     
     return { error: 'Ocorreu um erro ao verificar o link.' };
@@ -96,7 +96,6 @@ export async function attestNotePublic(formData: FormData) {
 
         const validated = attestNotePublicSchema.safeParse(rawData);
         if (!validated.success) {
-            console.error("Validation error:", validated.error.flatten().fieldErrors);
             const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
             return { success: false, message: firstError || 'Dados inválidos para o atesto.' };
         }
@@ -192,7 +191,7 @@ export async function attestNotePublic(formData: FormData) {
         return { success: true, message: 'Nota atestada com sucesso!' };
 
     } catch (error) {
-        console.error("Erro ao atestar nota publicamente:", error);
+        console.error("Erro ao atestar nota publicamente:", error instanceof Error ? error.message : "Unknown error");
         const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
         if (error instanceof Error && (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError')) {
             return { success: false, message: 'Seu link de atesto é inválido ou expirou. Por favor, solicite um novo.' };
@@ -214,7 +213,6 @@ export async function rejectNotePublic(formData: FormData) {
 
         const validated = rejectNoteSchema.safeParse(rawData);
         if (!validated.success) {
-            console.error("Validation error:", validated.error.flatten().fieldErrors);
             const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
             return { success: false, message: firstError || 'Dados inválidos para a rejeição.' };
         }
@@ -281,7 +279,7 @@ export async function rejectNotePublic(formData: FormData) {
         return { success: true, message: 'Nota rejeitada com sucesso!' };
 
     } catch (error) {
-        console.error("Erro ao rejeitar nota publicamente:", error);
+        console.error("Erro ao rejeitar nota publicamente:", error instanceof Error ? error.message : "Unknown error");
         const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
         if (error instanceof Error && (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError')) {
             return { success: false, message: 'Seu link de ação é inválido ou expirou. Por favor, solicite um novo.' };
