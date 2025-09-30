@@ -74,9 +74,11 @@ const DeadlineBadge = ({
 
 export const NoteCard = ({
   note,
+  onAction,
   view = 'grid'
 }: {
   note: NoteForCalendar;
+  onAction: (action: string, noteId: string) => void;
   view?: 'grid' | 'list';
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);

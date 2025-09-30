@@ -1,0 +1,296 @@
+// ===================================
+// Prisma Schema (prioriza o que o CÓDIGO usa para atesto)
+// ===================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================================
+// Enums
+// ===================================
+
+enum Role {
+  USER
+  MANAGER
+  OWNER
+}
+
+enum PermissionType {
+  CAN_MANAGE_TRASH
+  CAN_DELETE_PENDING_NOTE
+}
+
+enum InvoiceStatus {
+  PENDENTE
+  ATESTADA
+  EXPIRADA
+  REJEITADA
+}
+
+enum InvoiceType {
+  SERVICO
+  PRODUTO
+}
+
+enum HistoryType {
+  CREATED
+  ATTESTED
+  REVERTED
+  EDITED
+  EXPIRED
+  REJECTED
+  DELETED
+  RESTORED
+}
+
+enum StatusOF {
+  RASCUNHO
+  AGUARDANDO_CONFIRMACAO
+  AGUARDANDO_NOTA
+  NF_RECEBIDA
+  ATRASADO
+  CONCLUIDO
+  CANCELADO
+}
+
+// ===================================
+// Auth
+// ===================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+
+  // Relações com notas fiscais
+  notes         FiscalNote[]       @relation("NoteCreator")
+  attestedNotes FiscalNote[]       @relation("Attestor")
+  historyEvents NoteHistoryEvent[] @relation("EventAuthor")
+
+  // Relações com solicitações
+  ordensDeFornecimento OrdemDeFornecimento[]
+
+  // Permissões
+  permissions UserPermission[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserPermission {
+  userId      String
+  permission  PermissionType
+  grantedAt   DateTime @default(now())
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permission])
+  @@index([userId])
+}
+
+
+// ===================================
+// App
+// ===================================
+
+model FiscalNote {
+  id                    String        @id @default(cuid())
+  description           String
+  requester             String
+  issueDate             DateTime      @default(now())
+  attestationDeadline   DateTime?
+  status                InvoiceStatus @default(PENDENTE)
+  invoiceType           InvoiceType   @default(SERVICO)
+  fileType              String
+  fileName              String
+  originalFileUrl       String
+  driveFileId           String
+  amount                Float?
+  hasWithholdingTax     Boolean       @default(false)
+  projectTitle          String?
+  projectAccountNumber  String
+  coordinatorName       String
+  coordinatorEmail      String
+  
+  // Usando o nome da coluna que já existe no seu banco
+  attestedBy            String?
+  attestedAt            DateTime?
+  attestedById          String?
+  attestor              User?         @relation("Attestor", fields: [attestedById], references: [id])
+
+  observation           String?
+  attestedFileUrl       String?
+  attestedDriveFileId   String?
+  reportFileName        String?
+  reportDriveFileId     String?
+  reportFileUrl         String?
+  prestadorRazaoSocial  String?
+  prestadorCnpj         String?
+  tomadorRazaoSocial    String?
+  tomadorCnpj           String?
+  numeroNota            String?
+  dataEmissao           String?
+  
+  // Relação com o criador
+  creatorId             String? // Tornado opcional para não quebrar dados existentes
+  creator               User?         @relation("NoteCreator", fields: [creatorId], references: [id])
+  
+  history               NoteHistoryEvent[]
+
+  // Soft delete fields
+  deleted               Boolean      @default(false)
+  deletedAt             DateTime?
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  ordemDeFornecimento   OrdemDeFornecimento?
+
+  @@index([creatorId])
+  @@index([attestedById])
+  @@index([status])
+}
+
+model NoteHistoryEvent {
+  id           String      @id @default(cuid())
+  date         DateTime    @default(now())
+  type         HistoryType
+  details      String
+  fiscalNoteId String
+  note         FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  
+  // Usando o nome da coluna que já existe no seu banco
+  userId       String?
+  author       User?       @relation("EventAuthor", fields: [userId], references: [id])
+
+  @@index([fiscalNoteId])
+}
+
+model Settings {
+  id                        String  @id @default("default")
+  attestationDeadlineInDays Int     @default(30)
+  reminderFrequencyInDays   Int     @default(3)
+  aiModel                   String  @default("gemini-1.5-flash-latest")
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  type      String   @unique
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===================================
+// Módulo de Solicitação (Ordem de Fornecimento)
+// ===================================
+
+model Fornecedor {
+  id                   String                @id @default(cuid())
+  razaoSocial          String
+  nomeFantasia         String?
+  cnpj                 String                @unique
+  inscricaoEstadual    String?
+  inscricaoMunicipal   String?
+  endereco             String
+  bairro               String
+  cidade               String
+  estado               String
+  cep                  String
+  telefone             String?
+  email                String?
+  pessoaContato        String?
+  dadosBancarios       Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  ordensDeFornecimento OrdemDeFornecimento[]
+
+  @@index([razaoSocial])
+}
+
+model OrdemDeFornecimento {
+  id                        String     @id @default(cuid())
+  numeroOF                  String     @unique @default(cuid())
+  dataEmissao               DateTime   @default(now())
+  nomeProjeto               String
+  coordenadorProjeto        String
+  numeroContrato            String
+  contaCorrente             String
+  numeroProcesso            String
+  vigenciaProjeto           String
+  itens                     Json
+  valorTotal                Float
+  enderecoEntrega           String
+  prazoEntrega              String
+  frete                     String?
+  instrucoesFaturamento     String     @db.Text
+  status                    StatusOF   @default(RASCUNHO)
+  dataConfirmacaoFornecedor DateTime?
+  dataEnvioNF               DateTime?
+  dataConclusao             DateTime?
+  dataCancelamento          DateTime?
+  motivoCancelamento        String?
+
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  fornecedorId String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id])
+
+  // Relação com a nota fiscal correspondente
+  fiscalNoteId String?     @unique
+  fiscalNote   FiscalNote? @relation(fields: [fiscalNoteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([fornecedorId])
+  @@index([status])
+}

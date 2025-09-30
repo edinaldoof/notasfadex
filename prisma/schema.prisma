@@ -1,6 +1,4 @@
-// ===================================
-// Prisma Schema (prioriza o que o CÓDIGO usa para atesto)
-// ===================================
+// schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -12,7 +10,7 @@ datasource db {
 }
 
 // ===================================
-// Enums
+// Enums (SINTAXE CORRIGIDA)
 // ===================================
 
 enum Role {
@@ -40,6 +38,15 @@ enum HistoryType {
   EDITED
   EXPIRED
   REJECTED
+  DELETED
+  RESTORED
+}
+
+enum PermissionType {
+  CAN_MANAGE_USERS
+  CAN_MANAGE_SETTINGS
+  CAN_DELETE_PENDING_NOTE
+  CAN_MANAGE_TRASH
 }
 
 enum StatusOF {
@@ -52,26 +59,26 @@ enum StatusOF {
   CANCELADO
 }
 
+
 // ===================================
-// Auth
+// Auth & User
 // ===================================
 
 model User {
-  id                    String                 @id @default(cuid())
-  name                  String?
-  email                 String?                @unique
-  emailVerified         DateTime?
-  image                 String?
-  role                  Role                   @default(USER)
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
 
-  accounts              Account[]
-  sessions              Session[]
-
-  // Relações com notas fiscais
-  notes                 FiscalNote[]           @relation("NoteCreator")
-  attestedNotes         FiscalNote[]           @relation("Attestor")       // <- o código usa "Attestor"
-  historyEvents         NoteHistoryEvent[]     @relation("EventAuthor")
-  ordensDeFornecimento  OrdemDeFornecimento[]
+  accounts             Account[]
+  sessions             Session[]
+  createdNotes         FiscalNote[]          @relation("NoteCreator")
+  attestedNotes        FiscalNote[]          @relation("Attestor")
+  historyEvents        NoteHistoryEvent[]    @relation("EventAuthor")
+  permissions          UserPermission[]
+  ordensDeFornecimento OrdemDeFornecimento[]
 }
 
 model Account {
@@ -87,8 +94,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -99,11 +105,9 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([expires])
 }
 
 model VerificationToken {
@@ -111,103 +115,90 @@ model VerificationToken {
   token      String
   expires    DateTime
 
-  // padrão seguro do NextAuth: composição
   @@unique([identifier, token])
-  @@index([token])
-  @@index([expires])
 }
 
+model UserPermission {
+  userId     String
+  permission PermissionType
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permission])
+}
+
+
 // ===================================
-// App
+// App Core
 // ===================================
 
 model FiscalNote {
-  id                    String         @id @default(cuid())
-  description           String
-  requester             String
-  issueDate             DateTime       @default(now())
-  attestationDeadline   DateTime?      // dexa opcional p/ evitar falha de criação
-  status                InvoiceStatus  @default(PENDENTE)
-
-  invoiceType           InvoiceType    @default(SERVICO)
-
-  fileType              String
-  fileName              String
-  originalFileUrl       String
-  driveFileId           String
-
-  amount                Float?
-  hasWithholdingTax     Boolean        @default(false)
-
-  // Dados do projeto
-  projectTitle          String?
-  projectAccountNumber  String
-
-  // Coordenador (para atesto externo)
-  coordinatorName       String
-  coordinatorEmail      String
-
-  // ===== Dados do ATESTO (compatível com teu código) =====
-  attestedBy            String?        // texto: nome de quem atestou (teu código usa)
-  attestedAt            DateTime?      // data do atesto (teu código usa)
-  attestedById          String?        // FK p/ User (teu código usa)
-  attestor              User?          @relation("Attestor", fields: [attestedById], references: [id])
-  // =======================================================
-
-  observation           String?
-  attestedFileUrl       String?
-  attestedDriveFileId   String?
-
-  // Relatório (opcional — já existe no banco)
-  reportFileName        String?
-  reportDriveFileId     String?
-  reportFileUrl         String?
-
-  // Dados extraídos da nota
-  prestadorRazaoSocial  String?
-  prestadorCnpj         String?
-  tomadorRazaoSocial    String?
-  tomadorCnpj           String?
-  numeroNota            String?
-  dataEmissao           String?
-
-  // Relacionamentos
-  userId                String
-  user                  User           @relation("NoteCreator", fields: [userId], references: [id])
-  history               NoteHistoryEvent[]
-
-  // Timestamps
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                   String        @id @default(cuid())
+  description          String
+  requester            String
+  issueDate            DateTime      @default(now())
+  attestationDeadline  DateTime?
+  status               InvoiceStatus @default(PENDENTE)
+  invoiceType          InvoiceType   @default(SERVICO)
+  fileType             String
+  fileName             String
+  originalFileUrl      String
+  driveFileId          String
+  amount               Float?
+  hasWithholdingTax    Boolean       @default(false)
+  projectTitle         String?
+  projectAccountNumber String
+  coordinatorName      String
+  coordinatorEmail     String
+  attestedBy           String?
+  attestedAt           DateTime?
+  attestedFileUrl      String?
+  attestedDriveFileId  String?
+  attestedById         String?
+  attestor             User?         @relation("Attestor", fields: [attestedById], references: [id])
+  reportFileName       String?
+  reportDriveFileId    String?
+  reportFileUrl        String?
+  observation          String?
+  prestadorRazaoSocial String?
+  prestadorCnpj        String?
+  tomadorRazaoSocial   String?
+  tomadorCnpj          String?
+  numeroNota           String?
+  dataEmissao          String?
+  userId               String
+  user                 User          @relation("NoteCreator", fields: [userId], references: [id])
+  history              NoteHistoryEvent[]
+  deleted              Boolean       @default(false)
+  deletedAt            DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([userId])
   @@index([attestedById])
   @@index([status])
-  @@index([issueDate])
+  @@index([deleted])
 }
 
 model NoteHistoryEvent {
-  id            String      @id @default(cuid())
-  date          DateTime    @default(now())
-  type          HistoryType
-  details       String
-
-  // Relação com a nota
-  note          FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
-  fiscalNoteId  String
-
-  // Autor do evento (teu código usa author.connect({ id }))
-  author        User        @relation("EventAuthor", fields: [userId], references: [id])
-  userId        String
+  id           String      @id @default(cuid())
+  date         DateTime    @default(now())
+  type         HistoryType
+  details      String
+  userName     String?
+  fiscalNoteId String
+  note         FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  userId       String
+  author       User        @relation("EventAuthor", fields: [userId], references: [id])
 
   @@index([fiscalNoteId])
   @@index([userId])
 }
 
 model Settings {
-  id                          String  @id @default("default")
-  attestationDeadlineInDays   Int     @default(30)
-  reminderFrequencyInDays     Int     @default(3)
+  id                        String  @id @default("default")
+  attestationDeadlineInDays Int     @default(30)
+  reminderFrequencyInDays   Int     @default(3)
+  aiModel                   String? @default("gemini-1.5-flash-latest")
 }
 
 model EmailTemplate {
@@ -219,39 +210,38 @@ model EmailTemplate {
   updatedAt DateTime @updatedAt
 }
 
-// ===================================
+// ==============================================================
 // Módulo de Solicitação (Ordem de Fornecimento)
-// ===================================
+// ==============================================================
 
 model Fornecedor {
-  id                     String                 @id @default(cuid())
-  razaoSocial            String
-  nomeFantasia           String?
-  cnpj                   String                 @unique
-  inscricaoEstadual      String?
-  inscricaoMunicipal     String?
-  endereco               String
-  bairro                 String
-  cidade                 String
-  estado                 String
-  cep                    String
-  telefone               String?
-  email                  String?
-  pessoaContato          String?
-  dadosBancarios         Json?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-
-  ordensDeFornecimento   OrdemDeFornecimento[]
+  id                   String                @id @default(cuid())
+  razaoSocial          String
+  nomeFantasia         String?
+  cnpj                 String                @unique
+  inscricaoEstual      String?
+  inscricaoMunicipal   String?
+  endereco             String
+  bairro               String
+  cidade               String
+  estado               String
+  cep                  String
+  telefone             String?
+  email                String?
+  pessoaContato        String?
+  dadosBancarios       Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  ordensDeFornecimento OrdemDeFornecimento[]
 
   @@index([razaoSocial])
   @@index([cidade])
 }
 
 model OrdemDeFornecimento {
-  id                        String    @id @default(cuid())
-  numeroOF                  String    @unique @default(cuid())
-  dataEmissao               DateTime  @default(now())
+  id                        String     @id @default(cuid())
+  numeroOF                  String     @unique @default(cuid())
+  dataEmissao               DateTime   @default(now())
   nomeProjeto               String
   coordenadorProjeto        String
   numeroContrato            String
@@ -263,24 +253,20 @@ model OrdemDeFornecimento {
   enderecoEntrega           String
   prazoEntrega              String
   frete                     String?
-  instrucoesFaturamento     String    @db.Text
-  status                    StatusOF  @default(RASCUNHO)
+  instrucoesFaturamento     String     @db.Text
+  status                    StatusOF   @default(RASCUNHO)
   dataConfirmacaoFornecedor DateTime?
   dataEnvioNF               DateTime?
   notaFiscalId              String?
   dataConclusao             DateTime?
   dataCancelamento          DateTime?
   motivoCancelamento        String?
-
-  // Relações
-  userId       String
-  user         User        @relation(fields: [userId], references: [id])
-
-  fornecedorId String
-  fornecedor   Fornecedor  @relation(fields: [fornecedorId], references: [id])
-
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  userId                    String
+  user                      User       @relation(fields: [userId], references: [id])
+  fornecedorId              String
+  fornecedor                Fornecedor @relation(fields: [fornecedorId], references: [id])
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
 
   @@index([userId])
   @@index([fornecedorId])

@@ -4,20 +4,19 @@ import { InvoiceStatus } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-    try {
-        const authHeader = request.headers.get('authorization');
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            return new NextResponse('Unauthorized', { status: 401 });
-        }
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return new NextResponse('Unauthorized', { status: 401 });
+    }
 
+    try {
         const now = new Date();
 
-        // 1. Find all notes that are pending and their deadline has passed
         const expiredNotes = await prisma.fiscalNote.findMany({
             where: {
                 status: InvoiceStatus.PENDENTE,
                 attestationDeadline: {
-                    lt: now, // Less than now -> deadline has passed
+                    lt: now,
                 },
             },
         });
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
 
         const expiredNoteIds = expiredNotes.map(note => note.id);
 
-        // 2. Update their status to EXPIRED
         const updateResult = await prisma.fiscalNote.updateMany({
             where: {
                 id: {
@@ -40,17 +38,15 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // 3. (Optional but recommended) Create a history event for each expiration
         const historyEvents = expiredNotes.map(note => ({
             fiscalNoteId: note.id,
             type: 'EXPIRED',
             details: `A nota expirou em ${now.toLocaleDateString('pt-BR')} pois não foi atestada até o prazo final.`,
             userName: 'Sistema (Cron Job)',
-            userId: null,
+            userId: note.userId, // Usando o userId da nota
         }));
         
         await prisma.noteHistoryEvent.createMany({
-            // @ts-ignore
             data: historyEvents
         });
         
@@ -63,5 +59,3 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Erro interno do servidor', { status: 500 });
     }
 }
-
-    

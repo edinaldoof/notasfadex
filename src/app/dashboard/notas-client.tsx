@@ -58,8 +58,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getNotes, getNotesCount } from './notas/data';
-import { attestNote, revertAttestation } from './notas/actions';
+import { getNotes, getNotesCount } from './notas/data.js';
+import { attestNote, revertAttestation } from './notas/actions.js';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {

@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -12,11 +11,9 @@ import { Readable } from 'stream';
 import { addDays, subDays } from 'date-fns';
 import { sendAttestationRequestEmail } from '@/lib/email-actions';
 
-// Regex robusto para validação de e-mail (deve ser o mesmo do frontend)
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
 const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))*$/;
 
-// Schema para adicionar nota, sem a validação do tipo 'File' que só existe no navegador.
 const addNoteSchema = z.object({
   invoiceType: z.nativeEnum(InvoiceType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
@@ -25,7 +22,6 @@ const addNoteSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  // O campo 'file' é removido do schema e tratado manualmente a partir do FormData.
   descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
   prestadorCnpj: z.string().optional(),
   tomadorRazaoSocial: z.string().optional(),
@@ -34,6 +30,7 @@ const addNoteSchema = z.object({
   dataEmissao: z.string().optional(),
   valorTotal: z.string().optional(),
   prestadorRazaoSocial: z.string().optional(),
+  forceCreate: z.preprocess((val) => val === 'true', z.boolean()).optional(),
 });
 
 
@@ -44,11 +41,8 @@ export async function addNote(formData: FormData) {
       return { success: false, message: 'Usuário não autenticado ou informações do usuário ausentes. Acesso negado.' };
     }
     
-    const requesterName = session.user.name;
-    const requesterEmail = session.user.email;
-    const requesterId = session.user.id;
+    const { id: userId, name: requesterName, email: requesterEmail } = session.user;
 
-    // Validação manual do arquivo no servidor
     const file = formData.get('file') as File;
     if (!file || file.size === 0) {
         return { success: false, message: 'O arquivo é obrigatório e não pode estar vazio.' };
@@ -89,9 +83,8 @@ export async function addNote(formData: FormData) {
     }
 
     const submissionDate = new Date();
-    // Use as configurações do banco de dados para definir o prazo
     const settings = await prisma.settings.findFirst();
-    const deadlineDays = settings?.attestationDeadlineInDays ?? 30; // Fallback para 30 dias
+    const deadlineDays = settings?.attestationDeadlineInDays ?? 30;
     const attestationDeadline = addDays(submissionDate, deadlineDays); 
 
     const newNote = await prisma.fiscalNote.create({
@@ -105,7 +98,7 @@ export async function addNote(formData: FormData) {
         originalFileUrl: `/api/download/${driveFile.id}`,
         driveFileId: driveFile.id,
         amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
-        userId: requesterId,
+        userId: userId,
         invoiceType: invoiceType,
         projectTitle: projectTitle,
         projectAccountNumber: projectAccountNumber,
@@ -118,9 +111,7 @@ export async function addNote(formData: FormData) {
           create: {
             type: 'CREATED',
             details: `Nota fiscal criada e atribuída a ${coordinatorName} para atesto.`,
-            author: {
-              connect: { id: requesterId },
-            },
+            userId: userId,
           }
         }
       }
@@ -161,7 +152,6 @@ export async function addNote(formData: FormData) {
   }
 }
 
-// Schema para atestar nota, também sem a validação do tipo 'File'.
 const attestNoteSchema = z.object({
   noteId: z.string().cuid('ID da nota inválido.'),
   observation: z.string().max(1000, "Observação muito longa.").optional(),
@@ -173,7 +163,7 @@ export async function attestNote(formData: FormData) {
     if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
-    const { id: userId, name: userName } = session.user;
+    const { id: attestedById, name: userName } = session.user;
 
     const rawData = Object.fromEntries(formData.entries());
     const validated = attestNoteSchema.safeParse(rawData);
@@ -223,7 +213,7 @@ export async function attestNote(formData: FormData) {
         data: {
             status: 'ATESTADA',
             attestedAt: new Date(),
-            attestedById: userId,
+            attestedById: attestedById,
             attestedBy: userName,
             observation: observation,
             attestedDriveFileId: attestedDriveFileId,
@@ -232,9 +222,7 @@ export async function attestNote(formData: FormData) {
                 create: {
                     type: 'ATTESTED',
                     details: historyDetails,
-                    author: {
-                        connect: { id: userId },
-                    },
+                    userId: attestedById,
                 }
             }
         },
@@ -276,9 +264,7 @@ export async function revertAttestation(noteId: string) {
                 create: {
                     type: 'REVERTED',
                     details: 'O atesto da nota foi desfeito.',
-                    author: {
-                        connect: { id: userId },
-                    },
+                    userId: userId,
                 }
             }
         }
@@ -350,7 +336,6 @@ export async function getDashboardSummary() {
     const pendingNotes = notes.filter((note) => note.status === 'PENDENTE').length;
     const totalAmount = notes.reduce((sum, note) => sum + (note.amount || 0), 0);
 
-    // ✅ CÁLCULO DA NOVA MÉTRICA
     const thirtyDaysAgo = subDays(new Date(), 30);
     const recentNotes = await prisma.fiscalNote.findMany({
         where: {
@@ -376,7 +361,7 @@ export async function getDashboardSummary() {
       attestedNotes,
       pendingNotes,
       totalAmount,
-      resolutionRate, // ✅ RETORNA A NOVA MÉTRICA
+      resolutionRate,
     };
   } catch (error) {
     console.error('Failed to fetch dashboard summary:', error);
@@ -421,7 +406,6 @@ export async function getRecentActivities() {
             }
         });
 
-        // Se o usuário não for manager, filtre os eventos para mostrar apenas aqueles das suas próprias notas.
         const filteredEvents = isManagerOrOwner
             ? historyEvents
             : historyEvents.filter(event => event.note.userId === session.user.id);

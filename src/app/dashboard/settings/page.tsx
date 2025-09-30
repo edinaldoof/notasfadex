@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -22,6 +21,7 @@ import {
   ClipboardCheck,
   ExternalLink,
   XCircle,
+  BrainCircuit,
 } from "lucide-react";
 import { User, Role, Settings, EmailTemplate } from "@prisma/client";
 import { 
@@ -53,6 +53,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+
+const availableAiModels = [
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Máximo Desempenho)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Equilibrado)' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Velocidade Otimizada)' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Performance Intermediária)' },
+    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (Leve e Rápido)' },
+    { value: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro (Avançado e Econômico)' },
+    { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash (Custo-Benefício)' },
+];
 
 function SettingsSkeleton() {
     return (
@@ -97,7 +108,7 @@ function AccessDenied() {
 
 const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; description: string }[]> = {
     ATTESTATION_REQUEST: [
-        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo atesto.' },
         { placeholder: '[NomeSolicitante]', description: 'Nome do usuário que enviou a nota.' },
         { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
@@ -106,7 +117,7 @@ const placeholderMap: Record<EmailTemplate['type'], { placeholder: string; descr
         { placeholder: '[LinkAteste]', description: 'Link direto para a página de atesto da nota.' },
     ],
     ATTESTATION_REMINDER: [
-        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo ateste.' },
+        { placeholder: '[NomeCoordenador]', description: 'Nome do coordenador responsável pelo atesto.' },
         { placeholder: '[TituloProjeto]', description: 'O título do projeto relacionado.' },
         { placeholder: '[DescricaoNota]', description: 'Descrição dos serviços ou produtos da nota.' },
         { placeholder: '[NumeroNota]', description: 'O número da nota fiscal.' },
@@ -341,6 +352,42 @@ export default function SettingsPage() {
         </div>
       
       <div className="grid gap-8">
+        {/* Card de Configurações de IA */}
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-border">
+          <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+            <BrainCircuit className="text-purple-400" />
+            Inteligência Artificial
+          </h2>
+           <p className="text-slate-400 mb-6">
+            Selecione o modelo de IA para extração de dados das notas fiscais.
+          </p>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
+               <Label htmlFor="aiModel" className="block text-sm font-medium text-slate-300 mb-2">
+                Modelo de Extração (Gemini)
+              </Label>
+              <Select
+                value={settings.aiModel || 'gemini-1.5-flash-latest'}
+                onValueChange={(value) => setSettings(s => ({...s, aiModel: value}))}
+              >
+                  <SelectTrigger className="w-full max-w-sm bg-slate-800/80 border-border">
+                      <SelectValue placeholder="Selecione um modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {availableAiModels.map(model => (
+                          <SelectItem key={model.value} value={model.value}>
+                              {model.label}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500 mt-2">
+                Modelos "Pro" são mais precisos, mas mais lentos e caros. "Flash" é mais rápido para o dia a dia.
+              </p>
+             </div>
+           </div>
+        </div>
+        
         {/* Card de Automação */}
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-border">
           <h2 className="text-xl font-bold mb-1 flex items-center gap-2">

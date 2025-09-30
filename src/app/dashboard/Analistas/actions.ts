@@ -44,10 +44,11 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
             include: {
                 _count: {
                     select: {
-                        notes: true,
+                        createdNotes: { where: { deleted: false } },
                     },
                 },
-                notes: {
+                createdNotes: {
+                    where: { deleted: false },
                     select: {
                         createdAt: true,
                     },
@@ -60,16 +61,15 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
         });
 
         return usersWithNotes.map(user => {
-            const recentNotes = user.notes.filter(note => 
+            const recentNotes = user.createdNotes.filter(note => 
                 new Date(note.createdAt) > thirtyDaysAgo
             );
             
             return {
                 ...user,
-                noteCount: user._count.notes,
+                noteCount: user._count.createdNotes,
                 recentNotesCount: recentNotes.length,
-                lastNoteDate: user.notes.length > 0 ? user.notes[0].createdAt : null,
-                notes: undefined, // Remove notes from response to keep it clean
+                lastNoteDate: user.createdNotes.length > 0 ? user.createdNotes[0].createdAt : null,
             };
         });
     } catch (error) {
@@ -90,15 +90,15 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
             include: {
                 _count: {
                     select: {
-                        notes: true,
+                        createdNotes: { where: { deleted: false } },
                     },
                 },
             },
         });
 
         const totalUsers = users.length;
-        const activeUsers = users.filter(user => user._count.notes > 0).length;
-        const totalNotes = users.reduce((sum, user) => sum + user._count.notes, 0);
+        const activeUsers = users.filter(user => user._count.createdNotes > 0).length;
+        const totalNotes = users.reduce((sum, user) => sum + user._count.createdNotes, 0);
         const averageNotesPerUser = totalUsers > 0 ? totalNotes / totalUsers : 0;
 
         const roleDistribution = users.reduce((acc, user) => {
@@ -134,6 +134,7 @@ export async function getNotesByUserId(userId: string) {
         const notes = await prisma.fiscalNote.findMany({
             where: {
                 userId: userId,
+                deleted: false,
             },
             orderBy: {
                 createdAt: 'desc',
@@ -175,14 +176,14 @@ export async function exportCollaboratorsData() {
     try {
         const users = await prisma.user.findMany({
             include: {
-                notes: true,
+                createdNotes: { where: { deleted: false } },
             }
         });
 
         const dataToExport = [];
 
         for (const user of users) {
-            if (user.notes.length === 0) {
+            if (user.createdNotes.length === 0) {
                 dataToExport.push({
                     'Nome Analista': user.name,
                     'Email Analista': user.email,
@@ -190,10 +191,9 @@ export async function exportCollaboratorsData() {
                     'Descrição': 'N/A',
                     'Status': 'N/A',
                     'Link Drive': 'N/A',
-                    // Adicione outras colunas com 'N/A'
                 });
             } else {
-                for (const note of user.notes) {
+                for (const note of user.createdNotes) {
                     dataToExport.push({
                         'Nome Analista': user.name,
                         'Email Analista': user.email,
@@ -254,6 +254,8 @@ export async function getUserActivitySummary(userId: string) {
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
+        const whereClause = { userId: userId, deleted: false };
+
         const [
             totalNotes,
             notesLast30Days,
@@ -261,34 +263,31 @@ export async function getUserActivitySummary(userId: string) {
             firstNote,
             lastNote
         ] = await Promise.all([
-            prisma.fiscalNote.count({
-                where: { userId }
-            }),
+            prisma.fiscalNote.count({ where: whereClause }),
             prisma.fiscalNote.count({
                 where: { 
-                    userId,
+                    ...whereClause,
                     createdAt: { gte: thirtyDaysAgo }
                 }
             }),
             prisma.fiscalNote.count({
                 where: { 
-                    userId,
+                    ...whereClause,
                     createdAt: { gte: ninetyDaysAgo }
                 }
             }),
             prisma.fiscalNote.findFirst({
-                where: { userId },
+                where: whereClause,
                 orderBy: { createdAt: 'asc' },
                 select: { createdAt: true }
             }),
             prisma.fiscalNote.findFirst({
-                where: { userId },
+                where: whereClause,
                 orderBy: { createdAt: 'desc' },
                 select: { createdAt: true }
             })
         ]);
 
-        // Calculate monthly average (if user has been active for more than 30 days)
         const daysSinceFirstNote = firstNote 
             ? Math.max(1, Math.floor((Date.now() - new Date(firstNote.createdAt).getTime()) / (1000 * 60 * 60 * 24)))
             : 0;

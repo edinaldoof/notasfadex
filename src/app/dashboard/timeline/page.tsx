@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { FiscalNote, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, Filter, AlertTriangle, XCircle, FileSpreadsheet, FileSignature } from 'lucide-react';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, AlertTriangle, XCircle, FileSpreadsheet, Trash2, Undo } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -17,72 +16,26 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-
 const getEventTypeConfig = (type: HistoryType) => {
     switch(type) {
         case 'CREATED':
-            return { 
-                icon: PlusCircle, 
-                color: 'text-emerald-400', 
-                bgColor: 'bg-emerald-500/10',
-                borderColor: 'border-emerald-500/30',
-                title: 'Nota Criada',
-                description: 'Nova nota fiscal foi registrada no sistema'
-            };
+            return { icon: PlusCircle, color: 'text-emerald-400', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30', title: 'Nota Criada', description: 'Nova nota fiscal foi registrada no sistema' };
         case 'ATTESTED':
-            return { 
-                icon: Stamp, 
-                color: 'text-blue-400', 
-                bgColor: 'bg-blue-500/10',
-                borderColor: 'border-blue-500/30',
-                title: 'Nota Atestada',
-                description: 'Nota fiscal foi verificada e aprovada'
-            };
+            return { icon: Stamp, color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', title: 'Nota Atestada', description: 'Nota fiscal foi verificada e aprovada' };
         case 'REVERTED':
-            return { 
-                icon: Undo2, 
-                color: 'text-amber-400', 
-                bgColor: 'bg-amber-500/10',
-                borderColor: 'border-amber-500/30',
-                title: 'Atesto Desfeito',
-                description: 'Aprovação foi revertida'
-            };
+            return { icon: Undo2, color: 'text-amber-400', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30', title: 'Atesto Desfeito', description: 'Aprovação foi revertida' };
         case 'EDITED':
-            return { 
-                icon: Edit, 
-                color: 'text-purple-400', 
-                bgColor: 'bg-purple-500/10',
-                borderColor: 'border-purple-500/30',
-                title: 'Nota Editada',
-                description: 'Informações da nota foram atualizadas'
-            };
-         case 'EXPIRED':
-             return { 
-                icon: AlertTriangle, 
-                color: 'text-rose-400', 
-                bgColor: 'bg-rose-500/10',
-                borderColor: 'border-rose-500/30',
-                title: 'Nota Expirada',
-                description: 'Prazo para atesto da nota expirou'
-            };
+            return { icon: Edit, color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30', title: 'Nota Editada', description: 'Informações da nota foram atualizadas' };
+        case 'EXPIRED':
+             return { icon: AlertTriangle, color: 'text-rose-400', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/30', title: 'Nota Expirada', description: 'Prazo para atesto da nota expirou' };
         case 'REJECTED':
-             return { 
-                icon: XCircle, 
-                color: 'text-red-400', 
-                bgColor: 'bg-red-500/10',
-                borderColor: 'border-red-500/30',
-                title: 'Nota Rejeitada',
-                description: 'Nota foi rejeitada pelo coordenador'
-            };
+             return { icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', title: 'Nota Rejeitada', description: 'Nota foi rejeitada pelo coordenador' };
+        case 'DELETED':
+             return { icon: Trash2, color: 'text-slate-400', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/30', title: 'Movida para Lixeira', description: 'A nota foi movida para a lixeira' };
+        case 'RESTORED':
+             return { icon: Undo, color: 'text-lime-400', bgColor: 'bg-lime-500/10', borderColor: 'border-lime-500/30', title: 'Nota Restaurada', description: 'A nota foi restaurada da lixeira' };
         default:
-            return { 
-                icon: FileText, 
-                color: 'text-slate-400', 
-                bgColor: 'bg-slate-500/10',
-                borderColor: 'border-slate-500/30',
-                title: 'Evento',
-                description: 'Atividade registrada'
-            };
+            return { icon: FileText, color: 'text-slate-400', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/30', title: 'Evento', description: 'Atividade registrada' };
     }
 }
 
@@ -94,7 +47,7 @@ const formatTimelineDateTime = (date: Date) => {
     if (diffInHours < 24) {
         if (diffInHours < 1) return 'Agora mesmo';
         return `${diffInHours}h atrás`;
-    } else if (diffInHours < 168) { // 7 days
+    } else if (diffInHours < 168) {
         const days = Math.floor(diffInHours / 24);
         return `${days}d atrás`;
     }
@@ -163,7 +116,6 @@ export default function TimelinePage() {
 
   return (
     <div className="space-y-8">
-      {/* Header Section */}
       <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -182,7 +134,6 @@ export default function TimelinePage() {
             </div>
           </div>
           
-          {/* Stats Cards */}
           <div className="hidden lg:flex gap-4">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700/50">
               <div className="flex items-center gap-2">
@@ -205,7 +156,6 @@ export default function TimelinePage() {
           </div>
       </div>
 
-       {/* Search Bar */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
         <Input
@@ -216,7 +166,6 @@ export default function TimelinePage() {
         />
       </div>
 
-      {/* Content */}
       <div className="w-full">
         <Accordion type="multiple" className="w-full space-y-6">
             {loading ? (
@@ -273,7 +222,6 @@ export default function TimelinePage() {
                         <AccordionContent className="px-8">
                             {note.history && note.history.length > 0 ? (
                                 <div className="relative">
-                                  {/* Timeline Line */}
                                   <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/50 via-primary/30 to-transparent"></div>
                                   
                                   <div className="space-y-6">
@@ -282,13 +230,11 @@ export default function TimelinePage() {
                                           const Icon = config.icon;
                                           const isFirst = index === 0;
                                           
-                                          // Lógica para obter nome e imagem, agora segura
-                                          const eventUserName = event.author?.name || "Sistema";
+                                          const eventUserName = event.author?.name || event.userName || "Sistema";
                                           const eventUserImage = event.author?.image;
 
                                           return (
                                               <div key={event.id} className="relative flex items-start group/event">
-                                                  {/* Timeline Node */}
                                                   <div className={`relative flex items-center justify-center w-12 h-12 rounded-2xl ${config.bgColor} ${config.borderColor} border-2 backdrop-blur-sm transition-all group-hover/event:scale-110 ${isFirst ? 'shadow-lg shadow-primary/20' : ''}`}>
                                                       <Icon className={`w-5 h-5 ${config.color}`} />
                                                       {isFirst && (
@@ -296,7 +242,6 @@ export default function TimelinePage() {
                                                       )}
                                                   </div>
                                                   
-                                                  {/* Event Content */}
                                                   <div className="ml-6 flex-1 min-w-0">
                                                       <div className={`p-6 rounded-2xl ${config.bgColor} border ${config.borderColor} backdrop-blur-sm transition-all`}>
                                                           <div className="flex items-start justify-between mb-3">

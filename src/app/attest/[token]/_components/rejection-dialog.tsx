@@ -38,7 +38,7 @@ type RejectionFormValues = z.infer<typeof rejectionSchema>;
 interface RejectionDialogProps {
   token: string;
   noteId: string;
-  requesterEmail: string | null;
+  requesterEmail: string | null | undefined;
   onSuccess: () => void;
 }
 

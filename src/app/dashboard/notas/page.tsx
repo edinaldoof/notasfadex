@@ -24,7 +24,7 @@ import {
   Bell,
   Building,
 } from 'lucide-react';
-import { FiscalNote, InvoiceStatus } from '@/lib/types';
+import { FiscalNote, InvoiceStatus, PermissionType } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
 import { CheckBadge } from '@/components/icons/check-badge';
 import { isPast, format } from 'date-fns';
@@ -52,11 +52,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getNotes } from './data';
-import { revertAttestation, attestNote, notifyAllPendingCoordinators } from './actions';
+import { revertAttestation, attestNote, notifyAllPendingCoordinators, deleteNote } from './actions';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -72,6 +72,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client';
+import { hasPermission } from '@/lib/auth-utils';
 
 const formatDate = (date: Date | string) => {
   return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -184,7 +185,21 @@ function NotasClient() {
   const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<FiscalNote | null>(null);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
 
-  const fetchNotes = async () => {
+  // State para controle de permissões
+  const [canDeleteNotes, setCanDeleteNotes] = useState(false);
+
+  useEffect(() => {
+    // Verifica permissões quando a sessão é carregada
+    const checkPermissions = async () => {
+      const deletePermission = await hasPermission(PermissionType.CAN_DELETE_PENDING_NOTE);
+      setCanDeleteNotes(deletePermission);
+    };
+    if (session) {
+      checkPermissions();
+    }
+  }, [session]);
+
+  const fetchNotes = React.useCallback(async () => {
     setLoading(true);
     try {
       const dateRange: DateRange | undefined = (from && to) ? { from: new Date(from), to: new Date(to) } : undefined;
@@ -197,12 +212,11 @@ function NotasClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, searchTerm, statusFilter, from, to, toast]);
 
   useEffect(() => {
     fetchNotes();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, searchTerm, statusFilter, from, to]);
+  }, [fetchNotes]);
 
   const getDynamicStatus = (note: FiscalNote): InvoiceStatus => {
     if (note.status === 'PENDENTE') {
@@ -245,6 +259,18 @@ function NotasClient() {
       } else {
         toast({ title: 'Erro', description: result.message, variant: 'destructive' });
       }
+    });
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    startTransition(async () => {
+        const result = await deleteNote(noteId);
+        if (result.success) {
+            toast({ title: "Sucesso!", description: result.message });
+            fetchNotes(); // Re-fetch para atualizar a lista
+        } else {
+            toast({ title: "Erro", description: result.message, variant: "destructive" });
+        }
     });
   };
 
@@ -304,14 +330,13 @@ function NotasClient() {
   if (loading) {
     return (
       <>
-        {/* Render filter controls even when loading */}
         <FilterControls
           searchTerm={currentSearchTerm}
-          setSearchTerm={setCurrentSearchTerm}
+          onSearchTermChange={setCurrentSearchTerm}
           statusFilter={currentStatusFilter}
-          setStatusFilter={setCurrentStatusFilter}
+          onStatusFilterChange={setCurrentStatusFilter}
           date={currentDate}
-          setDate={setCurrentDate}
+          onDateChange={setCurrentDate}
           onAddNote={() => setShowAddModal(true)}
           onNotifyAll={handleNotifyAll}
           isNotifying={isNotifying}
@@ -327,11 +352,11 @@ function NotasClient() {
     <TooltipProvider>
       <FilterControls
         searchTerm={currentSearchTerm}
-        setSearchTerm={setCurrentSearchTerm}
+        onSearchTermChange={setCurrentSearchTerm}
         statusFilter={currentStatusFilter}
-        setStatusFilter={setCurrentStatusFilter}
+        onStatusFilterChange={setCurrentStatusFilter}
         date={currentDate}
-        setDate={setCurrentDate}
+        onDateChange={setCurrentDate}
         onAddNote={() => setShowAddModal(true)}
         onNotifyAll={handleNotifyAll}
         isNotifying={isNotifying}
@@ -360,6 +385,7 @@ function NotasClient() {
                   const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
                   const isOwner = note.userId === session?.user?.id;
                   const canEdit = isOwner && dynamicStatus === 'REJEITADA';
+                  const isDeletable = (dynamicStatus === 'PENDENTE' || dynamicStatus === 'REJEITADA') && canDeleteNotes;
 
                   return (
                     <tr 
@@ -497,9 +523,35 @@ function NotasClient() {
                                     <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" disabled>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                </DropdownMenuItem>
+                                {isDeletable && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação irá mover a nota fiscal para a lixeira. Você poderá restaurá-la ou excluí-la permanentemente mais tarde.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteNote(note.id)}
+                                        className={buttonVariants({ variant: "destructive" })}
+                                      >
+                                        Sim, Mover para Lixeira
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -566,13 +618,13 @@ function NotasClient() {
   )
 }
 
-function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilter, date, setDate, onAddNote, onNotifyAll, isNotifying, canNotify }: {
+function FilterControls({ searchTerm, onSearchTermChange, statusFilter, onStatusFilterChange, date, onDateChange, onAddNote, onNotifyAll, isNotifying, canNotify }: {
     searchTerm: string;
-    setSearchTerm: (value: string) => void;
+    onSearchTermChange: (value: string) => void;
     statusFilter: string;
-    setStatusFilter: (value: string) => void;
+    onStatusFilterChange: (value: string) => void;
     date?: DateRange;
-    setDate: (date?: DateRange) => void;
+    onDateChange: (date?: DateRange) => void;
     onAddNote: () => void;
     onNotifyAll: () => void;
     isNotifying: boolean;
@@ -632,7 +684,7 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
                         type="text"
                         placeholder="Buscar em todas as colunas..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => onSearchTermChange(e.target.value)}
                         className="w-full bg-secondary/80 border-border rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:border-primary/50 focus:outline-none transition-colors"
                     />
                     </div>
@@ -667,7 +719,7 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
                         mode="range"
                         defaultMonth={date?.from}
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={onDateChange}
                         numberOfMonths={2}
                         locale={ptBR}
                         />
@@ -678,7 +730,7 @@ function FilterControls({ searchTerm, setSearchTerm, statusFilter, setStatusFilt
                     <Filter className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(e) => onStatusFilterChange(e.target.value)}
                         className="w-full sm:w-auto bg-secondary/80 border-border rounded-lg pl-10 pr-8 py-2.5 text-white focus:border-primary/50 focus:outline-none appearance-none cursor-pointer"
                     >
                         <option value="all">Todos os Status</option>
@@ -702,5 +754,3 @@ export default function NotasPage() {
     </Suspense>
   )
 }
-
-    

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getDriveService } from './google-drive';
@@ -6,26 +7,40 @@ import type { AttestationEmailPayload, CoordinatorConfirmationEmailPayload, Emai
 import prisma from './prisma';
 import { generateAttestationToken } from './token-utils';
 import type { EmailTemplate, TemplateType } from './types';
+
+function getCcList(baseEmail: string, ccEmails?: string | null): string {
+    const emailSet = new Set<string>();
+    emailSet.add(baseEmail); // Adiciona o e-mail principal (solicitante ou coordenador)
+    
+    if (ccEmails) {
+        ccEmails.split(',').forEach(email => {
+            const trimmedEmail = email.trim();
+            if (trimmedEmail) {
+                emailSet.add(trimmedEmail);
+            }
+        });
+    }
+    
+    return Array.from(emailSet).join(',');
+}
+
+
 // =================================================================
 // Funções Auxiliares de Template
 // =================================================================
 
 function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt'> {
-    // Versão melhorada do footer com instruções intuitivas e explicativas
-    const footerWithLinkFallback = `
-        <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); border-radius: 12px; border: 1px solid #dee2e6;">
+    const footerWithLinkFallback = `<div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); border-radius: 12px; border: 1px solid #dee2e6;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <div style="display: inline-block; background: #fff; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <span style="font-size: 20px; vertical-align: middle;">🔗</span>
                     <span style="font-size: 14px; color: #495057; font-weight: 600; margin-left: 8px; vertical-align: middle;">Link Alternativo</span>
                 </div>
             </div>
-            
             <p style="font-size: 14px; color: #6c757d; text-align: center; margin: 0 0 15px 0; line-height: 1.5;">
                 <strong>Problemas com o botão acima?</strong> Sem problemas! 
                 <br>Siga estes passos simples:
             </p>
-            
             <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <div style="display: flex; align-items: center; margin-bottom: 12px;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">1</div>
@@ -33,7 +48,6 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
                         <strong>Copie o link abaixo</strong> (selecione todo o texto em azul)
                     </p>
                 </div>
-                
                 <div style="background: #f0f9ff; border: 2px dashed #3b82f6; padding: 12px; border-radius: 6px; margin: 10px 0; position: relative;">
                     <div style="position: absolute; top: -10px; right: 10px; background: white; padding: 2px 8px; border-radius: 4px; border: 1px solid #3b82f6;">
                         <span style="font-size: 11px; color: #3b82f6; font-weight: 600;">📋 COPIAR</span>
@@ -42,14 +56,12 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
                         [LinkAteste]
                     </p>
                 </div>
-                
                 <div style="display: flex; align-items: center; margin-top: 12px;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">2</div>
                     <p style="margin: 0; font-size: 13px; color: #495057;">
                         <strong>Abra uma nova aba</strong> no seu navegador
                     </p>
                 </div>
-                
                 <div style="display: flex; align-items: center; margin-top: 12px;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; flex-shrink: 0;">3</div>
                     <p style="margin: 0; font-size: 13px; color: #495057;">
@@ -57,7 +69,6 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
                     </p>
                 </div>
             </div>
-            
             <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
                 <p style="font-size: 12px; color: #868e96; margin: 0;">
                     💡 <strong>Dica:</strong> Use <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px;">Ctrl+C</span> para copiar e 
@@ -320,7 +331,7 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
         
         <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="color: #7b1fa2; font-size: 14px; margin: 0; text-align: center;">
-                📎 Uma cópia do documento de ateste está anexa para seus registros.
+                📎 Uma cópia do documento de atesto está anexa para seus registros.
             </p>
         </div>
         
@@ -393,46 +404,17 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
     </div>
 </div>`,
             };
-        case 'OF_ENVIO':
+        default:
+             // Fallback for any other type
             return {
-                type: 'OF_ENVIO',
-                subject: 'Solicitação de Fornecimento | Pedido Nº [NumeroOF] | Projeto [NomeProjeto]',
-                body: `Corpo do e-mail para envio da Ordem de Fornecimento.`
-            };
-        case 'OF_LEMBRETE_CONFIRMACAO':
-            return {
-                type: 'OF_LEMBRETE_CONFIRMACAO',
-                subject: 'Lembrete: Confirmação Pendente da OF Nº [NumeroOF]',
-                body: `Corpo do e-mail de lembrete de confirmação da OF.`
-            };
-        case 'OF_CONFIRMACAO_INTERNA':
-            return {
-                type: 'OF_CONFIRMACAO_INTERNA',
-                subject: 'Ordem de Fornecimento Nº [NumeroOF] Confirmada pelo Fornecedor',
-                body: `Corpo do e-mail de confirmação interna.`
-            };
-        case 'OF_LEMBRETE_NF':
-            return {
-                type: 'OF_LEMBRETE_NF',
-                subject: 'Lembrete: Emissão da Nota Fiscal Pendente para a OF Nº [NumeroOF]',
-                body: `Corpo do e-mail de lembrete de emissão de NF.`
-            };
-        case 'OF_CANCELADA':
-            return {
-                type: 'OF_CANCELADA',
-                subject: 'Cancelamento da Ordem de Fornecimento Nº [NumeroOF]',
-                body: `Corpo do e-mail de cancelamento da OF.`
-            };
+                type: type,
+                subject: 'Notificação do Sistema de Notas',
+                body: `<p>Este é um e-mail sobre a nota [NumeroNota].</p>`
+            }
     }
 }
 
 
-/**
- * Fetches an email template from the database. If it doesn't exist,
- * it creates one using the default content and returns it.
- * @param type The type of the email template to get or create.
- * @returns The found or newly created email template.
- */
 export async function getOrCreateEmailTemplate(type: TemplateType): Promise<EmailTemplate> {
   const existingTemplate = await prisma.emailTemplate.findUnique({
     where: { type },
@@ -447,7 +429,6 @@ export async function getOrCreateEmailTemplate(type: TemplateType): Promise<Emai
   const newTemplate = await prisma.emailTemplate.create({
     data: {
         ...defaultTemplateData,
-        // @ts-ignore
         type: type,
     }
   });
@@ -492,20 +473,7 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
         };
 
         const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
-
-        const ccList = new Set<string>();
-        ccList.add(payload.requesterEmail);
-        
-        if (payload.ccEmails) {
-            payload.ccEmails.split(',').forEach(email => {
-                const trimmedEmail = email.trim();
-                if (trimmedEmail) {
-                    ccList.add(trimmedEmail);
-                }
-            });
-        }
-        
-        const ccString = Array.from(ccList).join(',');
+        const ccString = getCcList(payload.requesterEmail, payload.ccEmails);
 
         await sendEmail({
             to: payload.coordinatorEmail,
@@ -518,7 +486,7 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
 
     } catch (error) {
         console.error(`Falha ao enviar e-mail de atesto para a nota ${payload.noteId}:`, error);
-        throw error; // Re-throw to be caught by the calling action
+        throw error;
     }
 };
 
@@ -538,10 +506,11 @@ export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload
         };
 
         const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
+        const ccString = getCcList(payload.requesterEmail, payload.ccEmails);
 
         await sendEmail({
             to: payload.coordinatorEmail,
-            cc: payload.requesterEmail,
+            cc: ccString,
             subject: emailSubject,
             body: emailBody,
         });
@@ -556,17 +525,6 @@ export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload
 
 export const sendAttestationConfirmationToCoordinator = async (payload: CoordinatorConfirmationEmailPayload) => {
      try {
-        const drive = getDriveService();
-        
-        const driveResponse = await drive.files.get(
-            { fileId: payload.attestedFileId, alt: 'media' },
-            { responseType: 'arraybuffer' }
-        );
-        
-        if (!driveResponse.data) {
-            throw new Error(`Não foi possível buscar o arquivo de atesto ${payload.attestedFileId} do Google Drive.`);
-        }
-
         const template = await getOrCreateEmailTemplate('ATTESTATION_CONFIRMATION_COORDINATOR');
         
         const replacements = {
@@ -581,19 +539,33 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 
         const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
 
-        await sendEmail({
+        const emailOptions: any = {
             to: payload.coordinatorEmail,
-            cc: payload.requesterEmail, // Add the original requester to CC
+            cc: getCcList(payload.requesterEmail, payload.ccEmails),
             subject: emailSubject,
             body: emailBody,
-            attachment: {
-                filename: payload.attestedFileName,
-                contentType: 'application/pdf',
-                // @ts-ignore
-                content: Buffer.from(driveResponse.data).toString('base64'),
-            },
-        });
+        };
+
+        // Anexar o arquivo se ele existir
+        if (payload.attestedFileId) {
+            const drive = getDriveService();
+            const driveResponse = await drive.files.get(
+                { fileId: payload.attestedFileId, alt: 'media' },
+                { responseType: 'arraybuffer' }
+            );
+            
+            if (!driveResponse.data) {
+                console.warn(`Não foi possível buscar o anexo ${payload.attestedFileId} do Drive. O e-mail será enviado sem ele.`);
+            } else {
+                 emailOptions.attachment = {
+                    filename: payload.attestedFileName,
+                    contentType: 'application/pdf',
+                    content: Buffer.from(driveResponse.data as ArrayBuffer).toString('base64'),
+                };
+            }
+        }
         
+        await sendEmail(emailOptions);
         console.log(`E-mail de confirmação de atesto enviado com sucesso para ${payload.coordinatorEmail} para a nota ${payload.noteId}`);
 
     } catch (error) {
@@ -617,9 +589,10 @@ export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayl
         };
         
         const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
-
+        
         await sendEmail({
             to: payload.requesterEmail,
+            cc: getCcList(payload.coordinatorName, payload.ccEmails),
             subject: emailSubject,
             body: emailBody,
         });

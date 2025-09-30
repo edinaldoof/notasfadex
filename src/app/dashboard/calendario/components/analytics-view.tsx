@@ -15,7 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { NoteForCalendar } from '../actions';
+import { NoteForCalendar } from '../actions.js';
 import { InvoiceStatus } from '@/lib/types';
 import { differenceInDays, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

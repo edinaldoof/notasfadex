@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -144,6 +143,34 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     }
   });
 
+  const formatCurrencyForDisplay = (value: string | number | undefined): string => {
+    if (value === undefined || value === null || value === '') return '';
+  
+    // Se for um número (vindo da IA), formata para BRL string
+    if (typeof value === 'number') {
+      return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  
+    // Se for string, assume que é input do usuário e aplica a máscara
+    let digitsOnly = String(value).replace(/\D/g, '');
+    if (!digitsOnly) return '';
+  
+    digitsOnly = digitsOnly.padStart(3, '0');
+    
+    let formattedValue = digitsOnly.slice(0, -2) + ',' + digitsOnly.slice(-2);
+    
+    if (formattedValue.length > 6) {
+        formattedValue = formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+  
+    return formattedValue;
+  }
+
+  const handleValorTotalBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyForDisplay(e.target.value);
+    form.setValue('valorTotal', formatted, { shouldValidate: true });
+  }
+
   useEffect(() => {
     async function fetchAccounts() {
         if (open) {
@@ -167,7 +194,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       if (key === 'file' && value?.[0]) {
         formData.append(key, value[0]);
       } else if (key === 'reportFile' && value?.[0]) {
-        formData.append(key, value[0]);
+        formData.append('reportFile', value[0]);
       } else if (value !== undefined && value !== null) {
         if ((key === 'prestadorCnpj' || key === 'tomadorCnpj') && typeof value === 'string') {
           formData.append(key, value.replace(/\D/g, ''));
@@ -297,7 +324,9 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                                             if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', maskCnpj(extractedData.tomadorCnpj));
                                             if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
                                             if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
-                                            if (extractedData.valorTotal) form.setValue('valorTotal', String(extractedData.valorTotal));
+                                            if (extractedData.valorTotal) {
+                                              form.setValue('valorTotal', formatCurrencyForDisplay(extractedData.valorTotal));
+                                            }
                                             
                                             toast({
                                               title: "Extração Concluída",
@@ -530,7 +559,11 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Valor Total (R$)</FormLabel>
                                 <FormControl>
-                                  <Input placeholder='0,00' {...field} />
+                                  <Input 
+                                    placeholder='0,00' 
+                                    {...field}
+                                    onBlur={handleValorTotalBlur}
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -696,3 +729,5 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     </>
   );
 }
+
+    

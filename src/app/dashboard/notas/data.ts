@@ -14,6 +14,7 @@ type GetNotesParams = {
   query?: string;
   status?: string;
   dateRange?: DateRange;
+  showDeleted?: boolean;
 };
 
 export async function getNotes({
@@ -22,6 +23,7 @@ export async function getNotes({
   query,
   status,
   dateRange,
+  showDeleted = false,
 }: GetNotesParams): Promise<{ notes: FiscalNote[]; total: number }> {
   const session = await auth();
 
@@ -32,7 +34,10 @@ export async function getNotes({
 
   const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
   
-  const where: any = {};
+  const where: any = {
+    deleted: showDeleted,
+  };
+
   if (!isManagerOrOwner) {
     where.userId = session.user.id;
   }
@@ -53,19 +58,22 @@ export async function getNotes({
   }
   
   if (dateRange?.from) {
-    where.issueDate = {
-        ...where.issueDate,
+    const dateField = showDeleted ? 'deletedAt' : 'issueDate';
+    where[dateField] = {
+        ...where[dateField],
         gte: startOfDay(dateRange.from)
     };
   }
   if (dateRange?.to) {
-    where.issueDate = {
-        ...where.issueDate,
+    const dateField = showDeleted ? 'deletedAt' : 'issueDate';
+    where[dateField] = {
+        ...where[dateField],
         lte: endOfDay(dateRange.to)
     };
   }
 
   const skip = (page - 1) * limit;
+  const orderBy = showDeleted ? { deletedAt: 'desc' } : { createdAt: 'desc' };
 
   try {
     const [notes, total] = await prisma.$transaction([
@@ -74,22 +82,17 @@ export async function getNotes({
         skip,
         take: limit,
         include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              image: true,
-            }
-          },
+          user: true, // Relação 'user' do criador
           history: {
             orderBy: {
               date: 'desc',
             },
+             include: {
+                author: true // Relação 'author' do histórico
+            }
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy,
       }),
       prisma.fiscalNote.count({ where }),
     ]);
@@ -100,5 +103,3 @@ export async function getNotes({
     return { notes: [], total: 0 };
   }
 }
-
-    

@@ -1,10 +1,9 @@
 
-
 'use server';
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { Role, Settings, EmailTemplate, InvoiceStatus } from '@prisma/client';
+import { Role, Settings, EmailTemplate, InvoiceStatus, PermissionType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { sendEmail } from '@/lib/email';
 import { z } from 'zod';
@@ -88,6 +87,7 @@ export async function getSettings(): Promise<Settings> {
         id: 'default',
         attestationDeadlineInDays: 30,
         reminderFrequencyInDays: 3,
+        aiModel: 'gemini-1.5-flash-latest', // Valor padrão
     };
 }
 
@@ -96,7 +96,7 @@ export async function saveSettings(data: Partial<Settings>) {
     await prisma.settings.upsert({
         where: { id: 'default' },
         update: rest,
-        create: { id: 'default', ...rest },
+        create: { id: 'default', aiModel: 'gemini-1.5-flash-latest', ...rest },
     });
 }
 

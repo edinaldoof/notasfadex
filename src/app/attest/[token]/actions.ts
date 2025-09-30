@@ -9,9 +9,8 @@ import { revalidatePath } from 'next/cache';
 import { verifyAttestationToken } from '@/lib/token-utils';
 import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
 import type { FiscalNote } from '@/lib/types';
+import { Prisma } from '@prisma/client';
 
-
-// Esta função agora está corretamente em uma Server Action.
 export async function getNoteFromToken(token: string): Promise<{
   note?: FiscalNote;
   error?: string;
@@ -27,7 +26,7 @@ export async function getNoteFromToken(token: string): Promise<{
     }
 
     const note = await prisma.fiscalNote.findUnique({
-      where: { id: decoded.noteId },
+      where: { id: decoded.noteId, deleted: false },
       select: {
         id: true,
         requester: true,
@@ -41,8 +40,9 @@ export async function getNoteFromToken(token: string): Promise<{
         status: true,
         fileName: true,
         reportFileUrl: true,
+        reportFileName: true,
         user: {
-            select: { email: true, name: true }
+            select: { email: true, name: true, id: true }
         }
       },
     });
@@ -110,7 +110,7 @@ export async function attestNotePublic(formData: FormData) {
 
         const note = await prisma.fiscalNote.findUnique({
             where: { id: noteId },
-            include: { user: { select: { email: true, id: true, name: true } } }
+            include: { user: true }
         });
 
         if (!note) {
@@ -147,27 +147,28 @@ export async function attestNotePublic(formData: FormData) {
         }
         historyDetails += ` Documento de atesto '${attestedFile.name}' foi salvo.`;
 
-        await prisma.fiscalNote.update({
-            where: { id: noteId },
+        await prisma.$transaction([
+          prisma.fiscalNote.update({
+              where: { id: noteId },
+              data: {
+                  status: 'ATESTADA',
+                  attestedAt: attestationDate,
+                  attestedById: note.user.id, 
+                  attestedBy: coordinatorName,
+                  observation: observation,
+                  attestedDriveFileId: attestedDriveFileId,
+                  attestedFileUrl: attestedFileUrl,
+              },
+          }),
+          prisma.noteHistoryEvent.create({
             data: {
-                status: 'ATESTADA',
-                attestedAt: attestationDate,
-                attestedById: note.user.id, 
-                attestedBy: coordinatorName,
-                observation: observation,
-                attestedDriveFileId: attestedDriveFileId,
-                attestedFileUrl: attestedFileUrl,
-                history: {
-                    create: {
-                        type: 'ATTESTED',
-                        details: historyDetails,
-                        author: {
-                          connect: { id: note.user.id }
-                        }
-                    }
-                }
-            },
-        });
+              type: 'ATTESTED',
+              details: historyDetails,
+              userId: note.userId,
+              fiscalNoteId: noteId,
+            }
+          })
+        ]);
         
         revalidatePath('/dashboard/notas');
         revalidatePath('/dashboard/analistas');
@@ -226,7 +227,7 @@ export async function rejectNotePublic(formData: FormData) {
 
         const note = await prisma.fiscalNote.findUnique({
             where: { id: noteId },
-            include: { user: { select: { email: true, id: true, name: true } } }
+            include: { user: true }
         });
 
         if (!note) {
@@ -242,22 +243,23 @@ export async function rejectNotePublic(formData: FormData) {
         const rejectionDate = new Date();
         const historyDetails = `Nota rejeitada por ${coordinatorName}. Motivo: "${rejectionReason}"`;
 
-        await prisma.fiscalNote.update({
-            where: { id: noteId },
+        await prisma.$transaction([
+          prisma.fiscalNote.update({
+              where: { id: noteId },
+              data: {
+                  status: 'REJEITADA',
+                  observation: rejectionReason,
+              }
+          }),
+          prisma.noteHistoryEvent.create({
             data: {
-                status: 'REJEITADA',
-                observation: rejectionReason,
-                history: {
-                    create: {
-                        type: 'REJECTED',
-                        details: historyDetails,
-                        author: {
-                          connect: { id: note.userId }
-                        }
-                    }
-                }
+              type: 'REJECTED',
+              details: historyDetails,
+              userId: note.userId,
+              fiscalNoteId: noteId,
             }
-        });
+          })
+        ]);
 
         revalidatePath('/dashboard/notas');
         revalidatePath('/dashboard/analistas');

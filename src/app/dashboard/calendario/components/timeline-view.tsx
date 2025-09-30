@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format, isSameDay, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { NoteForCalendar } from '../actions';
+import { NoteForCalendar } from '../actions.js';
 import { Calendar as CalendarIcon, DollarSign, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';

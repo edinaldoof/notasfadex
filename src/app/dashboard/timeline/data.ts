@@ -10,21 +10,19 @@ export async function getNotesForTimeline(): Promise<FiscalNote[]> {
   const session = await auth();
 
   if (!session?.user?.id) {
-    // Even if public, require login to see the timeline
     console.error('getNotesForTimeline: User not authenticated');
     return [];
   }
 
   try {
     const notes = await prisma.fiscalNote.findMany({
-      // No 'where' clause for userId, fetches all notes
       include: {
         history: {
           orderBy: {
             date: 'desc',
           },
           include: {
-            author: { // Correctly include the author relation
+            author: {
               select: {
                 name: true,
                 image: true,
@@ -32,6 +30,7 @@ export async function getNotesForTimeline(): Promise<FiscalNote[]> {
             }
           }
         },
+        user: true, // Inclui o usuário criador da nota
       },
       orderBy: {
         updatedAt: 'desc',

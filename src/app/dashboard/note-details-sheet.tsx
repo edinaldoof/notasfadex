@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import {
@@ -10,7 +9,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { FiscalNote, HistoryType } from '@/lib/types';
-import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, Tag, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature, Paperclip } from 'lucide-react';
+import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature, Paperclip, Trash2, Undo as UndoIcon } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import { Button } from '../ui/button';
 
@@ -30,6 +29,10 @@ const getEventTypeConfig = (type: HistoryType) => {
             return { icon: Undo2, color: 'text-amber-400', title: 'Atesto Desfeito' };
         case 'EDITED':
             return { icon: Edit, color: 'text-purple-400', title: 'Nota Editada' };
+        case 'DELETED':
+             return { icon: Trash2, color: 'text-slate-400', title: 'Movida para Lixeira' };
+        case 'RESTORED':
+             return { icon: UndoIcon, color: 'text-lime-400', title: 'Nota Restaurada' };
         default:
             return { icon: FileText, color: 'text-gray-400', title: 'Evento' };
     }
@@ -38,6 +41,12 @@ const getEventTypeConfig = (type: HistoryType) => {
 const formatTimelineDateTime = (date: Date) => {
     return new Date(date).toLocaleString('pt-BR', { timeZone: 'UTC' });
 }
+
+const formatCurrency = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return 'N/A';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 
 const DetailItem = ({ icon: Icon, label, value, fullWidth = false, children }: { icon: React.ElementType, label: string, value?: string | number | null | boolean, fullWidth?: boolean, children?: React.ReactNode }) => {
   if (!children && (value === null || value === undefined || value === '')) return null;
@@ -86,7 +95,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                     <DetailItem icon={Hash} label="Nº da Nota" value={note.numeroNota} />
                     <DetailItem icon={FileType} label="Tipo de Nota" value={note.invoiceType} />
                     <DetailItem icon={Calendar} label="Data de Emissão (Extraída)" value={note.dataEmissao} />
-                    <DetailItem icon={CircleDollarSign} label="Valor Total" value={note.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                    <DetailItem icon={CircleDollarSign} label="Valor Total" value={formatCurrency(note.amount)} />
                     <DetailItem icon={Percent} label="Possui Retenção" value={note.hasWithholdingTax} />
                     <DetailItem icon={Download} label="Arquivo Original" fullWidth>
                         <Button asChild variant="link" className="p-0 h-auto text-sm text-primary hover:underline">
@@ -182,7 +191,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                                         </p>
                                         <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
                                             <User className="w-3 h-3"/>
-                                            <span>{event.author?.name || "Sistema"}</span>
+                                            <span>{event.userName || event.author?.name || "Sistema"}</span>
                                         </div>
                                     </div>
                                 </div>

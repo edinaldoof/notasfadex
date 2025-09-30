@@ -15,8 +15,10 @@ type KanbanColumn = {
 
 const KanbanView = ({
   notes,
+  onNoteAction
 }: {
   notes: NoteForCalendar[];
+  onNoteAction: (action: string, noteId: string) => void;
 }) => {
   const columns: KanbanColumn[] = useMemo(() => {
     const overdue: NoteForCalendar[] = [];
@@ -72,7 +74,7 @@ const KanbanView = ({
                   animate={{ opacity: 1, y: 0, transition: { delay: index * 0.05 } }}
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <NoteCard note={note} view="list" />
+                  <NoteCard note={note} onAction={onNoteAction} view="list" />
                 </motion.div>
               ))}
               {column.notes.length === 0 && (
