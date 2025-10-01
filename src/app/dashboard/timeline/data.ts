@@ -30,7 +30,7 @@ export async function getNotesForTimeline(): Promise<FiscalNote[]> {
             }
           }
         },
-        user: true, // Inclui o usuário criador da nota
+        user: true, // CORREÇÃO: Usar 'user' em vez de 'creator'
       },
       orderBy: {
         updatedAt: 'desc',

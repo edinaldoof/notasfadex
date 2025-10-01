@@ -191,7 +191,7 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                                         </p>
                                         <div className="flex items-center space-x-2 text-xs text-slate-500 mt-2">
                                             <User className="w-3 h-3"/>
-                                            <span>{event.userName || "Sistema"}</span>
+                                            <span>{event.userName || event.author?.name || "Sistema"}</span>
                                         </div>
                                     </div>
                                 </div>

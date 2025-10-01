@@ -8,7 +8,11 @@ import {
   Role,
   User as PrismaUser,
   PermissionType as PrismaPermissionType,
-  Prisma,
+  Tutorial as PrismaTutorial,
+  TutorialType as PrismaTutorialType,
+  Settings as PrismaSettings,
+  SqlServerSettings as PrismaSqlServerSettings,
+  EmailTemplate as PrismaEmailTemplate,
 } from '@prisma/client';
 
 export const InvoiceStatus = { ...PrismaInvoiceStatus };
@@ -17,19 +21,25 @@ export type InvoiceStatus = PrismaInvoiceStatus;
 export const PermissionType = PrismaPermissionType;
 export type PermissionType = PrismaPermissionType;
 
+export const TutorialType = PrismaTutorialType;
+export type TutorialType = PrismaTutorialType;
+
 
 export { HistoryType, InvoiceType, Role };
+
+export type Settings = PrismaSettings;
+export type SqlServerSettings = PrismaSqlServerSettings;
+export type EmailTemplate = PrismaEmailTemplate;
 
 
 export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {
   author?: Partial<PrismaUser> | null;
-  userName?: string | null;
 }
 
 export interface FiscalNote extends Omit<PrismaFiscalNote, 'amount'> {
   amount: number | null;
   history?: NoteHistoryEvent[];
-  user?: Partial<PrismaUser>; 
+  user?: Partial<PrismaUser>; // Relação 'user' da nota
 }
 
 export interface SendEmailOptions {
@@ -40,7 +50,7 @@ export interface SendEmailOptions {
   attachment?: {
     filename: string;
     contentType: string;
-    content: string;
+    content: string; // base64 encoded
   };
 }
 
@@ -50,7 +60,7 @@ export interface AttestationEmailPayload {
     coordinatorEmail: string;
     requesterName: string;
     requesterEmail: string;
-    ccEmails?: string;
+    ccEmails?: string | null;
     noteDescription: string;
     driveFileId: string;
     fileName: string;
@@ -94,28 +104,20 @@ export interface ReminderEmailPayload {
     coordinatorName: string;
     coordinatorEmail: string;
     requesterEmail: string;
+    ccEmails?: string | null;
     noteDescription: string;
     numeroNota: string | null;
     projectTitle: string | null;
     daysRemaining: number;
 }
 
+
 export interface EmailTemplateParts {
   subject: string;
   body: string;
 }
 
-// ===================================
-// Tipos para Módulo de Solicitação (Ordem de Fornecimento)
-// ===================================
 
-export enum StatusOF {
-  RASCUNHO = 'RASCUNHO',
-  AGUARDANDO_CONFIRMACAO = 'AGUARDANDO_CONFIRMACAO',
-  AGUARDANDO_NOTA = 'AGUARDANDO_NOTA',
-  NF_RECEBIDA = 'NF_RECEBIDA',
-  ATRASADO = 'ATRASADO',
-  CONCLUIDO = 'CONCLUIDO',
-  CANCELADO = 'CANCELADO',
-}
-export type TemplateType = 'ATTESTATION_REQUEST' | 'ATTESTATION_REMINDER' | 'ATTESTATION_CONFIRMATION' | 'NOTE_EXPIRED' | 'ATTESTATION_CONFIRMATION_COORDINATOR' | 'NOTE_REJECTED' | 'OF_ENVIO' | 'OF_LEMBRETE_CONFIRMACAO' | 'OF_CONFIRMACAO_INTERNA' | 'OF_LEMBRETE_NF' | 'OF_CANCELADA';
+export type TemplateType = 'ATTESTATION_REQUEST' | 'ATTESTATION_REMINDER' | 'ATTESTATION_CONFIRMATION' | 'NOTE_EXPIRED' | 'ATTESTATION_CONFIRMATION_COORDINATOR' | 'NOTE_REJECTED';
+
+export type Tutorial = PrismaTutorial;

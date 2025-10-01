@@ -193,7 +193,7 @@ export function AttestNoteDialog({ open, onOpenChange, note, onConfirm, isPendin
         open={isPreviewOpen} 
         onOpenChange={setIsPreviewOpen}
         fileUrl={note.originalFileUrl}
-        fileName={note.fileName}
+        fileName={note.fileName || 'documento'}
       />
     </>
   );

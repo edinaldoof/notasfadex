@@ -3,7 +3,7 @@
 
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { Role, Settings, EmailTemplate, InvoiceStatus, PermissionType } from '@prisma/client';
+import { Role, Settings, EmailTemplate, InvoiceStatus, PermissionType, SqlServerSettings } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { sendEmail } from '@/lib/email';
 import { z } from 'zod';
@@ -99,6 +99,27 @@ export async function saveSettings(data: Partial<Settings>) {
         create: { id: 'default', aiModel: 'gemini-1.5-flash-latest', ...rest },
     });
 }
+
+export async function getSqlServerSettings(): Promise<SqlServerSettings | null> {
+    const session = await auth();
+    if (session?.user?.role !== Role.OWNER) {
+        return null;
+    }
+    return prisma.sqlServerSettings.findFirst();
+}
+
+export async function saveSqlServerSettings(data: Omit<SqlServerSettings, 'id'>) {
+    const session = await auth();
+    if (session?.user?.role !== Role.OWNER) {
+        throw new Error('Acesso não autorizado.');
+    }
+    await prisma.sqlServerSettings.upsert({
+        where: { id: 'default' },
+        update: data,
+        create: { id: 'default', ...data },
+    });
+}
+
 
 export async function getEmailTemplates(): Promise<EmailTemplate[]> {
     const allTypes: EmailTemplate['type'][] = [

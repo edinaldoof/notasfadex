@@ -7,7 +7,6 @@ import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   Layers,
-  Home,
   FileSpreadsheet,
   Settings,
   History,
@@ -18,6 +17,8 @@ import {
   LayoutDashboard,
   Target,
   Calendar,
+  BookOpen,
+  Trash2,
 } from 'lucide-react';
 import { Role } from '@prisma/client';
 
@@ -36,7 +37,9 @@ const navItems: NavItemProps[] = [
   { href: '/dashboard/calendario', label: 'Calendário', icon: Calendar },
   { href: '/dashboard/metas', label: 'Metas', icon: Target },
   { href: '/dashboard/reports', label: 'Relatórios', icon: BarChart3 },
+  { href: '/dashboard/tutorial', label: 'Tutoriais', icon: BookOpen },
   { href: '/dashboard/settings', label: 'Configurações', icon: Settings, requiredRole: [Role.OWNER, Role.MANAGER] },
+  { href: '/dashboard/lixeira', label: 'Lixeira', icon: Trash2, requiredRole: [Role.OWNER, Role.MANAGER] },
 ];
 
 /**

@@ -1,311 +1,13 @@
 
 'use server';
 
-import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
-import prisma from '@/lib/prisma';
+import { subDays } from 'date-fns';
+import { Role, SqlServerSettings } from '@prisma/client';
+
 import { auth } from '@/auth';
-import { InvoiceStatus, InvoiceType, Role } from '@prisma/client';
-import { uploadFileToDrive } from '@/lib/google-drive';
-import { Readable } from 'stream';
-import { addDays, subDays } from 'date-fns';
-import { sendAttestationRequestEmail } from '@/lib/email-actions';
-
-const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
-const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))*$/;
-
-const addNoteSchema = z.object({
-  invoiceType: z.nativeEnum(InvoiceType),
-  hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
-  projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
-  coordinatorName: z.string().min(1, 'O nome do coordenador é obrigatório.'),
-  coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
-  projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
-  ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
-  prestadorCnpj: z.string().optional(),
-  tomadorRazaoSocial: z.string().optional(),
-  tomadorCnpj: z.string().optional(),
-  numeroNota: z.string().optional(),
-  dataEmissao: z.string().optional(),
-  valorTotal: z.string().optional(),
-  prestadorRazaoSocial: z.string().optional(),
-  forceCreate: z.preprocess((val) => val === 'true', z.boolean()).optional(),
-});
-
-
-export async function addNote(formData: FormData) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id || !session.user.email || !session.user.name) {
-      return { success: false, message: 'Usuário não autenticado ou informações do usuário ausentes. Acesso negado.' };
-    }
-    
-    const { id: userId, name: requesterName, email: requesterEmail } = session.user;
-
-    const file = formData.get('file') as File;
-    if (!file || file.size === 0) {
-        return { success: false, message: 'O arquivo é obrigatório e não pode estar vazio.' };
-    }
-
-    const rawFormData = Object.fromEntries(formData.entries());
-    const validatedFields = addNoteSchema.safeParse(rawFormData);
-    
-    if (!validatedFields.success) {
-      console.error(validatedFields.error.flatten().fieldErrors);
-      return {
-        success: false,
-        message: 'Erro de validação. Verifique os campos.',
-        errors: validatedFields.error.flatten().fieldErrors,
-      };
-    }
-
-    const { 
-      descricaoServicos, 
-      valorTotal, 
-      invoiceType,
-      hasWithholdingTax,
-      projectTitle,
-      coordinatorEmail,
-      coordinatorName,
-      projectAccountNumber,
-      ccEmails,
-      ...rest 
-    } = validatedFields.data;
-
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const fileStream = Readable.from(fileBuffer);
-    
-    const driveFile = await uploadFileToDrive(`[NOTA] ${file.name}`, file.type, fileStream, projectAccountNumber);
-
-    if (!driveFile || !driveFile.id) {
-      throw new Error("Falha ao fazer upload do arquivo para o Google Drive.");
-    }
-
-    const submissionDate = new Date();
-    const settings = await prisma.settings.findFirst();
-    const deadlineDays = settings?.attestationDeadlineInDays ?? 30;
-    const attestationDeadline = addDays(submissionDate, deadlineDays); 
-
-    const newNote = await prisma.fiscalNote.create({
-      data: {
-        description: descricaoServicos,
-        requester: requesterName,
-        issueDate: submissionDate,
-        status: InvoiceStatus.PENDENTE,
-        fileType: file.type,
-        fileName: file.name,
-        originalFileUrl: `/api/download/${driveFile.id}`,
-        driveFileId: driveFile.id,
-        amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
-        userId: userId,
-        invoiceType: invoiceType,
-        projectTitle: projectTitle,
-        projectAccountNumber: projectAccountNumber,
-        hasWithholdingTax: hasWithholdingTax,
-        coordinatorEmail: coordinatorEmail,
-        coordinatorName: coordinatorName,
-        attestationDeadline: attestationDeadline,
-        ...rest,
-        history: {
-          create: {
-            type: 'CREATED',
-            details: `Nota fiscal criada e atribuída a ${coordinatorName} para atesto.`,
-            userId: userId,
-          }
-        }
-      }
-    });
-
-    await sendAttestationRequestEmail({
-      noteId: newNote.id,
-      coordinatorName: newNote.coordinatorName,
-      coordinatorEmail: newNote.coordinatorEmail,
-      requesterName: newNote.requester,
-      requesterEmail: requesterEmail,
-      ccEmails: ccEmails,
-      noteDescription: newNote.description,
-      driveFileId: newNote.driveFileId,
-      fileName: newNote.fileName,
-      fileType: newNote.fileType,
-      numeroNota: newNote.numeroNota,
-      projectTitle: newNote.projectTitle,
-      projectAccountNumber: newNote.projectAccountNumber,
-    });
-
-    revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard');
-    revalidatePath('/dashboard/timeline');
-
-    return { success: true, message: 'Nota adicionada com sucesso e e-mail enviado ao coordenador!' };
-
-  } catch (error) {
-    console.error("Erro ao adicionar nota:", error);
-    let message = "Ocorreu um erro no servidor ao fazer upload do arquivo ou salvar a nota. Tente novamente.";
-    if (error instanceof Error) {
-        message = error.message;
-    }
-    return {
-        success: false,
-        message: message,
-    };
-  }
-}
-
-const attestNoteSchema = z.object({
-  noteId: z.string().cuid('ID da nota inválido.'),
-  observation: z.string().max(1000, "Observação muito longa.").optional(),
-});
-
-export async function attestNote(formData: FormData) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id || !session.user.name) {
-        return { success: false, message: 'Acesso negado.' };
-    }
-    const { id: attestedById, name: userName } = session.user;
-
-    const rawData = Object.fromEntries(formData.entries());
-    const validated = attestNoteSchema.safeParse(rawData);
-
-    if (!validated.success) {
-        return { success: false, message: 'Dados inválidos para o atesto.' };
-    }
-
-    const { noteId, observation } = validated.data;
-    const attestedFile = formData.get('attestedFile') as File | null;
-    
-    const note = await prisma.fiscalNote.findUnique({ where: { id: noteId } });
-    if (!note) {
-        return { success: false, message: 'Nota fiscal não encontrada.' };
-    }
-    
-    let attestedDriveFileId: string | null = null;
-    let attestedFileUrl: string | null = null;
-    let historyDetails = `Nota atestada por ${userName}.`;
-
-    if (attestedFile && attestedFile.size > 0) {
-        const fileBuffer = Buffer.from(await attestedFile.arrayBuffer());
-        const fileStream = Readable.from(fileBuffer);
-
-        const driveFile = await uploadFileToDrive(
-            `[ATESTADO] ${attestedFile.name}`,
-            attestedFile.type,
-            fileStream,
-            note.projectAccountNumber
-        );
-        
-        if (!driveFile || !driveFile.id) {
-            throw new Error("Falha ao fazer upload do arquivo de atesto.");
-        }
-        
-        attestedDriveFileId = driveFile.id;
-        attestedFileUrl = `/api/download/${driveFile.id}`;
-        historyDetails += ` Documento de atesto '${attestedFile.name}' foi salvo.`;
-    }
-
-    if (observation) {
-        historyDetails += ` Observação: "${observation}"`;
-    }
-
-    await prisma.fiscalNote.update({
-        where: { id: noteId },
-        data: {
-            status: 'ATESTADA',
-            attestedAt: new Date(),
-            attestedById: attestedById,
-            attestedBy: userName,
-            observation: observation,
-            attestedDriveFileId: attestedDriveFileId,
-            attestedFileUrl: attestedFileUrl,
-            history: {
-                create: {
-                    type: 'ATTESTED',
-                    details: historyDetails,
-                    userId: attestedById,
-                }
-            }
-        },
-    });
-    
-    revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/analistas');
-    revalidatePath('/dashboard/timeline');
-    revalidatePath('/dashboard');
-
-    return { success: true, message: 'Nota atestada com sucesso!' };
-
-  } catch (error) {
-    console.error("Erro ao atestar nota:", error);
-    const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
-    return { success: false, message };
-  }
-}
-
-export async function revertAttestation(noteId: string) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id || !session.user.name) {
-        return { success: false, message: 'Acesso negado.' };
-    }
-     const { id: userId } = session.user;
-    
-     await prisma.fiscalNote.update({
-        where: { id: noteId },
-        data: {
-            status: 'PENDENTE',
-            attestedAt: null,
-            attestedById: null,
-            observation: null,
-            attestedDriveFileId: null,
-            attestedFileUrl: null,
-            attestedBy: null,
-            history: {
-                create: {
-                    type: 'REVERTED',
-                    details: 'O atesto da nota foi desfeito.',
-                    userId: userId,
-                }
-            }
-        }
-    });
-    
-    revalidatePath('/dashboard/notas');
-    revalidatePath('/dashboard/analistas');
-    revalidatePath('/dashboard/timeline');
-    revalidatePath('/dashboard');
-
-    return { success: true, message: 'Atesto desfeito com sucesso.' };
-  } catch (error) {
-    console.error("Erro ao reverter atesto:", error);
-    return { success: false, message: 'Erro no servidor ao reverter o atesto.' };
-  }
-}
-
-export async function getExistingAccountNumbers(): Promise<string[]> {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return [];
-    }
-
-    const notes = await prisma.fiscalNote.findMany({
-        where: {},
-        distinct: ['projectAccountNumber'],
-        select: {
-            projectAccountNumber: true,
-        },
-        orderBy: {
-            projectAccountNumber: 'asc',
-        },
-    });
-
-    return notes.map(note => note.projectAccountNumber);
-  } catch (error) {
-    console.error("Failed to fetch existing account numbers:", error);
-    return [];
-  }
-}
+import prisma from '@/lib/prisma';
+import { getProjectAccountsFromSqlServer } from '@/lib/sql-server';
+import { z } from 'zod';
 
 export async function getDashboardSummary() {
   try {
@@ -321,7 +23,7 @@ export async function getDashboardSummary() {
     }
 
     const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
-    const whereClause = isManagerOrOwner ? {} : { userId: session.user.id };
+    const whereClause = isManagerOrOwner ? { deleted: false } : { userId: session.user.id, deleted: false };
 
     const notes = await prisma.fiscalNote.findMany({
       where: whereClause,
@@ -417,30 +119,35 @@ export async function getRecentActivities() {
     }
 }
 
-
-export async function checkExistingNote(input: { numeroNota: string; projectAccountNumber: string }): Promise<boolean> {
-  try {
+export async function getProjectAccounts() {
     const session = await auth();
     if (!session?.user?.id) {
-        console.error("Unauthorized attempt to check for existing notes.");
-        return false;
+        throw new Error('Usuário não autenticado.');
     }
     
-    const checkExistingNoteSchema = z.object({
-      numeroNota: z.string(),
-      projectAccountNumber: z.string(),
-    });
-
-    const validatedInput = checkExistingNoteSchema.parse(input);
-    const existing = await prisma.fiscalNote.findFirst({
-        where: {
-            numeroNota: validatedInput.numeroNota,
-            projectAccountNumber: validatedInput.projectAccountNumber,
+    const sqlSettings = await prisma.sqlServerSettings.findFirst();
+    if (sqlSettings) {
+        try {
+            return await getProjectAccountsFromSqlServer(sqlSettings as SqlServerSettings);
+        } catch (error) {
+            console.error("Falha ao buscar contas do SQL Server, retornando contas locais.", error);
+        }
+    }
+    
+    // Fallback para contas existentes no Prisma se o SQL Server falhar ou não estiver configurado
+    const notes = await prisma.fiscalNote.findMany({
+        where: { deleted: false },
+        distinct: ['projectAccountNumber'],
+        select: {
+            projectAccountNumber: true,
+        },
+        orderBy: {
+            projectAccountNumber: 'asc',
         },
     });
-    return !!existing;
-  } catch (error) {
-    console.error("Error checking for existing note:", error);
-    return false;
-  }
+
+    return notes.map(note => ({
+        label: note.projectAccountNumber,
+        value: note.projectAccountNumber,
+    }));
 }

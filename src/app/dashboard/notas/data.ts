@@ -6,7 +6,6 @@ import { auth } from '@/auth';
 import type { FiscalNote } from '@/lib/types';
 import { Role } from '@prisma/client';
 import { DateRange } from 'react-day-picker';
-import { startOfDay, endOfDay } from 'date-fns';
 
 type GetNotesParams = {
   page?: number;
@@ -61,14 +60,14 @@ export async function getNotes({
     const dateField = showDeleted ? 'deletedAt' : 'issueDate';
     where[dateField] = {
         ...where[dateField],
-        gte: startOfDay(dateRange.from)
+        gte: dateRange.from
     };
   }
   if (dateRange?.to) {
     const dateField = showDeleted ? 'deletedAt' : 'issueDate';
     where[dateField] = {
         ...where[dateField],
-        lte: endOfDay(dateRange.to)
+        lte: dateRange.to
     };
   }
 
@@ -82,13 +81,13 @@ export async function getNotes({
         skip,
         take: limit,
         include: {
-          user: true, // Relação 'user' do criador
+          user: true, 
           history: {
             orderBy: {
               date: 'desc',
             },
              include: {
-                author: true // Relação 'author' do histórico
+                author: true
             }
           },
         },

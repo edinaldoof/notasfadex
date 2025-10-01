@@ -10,7 +10,7 @@ import type { EmailTemplate, TemplateType } from './types';
 
 function getCcList(baseEmail: string, ccEmails?: string | null): string {
     const emailSet = new Set<string>();
-    emailSet.add(baseEmail); // Adiciona o e-mail principal (solicitante ou coordenador)
+    if(baseEmail) emailSet.add(baseEmail);
     
     if (ccEmails) {
         ccEmails.split(',').forEach(email => {
@@ -405,12 +405,8 @@ function getDefaultTemplate(type: TemplateType): Omit<EmailTemplate, 'id' | 'cre
 </div>`,
             };
         default:
-             // Fallback for any other type
-            return {
-                type: type,
-                subject: 'Notificação do Sistema de Notas',
-                body: `<p>Este é um e-mail sobre a nota [NumeroNota].</p>`
-            }
+            const exhaustiveCheck: never = type;
+            throw new Error(`Template padrão não definido para o tipo: ${exhaustiveCheck}`);
     }
 }
 
@@ -455,11 +451,9 @@ const processTemplate = (template: { subject: string; body: string }, replacemen
 // Funções de Envio de E-mail
 // =================================================================
 
-
 export const sendAttestationRequestEmail = async (payload: AttestationEmailPayload) => {
     try {
         const template = await getOrCreateEmailTemplate('ATTESTATION_REQUEST');
-        
         const publicAttestationLink = generateAttestationToken(payload.noteId);
         
         const replacements = {
@@ -483,7 +477,6 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
         });
         
         console.log(`E-mail de atesto (sem anexo) enviado com sucesso para ${payload.coordinatorEmail} (CC: ${ccString}) para a nota ${payload.noteId}`);
-
     } catch (error) {
         console.error(`Falha ao enviar e-mail de atesto para a nota ${payload.noteId}:`, error);
         throw error;
@@ -493,7 +486,6 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
 export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload) => {
     try {
         const template = await getOrCreateEmailTemplate('ATTESTATION_REMINDER');
-        
         const publicAttestationLink = generateAttestationToken(payload.noteId);
         
         const replacements = {
@@ -516,16 +508,15 @@ export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload
         });
         
         console.log(`E-mail de lembrete de atesto enviado com sucesso para ${payload.coordinatorEmail} para a nota ${payload.noteId}`);
-
     } catch (error) {
         console.error(`Falha ao enviar e-mail de lembrete para a nota ${payload.noteId}:`, error);
     }
 };
 
-
 export const sendAttestationConfirmationToCoordinator = async (payload: CoordinatorConfirmationEmailPayload) => {
      try {
         const template = await getOrCreateEmailTemplate('ATTESTATION_CONFIRMATION_COORDINATOR');
+        const note = await prisma.fiscalNote.findUnique({ where: { id: payload.noteId } });
         
         const replacements = {
             'NomeCoordenador': payload.coordinatorName,
@@ -539,14 +530,13 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 
         const { subject: emailSubject, body: emailBody } = processTemplate(template, replacements);
 
-        const emailOptions: any = {
+        const emailOptions: SendEmailOptions = {
             to: payload.coordinatorEmail,
-            cc: getCcList(payload.requesterEmail, payload.ccEmails),
+            cc: getCcList(payload.requesterEmail, note?.ccEmails),
             subject: emailSubject,
             body: emailBody,
         };
 
-        // Anexar o arquivo se ele existir
         if (payload.attestedFileId) {
             const drive = getDriveService();
             const driveResponse = await drive.files.get(
@@ -554,9 +544,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
                 { responseType: 'arraybuffer' }
             );
             
-            if (!driveResponse.data) {
-                console.warn(`Não foi possível buscar o anexo ${payload.attestedFileId} do Drive. O e-mail será enviado sem ele.`);
-            } else {
+            if (driveResponse.data) {
                  emailOptions.attachment = {
                     filename: payload.attestedFileName,
                     contentType: 'application/pdf',
@@ -567,7 +555,6 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
         
         await sendEmail(emailOptions);
         console.log(`E-mail de confirmação de atesto enviado com sucesso para ${payload.coordinatorEmail} para a nota ${payload.noteId}`);
-
     } catch (error) {
         console.error(`Falha ao enviar e-mail de confirmação para o coordenador da nota ${payload.noteId}:`, error);
     }
@@ -576,6 +563,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayload) => {
     try {
         const template = await getOrCreateEmailTemplate('NOTE_REJECTED');
+        const note = await prisma.fiscalNote.findUnique({ where: { id: payload.noteId } });
 
         const replacements = {
             'NomeSolicitante': payload.requesterName,
@@ -592,7 +580,7 @@ export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayl
         
         await sendEmail({
             to: payload.requesterEmail,
-            cc: getCcList(payload.coordinatorName, payload.ccEmails),
+            cc: getCcList(note?.coordinatorEmail, note?.ccEmails),
             subject: emailSubject,
             body: emailBody,
         });
@@ -603,3 +591,5 @@ export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayl
         console.error(`Falha ao enviar e-mail de notificação de rejeição para a nota ${payload.noteId}:`, error);
     }
 }
+
+    

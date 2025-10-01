@@ -8,6 +8,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from '@google/generative-ai';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
+import { parseBRLMoneyToFloat } from '@/lib/utils'; // Importa a função do local centralizado
 
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -65,7 +66,7 @@ const dataExtractionTool = {
 };
 
 // =========================
-/* Helpers de normalização */
+// Helpers de normalização
 // =========================
 const NBSP = '\u00A0';
 
@@ -106,67 +107,6 @@ function normalizeDateToBR(value?: unknown): string | undefined {
   return undefined; // Evita inventar formatos
 }
 
-/**
- * Converte textos de dinheiro em BRL para float com ponto como separador decimal.
- * Regras:
- * - Remove a moeda (R$) e espaços (inclui NBSP)
- * - Se houver vírgula e ponto: ponto = milhar, vírgula = decimal
- * - Se houver apenas vírgula: vírgula = decimal
- * - Se houver apenas ponto: trata como decimal SOMENTE se houver exatamente 1 ponto e 1-2 dígitos finais; caso contrário, assume milhar e remove
- * - Garante no máximo 2 casas
- */
-export function parseBRLMoneyToFloat(input: unknown): number | null {
-  if (typeof input === 'number' && Number.isFinite(input)) return input;
-  if (typeof input !== 'string') return null;
-
-  let s = input
-    .replace(new RegExp(NBSP, 'g'), ' ')
-    .replace(/\s+/g, '')
-    .replace(/r\$|brl|reais|real/gi, '') // remove moeda (case-insensitive)
-    .replace(/[^0-9.,-]/g, ''); // mantém dígitos e separadores
-
-  // Sinal negativo, se houver
-  let sign = 1;
-  if (s.startsWith('-')) {
-    sign = -1;
-    s = s.slice(1);
-  }
-
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
-
-  if (hasComma && hasDot) {
-    // 1.234,56 => remove pontos de milhar e troca vírgula por ponto
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma && !hasDot) {
-    // 748,60 => troca vírgula por ponto
-    s = s.replace(',', '.');
-  } else if (!hasComma && hasDot) {
-    // Caso ambíguo: 1234.56 (provável decimal) OU 1.234 (provável milhar)
-    const lastDot = s.lastIndexOf('.');
-    const decimals = s.length - lastDot - 1;
-    // Se houver exatamente 1 ponto e 1-2 dígitos depois dele, considera decimal; senão remove pontos
-    if (s.indexOf('.') === lastDot && (decimals === 1 || decimals === 2)) {
-      // já está no formato correto
-    } else {
-      s = s.replace(/\./g, '');
-    }
-  }
-
-  // Garante no máximo 2 casas decimais, truncando (não arredonda para evitar divergências com a nota)
-  const m = s.match(/^(\d+)(?:\.(\d{1,2}))?$/);
-  if (!m) {
-    // Tenta remover separadores residuais de milhar e reavaliar
-    const s2 = s.replace(/\./g, '');
-    const m2 = s2.match(/^(\d+)(?:\.(\d{1,2}))?$/);
-    if (!m2) return null;
-    const num2 = Number(`${m2[1]}${m2[2] ? '.' + m2[2] : ''}`);
-    return Number.isFinite(num2) ? sign * num2 : null;
-  }
-
-  const num = Number(`${m[1]}${m[2] ? '.' + m[2] : ''}`);
-  return Number.isFinite(num) ? sign * num : null;
-}
 
 // Converte Data URI para o formato esperado pelo Gemini
 function dataUriToGooglePart(dataUri: string) {
@@ -308,16 +248,13 @@ async function executeExtractionWithModel(
   if (extractedData.dataEmissao) extractedData.dataEmissao = normalizeDateToBR(extractedData.dataEmissao);
 
   if (extractedData.valorTotal != null) {
-    if (typeof extractedData.valorTotal === 'number') {
-      extractedData.valorTotal = Math.trunc(extractedData.valorTotal * 100) / 100;
-    } else {
+      // Usa a função centralizada para garantir consistência
       const parsed = parseBRLMoneyToFloat(extractedData.valorTotal);
       if (parsed == null) {
         delete extractedData.valorTotal;
       } else {
         extractedData.valorTotal = parsed;
       }
-    }
   }
 
   if (Array.isArray(extractedData.descricaoServicos)) {

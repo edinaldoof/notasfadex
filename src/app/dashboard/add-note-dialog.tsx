@@ -43,9 +43,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { extractNoteData } from '@/app/dashboard/notas/actions';
-import { addNote, checkExistingNote } from '@/app/dashboard/actions';
-import { getExistingAccountNumbers } from '@/app/dashboard/actions';
-import { cn, maskCnpj } from '@/lib/utils'; 
+import { addNote } from '@/app/dashboard/notas/actions';
+import { checkExistingNote } from '@/app/dashboard/notas/actions';
+import { getProjectAccounts } from '@/app/dashboard/actions';
+import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils'; 
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -116,7 +117,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const [isExtracting, setIsExtracting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [reportFileName, setReportFileName] = useState<string | null>(null);
-  const [existingAccounts, setExistingAccounts] = useState<string[]>([]);
+  const [projectAccounts, setProjectAccounts] = useState<{ label: string; value: string }[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
   
@@ -175,15 +176,20 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     async function fetchAccounts() {
         if (open) {
             try {
-                const accounts = await getExistingAccountNumbers();
-                setExistingAccounts(accounts);
+                const accounts = await getProjectAccounts();
+                setProjectAccounts(accounts);
             } catch (error) {
-                console.error("Failed to fetch existing accounts:", error);
+                console.error("Failed to fetch project accounts:", error);
+                toast({
+                    title: "Erro ao buscar contas",
+                    description: "Não foi possível carregar as contas de projeto. Usando dados locais.",
+                    variant: "destructive",
+                });
             }
         }
     }
     fetchAccounts();
-  }, [open]);
+  }, [open, toast]);
 
   const proceedWithSubmit = async (forceCreate = false) => {
     setIsSubmitting(true);
@@ -426,49 +432,51 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                                     <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                                       <PopoverTrigger asChild>
                                         <FormControl>
-                                         <Button
+                                          <Button
                                             variant="outline"
                                             role="combobox"
-                                            className="w-full justify-between"
+                                            className={cn(
+                                              "w-full justify-between",
+                                              !field.value && "text-muted-foreground"
+                                            )}
                                           >
-                                            {field.value || "Selecione ou digite..."}
+                                            {field.value
+                                              ? projectAccounts.find(
+                                                  (account) => account.value === field.value
+                                                )?.label
+                                              : "Selecione ou digite..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                           </Button>
                                         </FormControl>
                                       </PopoverTrigger>
                                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command
-                                          filter={(value, search) => {
-                                            if (value.includes(search)) return 1
-                                            return 0
-                                          }}
-                                        >
+                                        <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                                           <CommandInput
-                                            placeholder="Buscar ou digitar nova conta..."
-                                            value={field.value}
-                                            onValueChange={(currentValue) => {
-                                              form.setValue('projectAccountNumber', currentValue, { shouldValidate: true });
-                                            }}
+                                            placeholder="Buscar conta..."
+                                            onValueChange={(search) => form.setValue("projectAccountNumber", search, { shouldValidate: true })}
                                           />
                                           <CommandList>
                                             <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
                                             <CommandGroup>
-                                              {existingAccounts.map((account) => (
+                                              {projectAccounts.map((account) => (
                                                 <CommandItem
-                                                  key={account}
-                                                  value={account}
+                                                  value={account.label}
+                                                  key={account.value}
                                                   onSelect={(currentValue) => {
-                                                    form.setValue("projectAccountNumber", currentValue, { shouldValidate: true });
+                                                    const selectedAccount = projectAccounts.find(a => a.label.toLowerCase() === currentValue.toLowerCase());
+                                                    form.setValue("projectAccountNumber", selectedAccount ? selectedAccount.value : currentValue, { shouldValidate: true });
                                                     setComboboxOpen(false);
                                                   }}
                                                 >
                                                   <Check
                                                     className={cn(
                                                       "mr-2 h-4 w-4",
-                                                      field.value === account ? "opacity-100" : "opacity-0"
+                                                      account.value === field.value
+                                                        ? "opacity-100"
+                                                        : "opacity-0"
                                                     )}
                                                   />
-                                                  {account}
+                                                  {account.label}
                                                 </CommandItem>
                                               ))}
                                             </CommandGroup>
@@ -729,5 +737,3 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     </>
   );
 }
-
-    

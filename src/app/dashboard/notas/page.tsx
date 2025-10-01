@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Bell,
   Building,
+  RotateCcw,
 } from 'lucide-react';
 import { FiscalNote, InvoiceStatus, PermissionType } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
@@ -31,6 +32,7 @@ import { isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { AttestNoteDialog } from '@/components/dashboard/attest-note-dialog';
+import { EditNoteDialog } from '@/app/dashboard/notas/edit-note-dialog';
 import {
   Popover,
   PopoverContent,
@@ -58,6 +60,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getNotes } from './data';
 import { revertAttestation, attestNote, notifyAllPendingCoordinators, deleteNote } from './actions';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -167,43 +170,50 @@ function NotasClient() {
 
   const page = Number(searchParams.get('page')) || 1;
   const limit = Number(searchParams.get('limit')) || 10;
-  const searchTerm = searchParams.get('q') || '';
-  const statusFilter = searchParams.get('status') || 'all';
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
   
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
+  const [date, setDate] = useState<DateRange | undefined>(() => {
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    if (from && to) return { from: new Date(from), to: new Date(to) };
+    return undefined;
+  });
+
   const [notes, setNotes] = useState<FiscalNote[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isTransitioning, startTransition] = useTransition();
   const [isNotifying, startNotifyingTransition] = useTransition();
   const { toast } = useToast();
   
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showAttestModal, setShowAttestModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<FiscalNote | null>(null);
   const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<FiscalNote | null>(null);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
-
-  // State para controle de permissões
   const [canDeleteNotes, setCanDeleteNotes] = useState(false);
 
   useEffect(() => {
-    // Verifica permissões quando a sessão é carregada
-    const checkPermissions = async () => {
-      const deletePermission = await hasPermission(PermissionType.CAN_DELETE_PENDING_NOTE);
-      setCanDeleteNotes(deletePermission);
-    };
     if (session) {
-      checkPermissions();
+      hasPermission(PermissionType.CAN_DELETE_PENDING_NOTE).then(setCanDeleteNotes);
     }
   }, [session]);
 
   const fetchNotes = React.useCallback(async () => {
     setLoading(true);
     try {
-      const dateRange: DateRange | undefined = (from && to) ? { from: new Date(from), to: new Date(to) } : undefined;
-      const { notes: fetchedNotes, total: totalFetched } = await getNotes({ page, limit, query: searchTerm, status: statusFilter, dateRange }); 
+      const { notes: fetchedNotes, total: totalFetched } = await getNotes({ 
+        page, 
+        limit, 
+        query: searchParams.get('q') || undefined, 
+        status: searchParams.get('status') || undefined, 
+        dateRange: {
+            from: searchParams.get('from') ? new Date(searchParams.get('from')!) : undefined,
+            to: searchParams.get('to') ? new Date(searchParams.get('to')!) : undefined,
+        }
+      }); 
       setNotes(fetchedNotes);
       setTotalNotes(totalFetched);
     } catch (error) {
@@ -212,17 +222,15 @@ function NotasClient() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, searchTerm, statusFilter, from, to, toast]);
+  }, [page, limit, searchParams, toast]);
 
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
 
   const getDynamicStatus = (note: FiscalNote): InvoiceStatus => {
-    if (note.status === 'PENDENTE') {
-      if (note.attestationDeadline && isPast(new Date(note.attestationDeadline))) {
-        return 'EXPIRADA';
-      }
+    if (note.status === 'PENDENTE' && note.attestationDeadline && isPast(new Date(note.attestationDeadline))) {
+      return 'EXPIRADA';
     }
     return note.status;
   };
@@ -230,6 +238,11 @@ function NotasClient() {
   const handleOpenAttestModal = (note: FiscalNote) => {
     setSelectedNote(note);
     setShowAttestModal(true);
+  };
+  
+  const handleOpenEditModal = (note: FiscalNote) => {
+    setSelectedNote(note);
+    setShowEditModal(true);
   };
   
   const handleOpenDetails = (note: FiscalNote) => {
@@ -267,7 +280,7 @@ function NotasClient() {
         const result = await deleteNote(noteId);
         if (result.success) {
             toast({ title: "Sucesso!", description: result.message });
-            fetchNotes(); // Re-fetch para atualizar a lista
+            fetchNotes(); 
         } else {
             toast({ title: "Erro", description: result.message, variant: "destructive" });
         }
@@ -285,62 +298,64 @@ function NotasClient() {
       }
     });
   }
-
+  
   const createQueryString = (params: Record<string, string | number | undefined>) => {
-    const newParams = new URLSearchParams(searchParams.toString());
+    const newParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
-      if (value) {
+      if (value !== undefined && value !== null && value !== '') {
         newParams.set(key, String(value));
-      } else {
-        newParams.delete(key);
       }
     }
     return newParams.toString();
   }
 
+  const handleApplyFilters = () => {
+    const query = createQueryString({
+        q: searchTerm,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        from: date?.from?.toISOString(),
+        to: date?.to?.toISOString(),
+        page: 1,
+        limit,
+    });
+    router.push(`/dashboard/notas?${query}`);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setDate(undefined);
+    router.push('/dashboard/notas');
+  }
+
   const handlePageChange = (newPage: number) => {
-    router.push(`/dashboard/notas?${createQueryString({ page: newPage })}`);
+     const query = createQueryString({
+        q: searchParams.get('q') || undefined,
+        status: searchParams.get('status') || undefined,
+        from: searchParams.get('from') || undefined,
+        to: searchParams.get('to') || undefined,
+        page: newPage,
+        limit,
+    });
+    router.push(`/dashboard/notas?${query}`);
   };
-
-  const handleFilterChange = (filters: { q?: string; status?: string; from?: string; to?: string; }) => {
-    router.push(`/dashboard/notas?${createQueryString({ ...filters, page: 1 })}`);
-  };
-  
-  const [currentSearchTerm, setCurrentSearchTerm] = useState(searchTerm);
-  const [currentStatusFilter, setCurrentStatusFilter] = useState(statusFilter);
-  const [currentDate, setCurrentDate] = useState<DateRange | undefined>(() => {
-    if (from && to) return { from: new Date(from), to: new Date(to) };
-    return undefined;
-  });
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-        handleFilterChange({
-            q: currentSearchTerm,
-            status: currentStatusFilter,
-            from: currentDate?.from?.toISOString(),
-            to: currentDate?.to?.toISOString()
-        })
-    }, 500);
-    return () => clearTimeout(handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSearchTerm, currentStatusFilter, currentDate]);
-
 
   if (loading) {
     return (
       <>
         <FilterControls
-          searchTerm={currentSearchTerm}
-          onSearchTermChange={setCurrentSearchTerm}
-          statusFilter={currentStatusFilter}
-          onStatusFilterChange={setCurrentStatusFilter}
-          date={currentDate}
-          onDateChange={setCurrentDate}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          date={date}
+          onDateChange={setDate}
           onAddNote={() => setShowAddModal(true)}
           onNotifyAll={handleNotifyAll}
           isNotifying={isNotifying}
           canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
+          onApplyFilters={handleApplyFilters}
+          onClearFilters={handleClearFilters}
         />
         <TableSkeleton />
         <AddNoteDialog open={showAddModal} onOpenChange={setShowAddModal} onNoteAdded={fetchNotes} />
@@ -351,16 +366,18 @@ function NotasClient() {
   return (
     <TooltipProvider>
       <FilterControls
-        searchTerm={currentSearchTerm}
-        onSearchTermChange={setCurrentSearchTerm}
-        statusFilter={currentStatusFilter}
-        onStatusFilterChange={setCurrentStatusFilter}
-        date={currentDate}
-        onDateChange={setCurrentDate}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        date={date}
+        onDateChange={setDate}
         onAddNote={() => setShowAddModal(true)}
         onNotifyAll={handleNotifyAll}
         isNotifying={isNotifying}
         canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
+        onApplyFilters={handleApplyFilters}
+        onClearFilters={handleClearFilters}
       />
       <div className="bg-background/80 backdrop-blur-sm rounded-xl border border-border/80 overflow-hidden">
         <div className="overflow-x-auto">
@@ -383,8 +400,8 @@ function NotasClient() {
                   const statusConfig = getStatusConfig(dynamicStatus);
                   const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
                   const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
-                  const isOwner = note.userId === session?.user?.id;
-                  const canEdit = isOwner && dynamicStatus === 'REJEITADA';
+                  const isOwner = note.creator?.id === session?.user?.id;
+                  const canEdit = isOwner || canManage;
                   const isDeletable = (dynamicStatus === 'PENDENTE' || dynamicStatus === 'REJEITADA') && canDeleteNotes;
 
                   return (
@@ -457,7 +474,7 @@ function NotasClient() {
                             variant="outline"
                             size="sm"
                             className="flex items-center space-x-2 text-amber-300 hover:text-amber-100 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 whitespace-nowrap"
-                            disabled={isPending || !canAttest}
+                            disabled={isTransitioning || !canAttest}
                           >
                             <Stamp className="w-4 h-4" />
                             <span>Atestar</span>
@@ -479,11 +496,13 @@ function NotasClient() {
                                 <DropdownMenuItem onClick={() => handleOpenDetails(note)}>
                                     <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
                                 </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
+                                {note.originalFileUrl && (
+                                  <DropdownMenuItem asChild>
                                     <a href={note.originalFileUrl} target="_blank" rel="noopener noreferrer">
                                         <Download className="mr-2 h-4 w-4" /> Baixar Original
                                     </a>
-                                </DropdownMenuItem>
+                                  </DropdownMenuItem>
+                                )}
                                 {note.attestedFileUrl && (
                                   <DropdownMenuItem asChild>
                                     <a href={note.attestedFileUrl} target="_blank" rel="noopener noreferrer">
@@ -519,7 +538,7 @@ function NotasClient() {
                                         </AlertDialogContent>
                                     </AlertDialog>
                                 )}
-                                <DropdownMenuItem disabled={!canEdit}>
+                                <DropdownMenuItem onClick={() => handleOpenEditModal(note)} disabled={!canEdit}>
                                     <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -599,13 +618,21 @@ function NotasClient() {
           </div>
         </div>
       </div>
-       {selectedNote && (
+      {selectedNote && (
         <AttestNoteDialog
           open={showAttestModal}
           onOpenChange={setShowAttestModal}
           note={selectedNote}
           onConfirm={handleAttestNote}
-          isPending={isPending}
+          isPending={isTransitioning}
+        />
+      )}
+       {selectedNote && (
+        <EditNoteDialog
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          note={selectedNote}
+          onNoteUpdated={fetchNotes}
         />
       )}
       <NoteDetailsSheet
@@ -618,7 +645,14 @@ function NotasClient() {
   )
 }
 
-function FilterControls({ searchTerm, onSearchTermChange, statusFilter, onStatusFilterChange, date, onDateChange, onAddNote, onNotifyAll, isNotifying, canNotify }: {
+function FilterControls({ 
+  searchTerm, onSearchTermChange, 
+  statusFilter, onStatusFilterChange, 
+  date, onDateChange, 
+  onAddNote, 
+  onNotifyAll, isNotifying, canNotify,
+  onApplyFilters, onClearFilters
+}: {
     searchTerm: string;
     onSearchTermChange: (value: string) => void;
     statusFilter: string;
@@ -629,6 +663,8 @@ function FilterControls({ searchTerm, onSearchTermChange, statusFilter, onStatus
     onNotifyAll: () => void;
     isNotifying: boolean;
     canNotify: boolean;
+    onApplyFilters: () => void;
+    onClearFilters: () => void;
 }) {
     return (
         <>
@@ -676,71 +712,89 @@ function FilterControls({ searchTerm, onSearchTermChange, statusFilter, onStatus
             </div>
             
             <div className="bg-background/80 backdrop-blur-sm rounded-xl p-4 border border-border/80 mb-8">
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="flex-1 flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                    <div className="relative flex-1 w-full max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <Input
-                        type="text"
-                        placeholder="Buscar em todas as colunas..."
-                        value={searchTerm}
-                        onChange={(e) => onSearchTermChange(e.target.value)}
-                        className="w-full bg-secondary/80 border-border rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:border-primary/50 focus:outline-none transition-colors"
-                    />
-                    </div>
-                    
-                    <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                        variant={'outline'}
-                        className={cn(
-                            'w-full sm:w-[260px] justify-start text-left font-normal bg-secondary/80 border-border hover:bg-secondary hover:text-white',
-                            !date && 'text-muted-foreground'
-                        )}
-                        >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date?.from ? (
-                            date.to ? (
-                            <>
-                                {format(date.from, 'd LLL, y', { locale: ptBR })} -{' '}
-                                {format(date.to, 'd LLL, y', { locale: ptBR })}
-                            </>
-                            ) : (
-                            format(date.from, 'd LLL, y', { locale: ptBR })
-                            )
-                        ) : (
-                            <span>Filtrar por data</span>
-                        )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={onDateChange}
-                        numberOfMonths={2}
-                        locale={ptBR}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="lg:col-span-2">
+                    <Label htmlFor="search-input">Busca Rápida</Label>
+                    <div className="relative mt-2">
+                        <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                        <Input
+                            id="search-input"
+                            type="text"
+                            placeholder="Buscar por descrição, nº da nota, conta..."
+                            value={searchTerm}
+                            onChange={(e) => onSearchTermChange(e.target.value)}
+                            className="w-full bg-secondary/80 border-border rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:border-primary/50 focus:outline-none transition-colors"
                         />
-                    </PopoverContent>
-                    </Popover>
-
-                    <div className="relative">
-                    <Filter className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => onStatusFilterChange(e.target.value)}
-                        className="w-full sm:w-auto bg-secondary/80 border-border rounded-lg pl-10 pr-8 py-2.5 text-white focus:border-primary/50 focus:outline-none appearance-none cursor-pointer"
-                    >
-                        <option value="all">Todos os Status</option>
-                        <option value="ATESTADA">Atestadas</option>
-                        <option value="PENDENTE">Pendentes</option>
-                        <option value="EXPIRADA">Expiradas</option>
-                        <option value="REJEITADA">Rejeitadas</option>
-                    </select>
                     </div>
-                </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="date-range-picker">Período</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="date-range-picker"
+                          variant={'outline'}
+                          className={cn(
+                              'w-full justify-start text-left font-normal bg-secondary/80 border-border hover:bg-secondary hover:text-white mt-2',
+                              !date && 'text-muted-foreground'
+                          )}
+                          >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date?.from ? (
+                              date.to ? (
+                              <>
+                                  {format(date.from, 'd LLL, y', { locale: ptBR })} -{' '}
+                                  {format(date.to, 'd LLL, y', { locale: ptBR })}
+                              </>
+                              ) : (
+                              format(date.from, 'd LLL, y', { locale: ptBR })
+                              )
+                          ) : (
+                              <span>Filtrar por data</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={date?.from}
+                          selected={date}
+                          onSelect={onDateChange}
+                          numberOfMonths={2}
+                          locale={ptBR}
+                          />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                   <div>
+                    <Label htmlFor="status-filter">Status</Label>
+                    <div className="relative mt-2">
+                        <Filter className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                        <select
+                            id="status-filter"
+                            value={statusFilter}
+                            onChange={(e) => onStatusFilterChange(e.target.value)}
+                            className="w-full bg-secondary/80 border-border rounded-lg pl-10 pr-8 py-2.5 text-white focus:border-primary/50 focus:outline-none appearance-none cursor-pointer"
+                        >
+                            <option value="all">Todos os Status</option>
+                            <option value="ATESTADA">Atestadas</option>
+                            <option value="PENDENTE">Pendentes</option>
+                            <option value="EXPIRADA">Expiradas</option>
+                            <option value="REJEITADA">Rejeitadas</option>
+                        </select>
+                    </div>
+                  </div>
+              </div>
+               <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="ghost" onClick={onClearFilters} className="text-slate-400 hover:text-white">
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Limpar Filtros
+                    </Button>
+                    <Button onClick={onApplyFilters}>
+                        <Filter className="w-4 h-4 mr-2" />
+                        Aplicar Filtros
+                    </Button>
                 </div>
             </div>
         </>

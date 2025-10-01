@@ -1,15 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { 
   Settings as SettingsIcon, 
   Shield, 
   Loader2, 
   UserCog, 
-  Check, 
-  ChevronsUpDown,
   Bell,
   Eye,
   Save,
@@ -22,8 +20,9 @@ import {
   ExternalLink,
   XCircle,
   BrainCircuit,
+  Database, // Novo ícone
 } from "lucide-react";
-import { User, Role, Settings, EmailTemplate } from "@prisma/client";
+import { User, Role, Settings, EmailTemplate, SqlServerSettings } from "@prisma/client"; // Adicionado SqlServerSettings
 import { 
     getUsers, 
     updateUserRole, 
@@ -32,7 +31,9 @@ import {
     saveSettings,
     getEmailTemplates,
     saveEmailTemplates,
-    getPreviewAttestationLink
+    getPreviewAttestationLink,
+    getSqlServerSettings, // Nova importação
+    saveSqlServerSettings // Nova importação
 } from "./actions";
 import {
   Table,
@@ -48,7 +49,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -170,6 +170,7 @@ export default function SettingsPage() {
   const [isGettingPreview, startGettingPreviewTransition] = useTransition();
   
   const [settings, setSettings] = useState<Partial<Settings>>({});
+  const [sqlSettings, setSqlSettings] = useState<Partial<SqlServerSettings>>({}); // Novo estado
   const [templates, setTemplates] = useState<Partial<Record<EmailTemplate['type'], EmailTemplate>>>({});
   const [testEmail, setTestEmail] = useState('');
   
@@ -177,6 +178,7 @@ export default function SettingsPage() {
 
   const currentUserRole = session?.user?.role;
   const hasPermission = currentUserRole === 'OWNER' || currentUserRole === 'MANAGER';
+  const isOwner = currentUserRole === 'OWNER'; // Nova variável para verificar se é OWNER
   
   useEffect(() => {
     async function loadData() {
@@ -185,18 +187,28 @@ export default function SettingsPage() {
             return;
         }
         try {
-            const [settingsData, templatesData] = await Promise.all([
+            const promises = [
                 getSettings(),
                 getEmailTemplates(),
-            ]);
+            ];
 
-            setSettings(settingsData);
+            if (isOwner) {
+                promises.push(getSqlServerSettings());
+            }
+
+            const [settingsData, templatesData, sqlSettingsData] = await Promise.all(promises);
+
+            setSettings(settingsData as Settings);
             
-            const templatesMap = templatesData.reduce((acc, t) => {
+            const templatesMap = (templatesData as EmailTemplate[]).reduce((acc, t) => {
                 acc[t.type] = t;
                 return acc;
             }, {} as Record<EmailTemplate['type'], EmailTemplate>);
             setTemplates(templatesMap);
+
+            if (isOwner && sqlSettingsData) {
+                setSqlSettings(sqlSettingsData as SqlServerSettings);
+            }
 
         } catch (error) {
             toast({
@@ -212,7 +224,7 @@ export default function SettingsPage() {
     if (status === 'authenticated') {
         loadData();
     }
-  }, [status, hasPermission, toast]);
+  }, [status, hasPermission, isOwner, toast]);
 
   const handleTemplateChange = (type: EmailTemplate['type'], field: 'subject' | 'body', value: string) => {
       setTemplates(prev => ({
@@ -228,8 +240,17 @@ export default function SettingsPage() {
     startSavingTransition(async () => {
         try {
             const templatesToSave = Object.values(templates).filter(Boolean) as EmailTemplate[];
-            await saveSettings(settings);
-            await saveEmailTemplates(templatesToSave);
+            const settingsPromises: Promise<any>[] = [
+                saveSettings(settings),
+                saveEmailTemplates(templatesToSave)
+            ];
+
+            if (isOwner && sqlSettings.sqlServerIp) {
+                settingsPromises.push(saveSqlServerSettings(sqlSettings as Omit<SqlServerSettings, 'id'>));
+            }
+
+            await Promise.all(settingsPromises);
+
             toast({
                 title: 'Sucesso!',
                 description: 'Configurações salvas com sucesso.',
@@ -432,6 +453,37 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Card de Conexão SQL Server (APENAS PARA OWNER) */}
+        {isOwner && (
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-yellow-500/30">
+              <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                <Database className="text-yellow-400" />
+                Conexão com Banco de Dados Externo (SQL Server)
+              </h2>
+              <p className="text-slate-400 mb-6">
+                Configure o acesso ao banco de dados para buscar as contas de projeto.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                      <Label htmlFor="sqlServerIp">IP do Servidor</Label>
+                      <Input id="sqlServerIp" value={sqlSettings.sqlServerIp || ''} onChange={(e) => setSqlSettings(s => ({...s, sqlServerIp: e.target.value}))} className="w-full bg-slate-800/80 border-border" placeholder="192.168.1.100" />
+                  </div>
+                  <div>
+                      <Label htmlFor="sqlServerDatabase">Nome do Banco de Dados</Label>
+                      <Input id="sqlServerDatabase" value={sqlSettings.sqlServerDatabase || ''} onChange={(e) => setSqlSettings(s => ({...s, sqlServerDatabase: e.target.value}))} className="w-full bg-slate-800/80 border-border" placeholder="Opcional" />
+                  </div>
+                  <div>
+                      <Label htmlFor="sqlServerUser">Usuário</Label>
+                      <Input id="sqlServerUser" value={sqlSettings.sqlServerUser || ''} onChange={(e) => setSqlSettings(s => ({...s, sqlServerUser: e.target.value}))} className="w-full bg-slate-800/80 border-border" />
+                  </div>
+                  <div>
+                      <Label htmlFor="sqlServerPassword">Senha</Label>
+                      <Input id="sqlServerPassword" type="password" value={sqlSettings.sqlServerPassword || ''} onChange={(e) => setSqlSettings(s => ({...s, sqlServerPassword: e.target.value}))} className="w-full bg-slate-800/80 border-border" />
+                  </div>
+              </div>
+            </div>
+        )}
+
         {/* Card de Visualização e Testes */}
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-border">
             <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
@@ -490,7 +542,7 @@ export default function SettingsPage() {
         </div>
         
         {/* Card de Gerenciamento de Cargos */}
-        {currentUserRole === 'OWNER' && (
+        {isOwner && (
             <UserManagement currentUserId={session?.user?.id ?? ''} currentUserRole={currentUserRole} />
         )}
       </div>
@@ -509,17 +561,6 @@ interface EmailTemplateEditorProps {
 }
 
 function EmailTemplateEditor({ template, placeholders, onTemplateChange, onSendTest, testEmail, onTestEmailChange, isSendingTest }: EmailTemplateEditorProps) {
-
-    const emailPreview = useMemo(() => {
-        if (!template?.body) return '';
-        let previewHtml = template.body;
-        placeholders.forEach(p => {
-            const sampleData = `<span class="font-semibold text-primary">${p.placeholder.replace(/[\[\]]/g, '')}</span>`;
-            previewHtml = previewHtml.replace(new RegExp(p.placeholder.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g'), sampleData);
-        });
-        return previewHtml;
-    }, [template?.body, placeholders]);
-
     if (!template) {
         return <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />;
     }
@@ -549,7 +590,7 @@ function EmailTemplateEditor({ template, placeholders, onTemplateChange, onSendT
                 <div>
                     <Label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2"><Eye /> Preview</Label>
                     <div className="border border-border rounded-lg p-4 h-80 overflow-y-auto bg-slate-800/50">
-                        <div className="text-sm text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: emailPreview }} />
+                        <div className="text-sm text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: template.body?.replace(/\[(.*?)\]/g, '<span class="font-semibold text-primary/80">[$1]</span>') || '' }} />
                     </div>
                 </div>
             </div>

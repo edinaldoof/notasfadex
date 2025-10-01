@@ -6,11 +6,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // configuração simples, como antes
 }
 
 // ===================================
-// Enums (SINTAXE CORRIGIDA)
+// Enums
 // ===================================
 
 enum Role {
@@ -49,16 +49,10 @@ enum PermissionType {
   CAN_MANAGE_TRASH
 }
 
-enum StatusOF {
-  RASCUNHO
-  AGUARDANDO_CONFIRMACAO
-  AGUARDANDO_NOTA
-  NF_RECEBIDA
-  ATRASADO
-  CONCLUIDO
-  CANCELADO
+enum TutorialType {
+  VIDEO
+  FILE
 }
-
 
 // ===================================
 // Auth & User
@@ -72,13 +66,13 @@ model User {
   image         String?
   role          Role      @default(USER)
 
-  accounts             Account[]
-  sessions             Session[]
-  createdNotes         FiscalNote[]          @relation("NoteCreator")
-  attestedNotes        FiscalNote[]          @relation("Attestor")
-  historyEvents        NoteHistoryEvent[]    @relation("EventAuthor")
-  permissions          UserPermission[]
-  ordensDeFornecimento OrdemDeFornecimento[]
+  accounts      Account[]
+  sessions      Session[]
+  createdNotes  FiscalNote[]       @relation("NoteCreator")
+  attestedNotes FiscalNote[]       @relation("Attestor")
+  historyEvents NoteHistoryEvent[] @relation("EventAuthor")
+  permissions   UserPermission[]
+  tutorials     Tutorial[]         @relation("TutorialAuthor")
 }
 
 model Account {
@@ -126,7 +120,6 @@ model UserPermission {
   @@id([userId, permission])
 }
 
-
 // ===================================
 // App Core
 // ===================================
@@ -149,12 +142,13 @@ model FiscalNote {
   projectAccountNumber String
   coordinatorName      String
   coordinatorEmail     String
+  ccEmails             String?
   attestedBy           String?
   attestedAt           DateTime?
   attestedFileUrl      String?
   attestedDriveFileId  String?
   attestedById         String?
-  attestor             User?         @relation("Attestor", fields: [attestedById], references: [id])
+  attestor             User?         @relation("Attestor", fields: [attestedById], references: [id], onDelete: SetNull)
   reportFileName       String?
   reportDriveFileId    String?
   reportFileUrl        String?
@@ -166,7 +160,7 @@ model FiscalNote {
   numeroNota           String?
   dataEmissao          String?
   userId               String
-  user                 User          @relation("NoteCreator", fields: [userId], references: [id])
+  user                 User          @relation("NoteCreator", fields: [userId], references: [id], onDelete: Cascade)
   history              NoteHistoryEvent[]
   deleted              Boolean       @default(false)
   deletedAt            DateTime?
@@ -187,8 +181,8 @@ model NoteHistoryEvent {
   userName     String?
   fiscalNoteId String
   note         FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
-  userId       String
-  author       User        @relation("EventAuthor", fields: [userId], references: [id])
+  userId       String?
+  author       User?       @relation("EventAuthor", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([fiscalNoteId])
   @@index([userId])
@@ -201,6 +195,14 @@ model Settings {
   aiModel                   String? @default("gemini-1.5-flash-latest")
 }
 
+model SqlServerSettings {
+  id                String @id @default("default")
+  sqlServerIp       String?
+  sqlServerDatabase String?
+  sqlServerUser     String?
+  sqlServerPassword String?
+}
+
 model EmailTemplate {
   id        String   @id @default(cuid())
   type      String   @unique
@@ -210,66 +212,21 @@ model EmailTemplate {
   updatedAt DateTime @updatedAt
 }
 
-// ==============================================================
-// Módulo de Solicitação (Ordem de Fornecimento)
-// ==============================================================
+// ===================================
+// Tutoriais
+// ===================================
 
-model Fornecedor {
-  id                   String                @id @default(cuid())
-  razaoSocial          String
-  nomeFantasia         String?
-  cnpj                 String                @unique
-  inscricaoEstual      String?
-  inscricaoMunicipal   String?
-  endereco             String
-  bairro               String
-  cidade               String
-  estado               String
-  cep                  String
-  telefone             String?
-  email                String?
-  pessoaContato        String?
-  dadosBancarios       Json?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  ordensDeFornecimento OrdemDeFornecimento[]
+model Tutorial {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  type        TutorialType
+  url         String
+  driveFileId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  authorId    String
+  author      User         @relation("TutorialAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
-  @@index([razaoSocial])
-  @@index([cidade])
-}
-
-model OrdemDeFornecimento {
-  id                        String     @id @default(cuid())
-  numeroOF                  String     @unique @default(cuid())
-  dataEmissao               DateTime   @default(now())
-  nomeProjeto               String
-  coordenadorProjeto        String
-  numeroContrato            String
-  contaCorrente             String
-  numeroProcesso            String
-  vigenciaProjeto           String
-  itens                     Json
-  valorTotal                Float
-  enderecoEntrega           String
-  prazoEntrega              String
-  frete                     String?
-  instrucoesFaturamento     String     @db.Text
-  status                    StatusOF   @default(RASCUNHO)
-  dataConfirmacaoFornecedor DateTime?
-  dataEnvioNF               DateTime?
-  notaFiscalId              String?
-  dataConclusao             DateTime?
-  dataCancelamento          DateTime?
-  motivoCancelamento        String?
-  userId                    String
-  user                      User       @relation(fields: [userId], references: [id])
-  fornecedorId              String
-  fornecedor                Fornecedor @relation(fields: [fornecedorId], references: [id])
-  createdAt                 DateTime   @default(now())
-  updatedAt                 DateTime   @updatedAt
-
-  @@index([userId])
-  @@index([fornecedorId])
-  @@index([status])
-  @@index([dataEmissao])
+  @@index([authorId])
 }

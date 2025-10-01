@@ -25,7 +25,6 @@ import {
   XCircle,
   Calculator,
 } from 'lucide-react';
-import { StatCard } from '@/components/dashboard/stat-card';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,7 +32,7 @@ import { useSession } from 'next-auth/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardSummary, getRecentActivities } from './actions';
 import { CheckBadge } from '@/components/icons/check-badge';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { HistoryType } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -472,9 +471,9 @@ export default function DashboardPage() {
           delay={0.3}
         />
         <EnhancedStatCard
-          title="Valor Total"
-          value={`R$ ${summary.totalAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`}
-          icon={<BarChart3 className="w-6 h-6 text-purple-400" />}
+          title="Taxa de Resolução (30d)"
+          value={`${summary.resolutionRate}%`}
+          icon={<Calculator className="w-6 h-6 text-purple-400" />}
           loading={loadingSummary || status !== 'authenticated'}
           color="bg-purple-500"
           delay={0.4}

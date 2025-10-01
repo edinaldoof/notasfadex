@@ -9,15 +9,20 @@ import { InvoiceStatus, InvoiceType, Role, PermissionType } from '@prisma/client
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { addDays, differenceInDays } from 'date-fns';
-import { sendAttestationRequestEmail, sendAttestationReminderEmail } from '@/lib/email-actions';
+import { 
+    sendAttestationRequestEmail, 
+    sendAttestationReminderEmail 
+} from '@/lib/email-actions';
 import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '@/ai/flows/extract-note-data-flow';
 import { hasPermission } from '@/lib/auth-utils';
 import { Prisma } from '@prisma/client';
+import { parseBRLMoneyToFloat } from '@/lib/utils';
+
 
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
 const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))*$/;
 
-const addNoteSchema = z.object({
+const noteFormSchema = z.object({
   invoiceType: z.nativeEnum(InvoiceType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
   projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
@@ -25,15 +30,14 @@ const addNoteSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
+  description: z.string().min(1, 'A descrição é obrigatória.'),
   prestadorCnpj: z.string().optional(),
   tomadorRazaoSocial: z.string().optional(),
   tomadorCnpj: z.string().optional(),
   numeroNota: z.string().optional(),
   dataEmissao: z.string().optional(),
-  valorTotal: z.string().optional(),
+  amount: z.string().optional(),
   prestadorRazaoSocial: z.string().optional(),
-  forceCreate: z.preprocess((val) => val === 'true', z.boolean()).optional(),
 });
 
 
@@ -48,6 +52,7 @@ export async function addNote(formData: FormData) {
 
     const file = formData.get('file') as File;
     const reportFile = formData.get('reportFile') as File | null;
+    const forceCreate = formData.get('forceCreate') === 'true';
 
     if (!file || file.size === 0) {
         return { success: false, message: 'O arquivo da nota fiscal é obrigatório.' };
@@ -60,10 +65,13 @@ export async function addNote(formData: FormData) {
     }
 
     const rawFormData = Object.fromEntries(formData.entries());
-    const validatedFields = addNoteSchema.safeParse(rawFormData);
+    // Use um schema ligeiramente diferente para o backend que não lida com objetos 'File'
+    const serverSchema = noteFormSchema.extend({
+        // Adicione quaisquer campos que sejam específicos do FormData aqui, se houver
+    });
+    const validatedFields = serverSchema.safeParse(rawFormData);
     
     if (!validatedFields.success) {
-      console.error(validatedFields.error.flatten().fieldErrors);
       return {
         success: false,
         message: 'Erro de validação. Verifique os campos.',
@@ -71,25 +79,13 @@ export async function addNote(formData: FormData) {
       };
     }
 
-    const { 
-      descricaoServicos, 
-      valorTotal, 
-      invoiceType,
-      hasWithholdingTax,
-      projectTitle,
-      coordinatorEmail,
-      coordinatorName,
-      projectAccountNumber,
-      ccEmails,
-      forceCreate,
-      ...rest 
-    } = validatedFields.data;
+    const { amount, ...data } = validatedFields.data;
 
-    if (!forceCreate && rest.numeroNota && projectAccountNumber) {
+    if (!forceCreate && data.numeroNota && data.projectAccountNumber) {
         const existing = await prisma.fiscalNote.findFirst({
             where: {
-                numeroNota: rest.numeroNota,
-                projectAccountNumber: projectAccountNumber,
+                numeroNota: data.numeroNota,
+                projectAccountNumber: data.projectAccountNumber,
                 deleted: false,
             },
         });
@@ -103,7 +99,7 @@ export async function addNote(formData: FormData) {
     
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileStream = Readable.from(fileBuffer);
-    const driveFile = await uploadFileToDrive(`[NOTA] ${file.name}`, file.type, fileStream, projectAccountNumber);
+    const driveFile = await uploadFileToDrive(`[NOTA] ${file.name}`, file.type, fileStream, data.projectAccountNumber);
     if (!driveFile || !driveFile.id) {
       throw new Error("Falha ao fazer upload da nota fiscal para o Google Drive.");
     }
@@ -116,7 +112,7 @@ export async function addNote(formData: FormData) {
         const reportBuffer = Buffer.from(await reportFile.arrayBuffer());
         const reportStream = Readable.from(reportBuffer);
         const reportDriveFileName = `[RELATORIO] ${reportFile.name}`;
-        const reportDriveFile = await uploadFileToDrive(reportDriveFileName, reportFile.type, reportStream, projectAccountNumber);
+        const reportDriveFile = await uploadFileToDrive(reportDriveFileName, reportFile.type, reportStream, data.projectAccountNumber);
         if (!reportDriveFile || !reportDriveFile.id) {
             console.warn("Falha ao fazer upload do relatório, mas a nota será criada mesmo assim.");
         } else {
@@ -133,7 +129,8 @@ export async function addNote(formData: FormData) {
 
     const newNote = await prisma.fiscalNote.create({
       data: {
-        description: descricaoServicos,
+        ...data,
+        amount: amount ? parseBRLMoneyToFloat(amount) : null,
         requester: userName,
         issueDate: submissionDate,
         status: InvoiceStatus.PENDENTE,
@@ -144,21 +141,13 @@ export async function addNote(formData: FormData) {
         reportDriveFileId,
         reportFileName,
         reportFileUrl,
-        amount: valorTotal ? parseFloat(valorTotal.replace(',', '.')) : null,
+        attestationDeadline,
         userId: userId,
-        invoiceType: invoiceType,
-        projectTitle: projectTitle,
-        projectAccountNumber: projectAccountNumber,
-        hasWithholdingTax: hasWithholdingTax,
-        coordinatorEmail: coordinatorEmail,
-        coordinatorName: coordinatorName,
-        attestationDeadline: attestationDeadline,
-        ...rest,
         history: {
           create: {
             type: 'CREATED',
-            details: `Nota fiscal criada por ${userName} e atribuída a ${coordinatorName} para atesto.`,
-            userId: userId,
+            details: `Nota fiscal criada por ${userName} e atribuída a ${data.coordinatorName} para atesto.`,
+            userId,
           }
         }
       }
@@ -170,7 +159,7 @@ export async function addNote(formData: FormData) {
       coordinatorEmail: newNote.coordinatorEmail,
       requesterName: newNote.requester,
       requesterEmail: userEmail,
-      ccEmails: ccEmails,
+      ccEmails: newNote.ccEmails,
       noteDescription: newNote.description,
       driveFileId: newNote.driveFileId,
       fileName: newNote.fileName,
@@ -195,6 +184,97 @@ export async function addNote(formData: FormData) {
         success: false,
         message: message,
     };
+  }
+}
+
+export async function updateNote(formData: FormData) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: 'Usuário não autenticado.' };
+    }
+    const { id: editorId, name: editorName, role } = session.user;
+    
+    const noteId = formData.get('noteId') as string;
+    if (!noteId) {
+      return { success: false, message: 'ID da nota não fornecido.' };
+    }
+    
+    const originalNote = await prisma.fiscalNote.findUnique({ where: { id: noteId } });
+    if (!originalNote) {
+      return { success: false, message: 'Nota fiscal não encontrada.' };
+    }
+    
+    const isOwner = originalNote.userId === editorId;
+    const isManager = role === Role.OWNER || role === Role.MANAGER;
+    if (!isOwner && !isManager) {
+      return { success: false, message: 'Você não tem permissão para editar esta nota.' };
+    }
+
+    const rawFormData = Object.fromEntries(formData.entries());
+    const validatedFields = noteFormSchema.safeParse(rawFormData);
+
+    if (!validatedFields.success) {
+      return { success: false, message: 'Erro de validação.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+
+    const { amount, ...data } = validatedFields.data;
+    
+    const updateData: Prisma.FiscalNoteUpdateInput = {
+      ...data,
+      amount: amount ? parseBRLMoneyToFloat(amount) : null,
+    };
+
+    const newFile = formData.get('file') as File | null;
+    if (newFile && newFile.size > 0) {
+      const fileBuffer = Buffer.from(await newFile.arrayBuffer());
+      const fileStream = Readable.from(fileBuffer);
+      const newDriveFile = await uploadFileToDrive(`[NOTA] ${newFile.name}`, newFile.type, fileStream, data.projectAccountNumber);
+      if (!newDriveFile || !newDriveFile.id) {
+        throw new Error('Falha ao fazer upload do novo anexo de nota.');
+      }
+      updateData.fileName = newFile.name;
+      updateData.fileType = newFile.type;
+      updateData.driveFileId = newDriveFile.id;
+      updateData.originalFileUrl = `/api/download/${newDriveFile.id}`;
+    }
+
+    const newReportFile = formData.get('reportFile') as File | null;
+    if (newReportFile && newReportFile.size > 0) {
+      const reportBuffer = Buffer.from(await newReportFile.arrayBuffer());
+      const reportStream = Readable.from(reportBuffer);
+      const reportDriveFileName = `[RELATORIO] ${newReportFile.name}`;
+      const newReportDriveFile = await uploadFileToDrive(reportDriveFileName, newReportFile.type, reportStream, data.projectAccountNumber);
+      if (!newReportDriveFile || !newReportDriveFile.id) {
+        throw new Error('Falha ao fazer upload do novo anexo de relatório.');
+      }
+      updateData.reportFileName = reportDriveFileName;
+      updateData.reportDriveFileId = newReportDriveFile.id;
+      updateData.reportFileUrl = `/api/download/${newReportDriveFile.id}`;
+    }
+
+    await prisma.fiscalNote.update({
+      where: { id: noteId },
+      data: {
+        ...updateData,
+        history: {
+          create: {
+            type: 'EDITED',
+            details: `Nota editada por ${editorName}.`,
+            userId: editorId,
+          }
+        }
+      },
+    });
+
+    revalidatePath('/dashboard/notas');
+    revalidatePath(`/dashboard/notas/${noteId}`);
+    return { success: true, message: 'Nota atualizada com sucesso!' };
+
+  } catch (error) {
+    console.error("Erro ao atualizar nota:", error);
+    const message = error instanceof Error ? error.message : "Ocorreu um erro no servidor.";
+    return { success: false, message };
   }
 }
 
@@ -253,15 +333,16 @@ export async function attestNote(formData: FormData) {
     if (reportFile && reportFile.size > 0) {
       const reportBuffer = Buffer.from(await reportFile.arrayBuffer());
       const reportStream = Readable.from(reportBuffer);
-      const reportDriveFileName = `[RELATORIO] ${reportFile.name}`;
+      const reportDriveFileName = `[RELATORIO_ATESTO] ${reportFile.name}`;
       const reportDriveFile = await uploadFileToDrive(reportDriveFileName, reportFile.type, reportStream, note.projectAccountNumber);
       if(!reportDriveFile || !reportDriveFile.id) {
         console.warn("Falha ao fazer upload do relatório anexo, mas o atesto prosseguirá.");
       } else {
+        // Assume os mesmos campos do atestado se não houver campos de relatório específicos no atesto
         dataToUpdate.reportDriveFileId = reportDriveFile.id;
         dataToUpdate.reportFileName = reportDriveFileName;
         dataToUpdate.reportFileUrl = `/api/download/${reportDriveFile.id}`;
-        historyDetails += ` Relatório de execução '${reportDriveFileName}' foi anexado.`;
+        historyDetails += ` Relatório de execução '${reportDriveFileName}' foi anexado durante o atesto.`;
       }
     }
 
@@ -339,11 +420,6 @@ export async function revertAttestation(noteId: string) {
   }
 }
 
-const checkExistingNoteSchema = z.object({
-  numeroNota: z.string(),
-  projectAccountNumber: z.string(),
-});
-
 export async function checkExistingNote(input: { numeroNota: string; projectAccountNumber: string }): Promise<boolean> {
   try {
     const session = await auth();
@@ -352,11 +428,17 @@ export async function checkExistingNote(input: { numeroNota: string; projectAcco
         return false;
     }
     
+    const checkExistingNoteSchema = z.object({
+      numeroNota: z.string(),
+      projectAccountNumber: z.string(),
+    });
+
     const validatedInput = checkExistingNoteSchema.parse(input);
     const existing = await prisma.fiscalNote.findFirst({
         where: {
             numeroNota: validatedInput.numeroNota,
             projectAccountNumber: validatedInput.projectAccountNumber,
+            deleted: false
         },
     });
     return !!existing;
@@ -377,61 +459,6 @@ export async function extractNoteData(input: ExtractNoteDataInput): Promise<Extr
       console.error("Error in extractNoteData server action:", error);
       throw error;
   }
-}
-
-export async function notifyAllPendingCoordinators(): Promise<{ success: boolean; message: string; notifiedCount?: number; }> {
-    const session = await auth();
-    if (session?.user?.role !== Role.OWNER && session?.user?.role !== Role.MANAGER) {
-        return { success: false, message: "Acesso negado. Apenas administradores podem executar esta ação." };
-    }
-
-    try {
-        const pendingNotes = await prisma.fiscalNote.findMany({
-            where: {
-                status: InvoiceStatus.PENDENTE,
-                attestationDeadline: {
-                    gte: new Date(),
-                },
-            },
-            include: {
-                user: { 
-                    select: {
-                        email: true,
-                    },
-                },
-            },
-        });
-
-        if (pendingNotes.length === 0) {
-            return { success: true, message: "Nenhuma nota pendente para notificar.", notifiedCount: 0 };
-        }
-
-        const emailPromises = pendingNotes.map(note => {
-            if (!note.user?.email) {
-                console.warn(`Nota ${note.id} não tem um solicitante com e-mail para ser copiado.`);
-                return Promise.resolve();
-            }
-            const daysRemaining = note.attestationDeadline ? differenceInDays(note.attestationDeadline, new Date()) : 0;
-            return sendAttestationReminderEmail({
-                noteId: note.id,
-                coordinatorEmail: note.coordinatorEmail,
-                coordinatorName: note.coordinatorName,
-                requesterEmail: note.user.email,
-                noteDescription: note.description,
-                projectTitle: note.projectTitle,
-                numeroNota: note.numeroNota,
-                daysRemaining: Math.max(0, daysRemaining),
-            });
-        });
-
-        await Promise.all(emailPromises);
-        
-        return { success: true, message: `${pendingNotes.length} lembretes de atesto foram enviados com sucesso.`, notifiedCount: pendingNotes.length };
-
-    } catch (error) {
-        console.error("Erro ao notificar coordenadores:", error instanceof Error ? error.message : "Unknown error");
-        return { success: false, message: "Ocorreu um erro no servidor ao tentar enviar as notificações." };
-    }
 }
 
 export async function deleteNote(noteId: string, permanent: boolean = false): Promise<{ success: boolean; message: string; }> {
@@ -537,3 +564,62 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
       return { success: false, message: "Erro no servidor ao restaurar nota." };
     }
 }
+
+export async function notifyAllPendingCoordinators(): Promise<{ success: boolean; message: string; notifiedCount?: number; }> {
+    const session = await auth();
+    if (session?.user?.role !== Role.OWNER && session?.user?.role !== Role.MANAGER) {
+        return { success: false, message: "Acesso negado. Apenas administradores podem executar esta ação." };
+    }
+
+    try {
+        const pendingNotes = await prisma.fiscalNote.findMany({
+            where: {
+                status: InvoiceStatus.PENDENTE,
+                deleted: false,
+                attestationDeadline: {
+                    gte: new Date(),
+                },
+            },
+            include: {
+                user: {
+                    select: {
+                        email: true,
+                    },
+                },
+            },
+        });
+
+        if (pendingNotes.length === 0) {
+            return { success: true, message: "Nenhuma nota pendente para notificar.", notifiedCount: 0 };
+        }
+
+        const emailPromises = pendingNotes.map(note => {
+            if (!note.user?.email) {
+                console.warn(`Nota ${note.id} não tem um solicitante com e-mail para ser copiado.`);
+                return Promise.resolve();
+            }
+            const daysRemaining = note.attestationDeadline ? differenceInDays(note.attestationDeadline, new Date()) : 0;
+            return sendAttestationReminderEmail({
+                noteId: note.id,
+                coordinatorEmail: note.coordinatorEmail,
+                coordinatorName: note.coordinatorName,
+                requesterEmail: note.user.email,
+                ccEmails: note.ccEmails,
+                noteDescription: note.description,
+                projectTitle: note.projectTitle,
+                numeroNota: note.numeroNota,
+                daysRemaining: Math.max(0, daysRemaining),
+            });
+        });
+
+        await Promise.all(emailPromises);
+        
+        return { success: true, message: `${pendingNotes.length} lembretes de atesto foram enviados com sucesso.`, notifiedCount: pendingNotes.length };
+
+    } catch (error) {
+        console.error("Erro ao notificar coordenadores:", error instanceof Error ? error.message : "Unknown error");
+        return { success: false, message: "Ocorreu um erro no servidor ao tentar enviar as notificações." };
+    }
+}
+
+    
