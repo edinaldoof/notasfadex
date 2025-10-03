@@ -99,19 +99,6 @@ export interface RejectionEmailPayload {
     projectAccountNumber: string;
 }
 
-export interface ReminderEmailPayload {
-    noteId: string;
-    coordinatorName: string;
-    coordinatorEmail: string;
-    requesterEmail: string;
-    ccEmails?: string | null;
-    noteDescription: string;
-    numeroNota: string | null;
-    projectTitle: string | null;
-    daysRemaining: number;
-}
-
-
 export interface EmailTemplateParts {
   subject: string;
   body: string;
@@ -121,3 +108,15 @@ export interface EmailTemplateParts {
 export type TemplateType = 'ATTESTATION_REQUEST' | 'ATTESTATION_REMINDER' | 'ATTESTATION_CONFIRMATION' | 'NOTE_EXPIRED' | 'ATTESTATION_CONFIRMATION_COORDINATOR' | 'NOTE_REJECTED';
 
 export type Tutorial = PrismaTutorial;
+
+export interface Coordinator {
+  name: string;
+  email: string;
+  isGeneral: boolean;
+}
+
+export interface ProjectDetails {
+  projectTitle: string;
+  coordinators: Coordinator[];
+}
+

@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Flow de alta precisão para extrair dados estruturados de uma nota fiscal,
  * utilizando o modelo Gemini com Function Calling para garantir a robustez da saída.
@@ -249,7 +250,7 @@ async function executeExtractionWithModel(
 
   if (extractedData.valorTotal != null) {
       // Usa a função centralizada para garantir consistência
-      const parsed = parseBRLMoneyToFloat(extractedData.valorTotal);
+      const parsed = parseBRLMoneyToFloat(String(extractedData.valorTotal));
       if (parsed == null) {
         delete extractedData.valorTotal;
       } else {

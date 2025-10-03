@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,11 +32,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature, Paperclip } from 'lucide-react';
+import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature, Paperclip, PlusCircle, Star } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,13 +45,14 @@ import { useToast } from '@/hooks/use-toast';
 import { extractNoteData } from '@/app/dashboard/notas/actions';
 import { addNote } from '@/app/dashboard/notas/actions';
 import { checkExistingNote } from '@/app/dashboard/notas/actions';
-import { getProjectAccounts } from '@/app/dashboard/actions';
+import { getProjectAccounts, getProjectDetails } from '@/app/dashboard/actions';
 import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils'; 
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import type { Coordinator } from '@/lib/types';
 
 const invoiceTypes = [
   { value: "SERVICO", label: "Serviço" },
@@ -115,11 +116,14 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isFetchingDetails, startFetchingDetailsTransition] = useTransition();
   const [fileName, setFileName] = useState<string | null>(null);
   const [reportFileName, setReportFileName] = useState<string | null>(null);
   const [projectAccounts, setProjectAccounts] = useState<{ label: string; value: string }[]>([]);
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   
   const form = useForm<AddNoteFormValues>({
     resolver: zodResolver(addNoteFormSchema),
@@ -147,12 +151,10 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const formatCurrencyForDisplay = (value: string | number | undefined): string => {
     if (value === undefined || value === null || value === '') return '';
   
-    // Se for um número (vindo da IA), formata para BRL string
     if (typeof value === 'number') {
       return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
   
-    // Se for string, assume que é input do usuário e aplica a máscara
     let digitsOnly = String(value).replace(/\D/g, '');
     if (!digitsOnly) return '';
   
@@ -209,6 +211,8 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
         }
       }
     });
+    
+    formData.set('valorTotal', String(parseBRLMoneyToFloat(data.valorTotal)));
 
     if (forceCreate) {
         formData.append('forceCreate', 'true');
@@ -262,12 +266,48 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
     await proceedWithSubmit();
   };
 
+  const handleAccountSelect = (accountValue: string) => {
+    form.setValue("projectAccountNumber", accountValue, { shouldValidate: true });
+    setComboboxOpen(false);
+    startFetchingDetailsTransition(async () => {
+        try {
+            const details = await getProjectDetails(accountValue);
+            if (details) {
+                form.setValue("projectTitle", details.projectTitle || '');
+                setCoordinators(details.coordinators || []);
+                toast({
+                    title: "Detalhes do Projeto Carregados",
+                    description: `Título e ${details.coordinators.length} coordenador(es) foram encontrados.`,
+                });
+            } else {
+              setCoordinators([]);
+            }
+        } catch (error) {
+            console.error("Failed to fetch project details:", error);
+            toast({
+                title: "Erro ao buscar Detalhes",
+                description: "Não foi possível buscar os detalhes do projeto para esta conta.",
+                variant: "destructive",
+            });
+        }
+    });
+  }
+
+  const handleCoordinatorSelect = (coordinatorEmail: string) => {
+    const selectedCoordinator = coordinators.find(c => c.email === coordinatorEmail);
+    if (selectedCoordinator) {
+      form.setValue('coordinatorName', selectedCoordinator.name);
+      form.setValue('coordinatorEmail', selectedCoordinator.email);
+    }
+  }
+
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       form.reset();
       setFileName(null);
       setReportFileName(null);
+      setCoordinators([]);
     }
     onOpenChange(isOpen);
   };
@@ -410,28 +450,21 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                    <div>
                      <Label className="block text-sm font-medium text-slate-300 mb-2">3. Detalhes Financeiros do Projeto</Label>
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
-                          <FormField
-                            control={form.control}
-                            name="projectTitle"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className='flex items-center gap-2 text-slate-300'><FileSignature className='w-4 h-4 text-slate-400' />Título do Projeto</FormLabel>
-                                <FormControl>
-                                  <Input placeholder='Ex: 1111-1 - INOVA UFPI - FADEX' {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                            <FormField
-                                control={form.control}
-                                name="projectAccountNumber"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-col">
-                                    <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Conta Corrente do Projeto</FormLabel>
+                            control={form.control}
+                            name="projectAccountNumber"
+                            render={({ field }) => {
+                              const filteredAccounts = searchValue
+                                ? projectAccounts.filter(account => 
+                                    account.label.toLowerCase().includes(searchValue.toLowerCase())
+                                  )
+                                : projectAccounts;
+
+                              return (
+                                <FormItem className="flex flex-col">
+                                  <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Conta Corrente do Projeto</FormLabel>
                                     <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                                       <PopoverTrigger asChild>
-                                        <FormControl>
                                           <Button
                                             variant="outline"
                                             role="combobox"
@@ -444,102 +477,143 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                                               ? projectAccounts.find(
                                                   (account) => account.value === field.value
                                                 )?.label
-                                              : "Selecione ou digite..."}
+                                              : "Selecione a conta..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                           </Button>
-                                        </FormControl>
                                       </PopoverTrigger>
                                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                                        <Command>
                                           <CommandInput
                                             placeholder="Buscar conta..."
-                                            onValueChange={(search) => form.setValue("projectAccountNumber", search, { shouldValidate: true })}
+                                            value={searchValue}
+                                            onValueChange={setSearchValue}
                                           />
                                           <CommandList>
-                                            <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
-                                            <CommandGroup>
-                                              {projectAccounts.map((account) => (
-                                                <CommandItem
-                                                  value={account.label}
-                                                  key={account.value}
-                                                  onSelect={(currentValue) => {
-                                                    const selectedAccount = projectAccounts.find(a => a.label.toLowerCase() === currentValue.toLowerCase());
-                                                    form.setValue("projectAccountNumber", selectedAccount ? selectedAccount.value : currentValue, { shouldValidate: true });
-                                                    setComboboxOpen(false);
-                                                  }}
-                                                >
-                                                  <Check
-                                                    className={cn(
-                                                      "mr-2 h-4 w-4",
-                                                      account.value === field.value
-                                                        ? "opacity-100"
-                                                        : "opacity-0"
-                                                    )}
-                                                  />
-                                                  {account.label}
-                                                </CommandItem>
-                                              ))}
-                                            </CommandGroup>
+                                            <ScrollArea className="h-72">
+                                              <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                                              <CommandGroup>
+                                                {filteredAccounts.map((account) => (
+                                                  <CommandItem
+                                                    value={account.label}
+                                                    key={account.value}
+                                                    onSelect={() => {
+                                                      handleAccountSelect(account.value);
+                                                      setSearchValue("");
+                                                    }}
+                                                  >
+                                                    <Check
+                                                      className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        account.value === field.value
+                                                          ? "opacity-100"
+                                                          : "opacity-0"
+                                                      )}
+                                                    />
+                                                    {account.label}
+                                                  </CommandItem>
+                                                ))}
+                                              </CommandGroup>
+                                            </ScrollArea>
                                           </CommandList>
                                         </Command>
                                       </PopoverContent>
                                     </Popover>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                           <FormField
+                            control={form.control}
+                            name="projectTitle"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'><FileSignature className='w-4 h-4 text-slate-400' />Título do Projeto</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Input placeholder='Selecione uma conta para carregar' {...field} disabled={isFetchingDetails} />
+                                    {isFetchingDetails && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin" />}
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                       </div>
                   </div>
 
                   <div>
-                     <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Atesto</Label>
-                      <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
-                           <FormField
+                    <Label className="block text-sm font-medium text-slate-300 mb-2">4. Responsável pelo Atesto</Label>
+                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/30 p-4 rounded-lg border border-border'>
+                        <FormItem>
+                            <FormLabel className='flex items-center gap-2 text-slate-300'><User className='w-4 h-4 text-slate-400' />Coordenador Responsável</FormLabel>
+                             <Select onValueChange={handleCoordinatorSelect} disabled={isFetchingDetails || coordinators.length === 0}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={coordinators.length > 0 ? "Selecione um coordenador" : "Selecione uma conta primeiro"} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {coordinators.filter(c => c.email).map(c => (
+                                        <SelectItem key={c.email || c.name} value={c.email!}>
+                                            <div className='flex items-center gap-2'>
+                                                {c.isGeneral && <Star className="w-4 h-4 text-amber-400 fill-amber-400" />}
+                                                <span>{c.name.toUpperCase()}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </FormItem>
+                        
+                         <FormField
                             control={form.control}
                             name="coordinatorName"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className='flex items-center gap-2 text-slate-300'><User className='w-4 h-4 text-slate-400' />Nome do Coordenador</FormLabel>
+                            <FormItem>
+                                <FormLabel className='flex items-center gap-2 text-slate-300'>Nome do Coordenador</FormLabel>
                                 <FormControl>
-                                  <Input placeholder='Nome completo' {...field} />
+                                <Input placeholder='Nome completo' {...field} />
                                 </FormControl>
                                 <FormMessage />
-                              </FormItem>
+                            </FormItem>
                             )}
-                          />
-                           <FormField
+                        />
+                        
+                        <FormField
                             control={form.control}
                             name="coordinatorEmail"
                             render={({ field }) => (
-                              <FormItem>
+                            <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Mail className='w-4 h-4 text-slate-400' />E-mail do Coordenador</FormLabel>
                                 <FormControl>
-                                  <Input type="email" placeholder='email@exemplo.com' {...field} />
+                                <Input placeholder='email@exemplo.com' {...field} />
                                 </FormControl>
                                 <FormMessage />
-                              </FormItem>
+                            </FormItem>
                             )}
-                          />
-                           <div className="md:col-span-2">
-                                <FormField
-                                  control={form.control}
-                                  name="ccEmails"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />Enviar Cópia para (CC)</FormLabel>
-                                      <FormControl>
-                                        <Input placeholder='email1@exemplo.com,email2@exemplo.com' {...field} />
-                                      </FormControl>
-                                      <FormDescription>
-                                        O seu e-mail será incluído automaticamente. Separe múltiplos e-mails por vírgula.
-                                      </FormDescription>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                           </div>
-                      </div>
-                  </div>
+                        />
+                        
+                        <div className="md:col-span-2">
+                            <FormField
+                                control={form.control}
+                                name="ccEmails"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />Enviar Cópia para (CC)</FormLabel>
+                                    <FormControl>
+                                    <Input placeholder='email1@exemplo.com,email2@exemplo.com' {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                    O seu e-mail será incluído automaticamente. Separe múltiplos e-mails por vírgula.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                        </div>
+                    </div>
+                </div>
 
                   <div className='bg-slate-800/30 p-4 rounded-lg border border-border space-y-4'>
                      <p className="text-sm font-medium text-slate-300 flex items-center gap-2">

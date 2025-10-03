@@ -6,8 +6,9 @@ import { Role, SqlServerSettings } from '@prisma/client';
 
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
-import { getProjectAccountsFromSqlServer } from '@/lib/sql-server';
+import { getProjectAccountsFromSqlServer, getProjectDetailsByAccount } from '@/lib/sql-server';
 import { z } from 'zod';
+import type { ProjectDetails } from '@/lib/types';
 
 export async function getDashboardSummary() {
   try {
@@ -134,7 +135,6 @@ export async function getProjectAccounts() {
         }
     }
     
-    // Fallback para contas existentes no Prisma se o SQL Server falhar ou não estiver configurado
     const notes = await prisma.fiscalNote.findMany({
         where: { deleted: false },
         distinct: ['projectAccountNumber'],
@@ -150,4 +150,25 @@ export async function getProjectAccounts() {
         label: note.projectAccountNumber,
         value: note.projectAccountNumber,
     }));
+}
+
+
+export async function getProjectDetails(accountNumber: string): Promise<ProjectDetails | null> {
+    const session = await auth();
+    if (!session?.user?.id) {
+        throw new Error('Usuário não autenticado.');
+    }
+
+    const sqlSettings = await prisma.sqlServerSettings.findFirst();
+    if (!sqlSettings) {
+        return null;
+    }
+
+    try {
+        const details = await getProjectDetailsByAccount(sqlSettings, accountNumber);
+        return details;
+    } catch (error) {
+        console.error(`Falha ao buscar detalhes para a conta ${accountNumber}:`, error);
+        return null;
+    }
 }

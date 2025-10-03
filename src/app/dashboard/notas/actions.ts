@@ -30,13 +30,13 @@ const noteFormSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  description: z.string().min(1, 'A descrição é obrigatória.'),
+  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
   prestadorCnpj: z.string().optional(),
   tomadorRazaoSocial: z.string().optional(),
   tomadorCnpj: z.string().optional(),
   numeroNota: z.string().optional(),
   dataEmissao: z.string().optional(),
-  amount: z.string().optional(),
+  valorTotal: z.string().optional(),
   prestadorRazaoSocial: z.string().optional(),
 });
 
@@ -65,10 +65,7 @@ export async function addNote(formData: FormData) {
     }
 
     const rawFormData = Object.fromEntries(formData.entries());
-    // Use um schema ligeiramente diferente para o backend que não lida com objetos 'File'
-    const serverSchema = noteFormSchema.extend({
-        // Adicione quaisquer campos que sejam específicos do FormData aqui, se houver
-    });
+    const serverSchema = noteFormSchema;
     const validatedFields = serverSchema.safeParse(rawFormData);
     
     if (!validatedFields.success) {
@@ -79,7 +76,7 @@ export async function addNote(formData: FormData) {
       };
     }
 
-    const { amount, ...data } = validatedFields.data;
+    const { descricaoServicos, valorTotal, ...data } = validatedFields.data;
 
     if (!forceCreate && data.numeroNota && data.projectAccountNumber) {
         const existing = await prisma.fiscalNote.findFirst({
@@ -130,7 +127,8 @@ export async function addNote(formData: FormData) {
     const newNote = await prisma.fiscalNote.create({
       data: {
         ...data,
-        amount: amount ? parseBRLMoneyToFloat(amount) : null,
+        description: descricaoServicos,
+        amount: parseBRLMoneyToFloat(valorTotal),
         requester: userName,
         issueDate: submissionDate,
         status: InvoiceStatus.PENDENTE,
@@ -218,11 +216,12 @@ export async function updateNote(formData: FormData) {
       return { success: false, message: 'Erro de validação.', errors: validatedFields.error.flatten().fieldErrors };
     }
 
-    const { amount, ...data } = validatedFields.data;
+    const { descricaoServicos, valorTotal, ...data } = validatedFields.data;
     
     const updateData: Prisma.FiscalNoteUpdateInput = {
-      ...data,
-      amount: amount ? parseBRLMoneyToFloat(amount) : null,
+        ...data,
+        description: descricaoServicos,
+        amount: parseBRLMoneyToFloat(valorTotal),
     };
 
     const newFile = formData.get('file') as File | null;
@@ -621,5 +620,3 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
         return { success: false, message: "Ocorreu um erro no servidor ao tentar enviar as notificações." };
     }
 }
-
-    

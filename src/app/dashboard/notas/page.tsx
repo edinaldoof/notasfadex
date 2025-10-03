@@ -400,7 +400,7 @@ function NotasClient() {
                   const statusConfig = getStatusConfig(dynamicStatus);
                   const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
                   const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
-                  const isOwner = note.creator?.id === session?.user?.id;
+                  const isOwner = note.user?.id === session?.user?.id;
                   const canEdit = isOwner || canManage;
                   const isDeletable = (dynamicStatus === 'PENDENTE' || dynamicStatus === 'REJEITADA') && canDeleteNotes;
 
@@ -632,7 +632,7 @@ function NotasClient() {
           open={showEditModal}
           onOpenChange={setShowEditModal}
           note={selectedNote}
-          onNoteUpdated={fetchNotes}
+          onNoteEdited={fetchNotes}
         />
       )}
       <NoteDetailsSheet
