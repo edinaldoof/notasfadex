@@ -1,32 +1,34 @@
+"use server";
 
-'use server';
-
-import { auth } from '@/auth';
-import prisma from '@/lib/prisma';
-import { Role, PermissionType } from '@prisma/client';
+import { auth } from "@/auth";
+import prisma from "@/lib/prisma";
+import { Role, PermissionType } from "@prisma/client";
+import { hasRolePermission } from "./permissions";
 
 /**
- * Verifica se o usuário atual tem uma determinada permissão.
- * A verificação considera o cargo (Role) e as permissões individuais (UserPermission).
+ * Checks if the current user has a specific permission.
+ * The check considers the user's role and individual permissions.
  *
- * @param requiredPermission A permissão necessária para executar a ação.
- * @returns `true` se o usuário tiver a permissão, `false` caso contrário.
+ * @param requiredPermission The permission required to perform the action.
+ * @returns `true` if the user has the permission, `false` otherwise.
  */
-export async function hasPermission(requiredPermission: PermissionType): Promise<boolean> {
+export async function hasPermission(
+  requiredPermission: PermissionType
+): Promise<boolean> {
   const session = await auth();
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
 
   if (!userId || !userRole) {
-    return false; // Usuário não autenticado
+    return false; // User not authenticated
   }
 
-  // Admins (OWNER, MANAGER) sempre têm permissão
-  if (userRole === Role.OWNER || userRole === Role.MANAGER) {
+  // Check if the user's role grants the required permission
+  if (hasRolePermission(userRole, requiredPermission)) {
     return true;
   }
 
-  // Verifica se o usuário tem a permissão específica no banco de dados
+  // Fallback to check for a specific user permission in the database
   const userPermission = await prisma.userPermission.findUnique({
     where: {
       userId_permission: {
@@ -36,5 +38,5 @@ export async function hasPermission(requiredPermission: PermissionType): Promise
     },
   });
 
-  return !!userPermission; // Retorna true se a permissão foi encontrada, false caso contrário
+  return !!userPermission; // Returns true if the permission was found, false otherwise
 }

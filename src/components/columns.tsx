@@ -1,13 +1,9 @@
-// src/components/columns.tsx
+"use client";
 
-// CORREÇÃO: "use client" deve ser a primeira linha do arquivo, sem nada antes.
-"use client"
-
-import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
-import { Note } from "@prisma/client" // Importa o tipo da sua nota do Prisma
-
-import { Button } from "@/components/ui/button"
+import { ColumnDef } from "@tanstack/react-table";
+import { MoreHorizontal, ArrowUpDown } from "lucide-react";
+import { Note } from "@prisma/client";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,33 +11,54 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { DataTableColumnHeader } from "./ui/data-table-column-header";
 
-// Função para formatar moeda
 const formatCurrency = (amount: number | null) => {
   if (amount === null || isNaN(amount)) {
     return "N/A";
   }
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
   }).format(amount);
-}
+};
 
-// Função para formatar a data
 const formatDate = (date: Date | null) => {
-    if (!date) return "N/A";
-    return new Intl.DateTimeFormat('pt-BR', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-    }).format(new Date(date));
-}
+  if (!date) return "N/A";
+  return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+};
 
 export const columns: ColumnDef<Note>[] = [
   {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Selecionar todas"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Selecionar linha"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
     accessorKey: "numeroNota",
-    header: "Número",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Número" />
+    ),
   },
   {
     accessorKey: "prestadorRazaoSocial",
@@ -53,22 +70,45 @@ export const columns: ColumnDef<Note>[] = [
   },
   {
     accessorKey: "valorTotal",
-    header: "Valor Total",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Valor Total" />
+    ),
     cell: ({ row }) => formatCurrency(row.original.valorTotal),
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string;
+      let variant: "default" | "secondary" | "destructive" | "outline" =
+        "default";
+      switch (status.toLowerCase()) {
+        case "ativa":
+          variant = "secondary";
+          break;
+        case "expirada":
+          variant = "destructive";
+          break;
+        case "pendente":
+          variant = "outline";
+          break;
+      }
+      return <Badge variant={variant}>{status}</Badge>;
+    },
   },
   {
     accessorKey: "createdAt",
-    header: "Data de Criação",
-    cell: ({ row }) => formatDate(row.original.createdAt)
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Data de Criação" />
+    ),
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
   {
     id: "actions",
     cell: ({ row }) => {
-      const note = row.original
+      const note = row.original;
 
       return (
         <DropdownMenu>
@@ -87,9 +127,13 @@ export const columns: ColumnDef<Note>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
+            <DropdownMenuItem>Editar</DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600">
+              Excluir
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )
+      );
     },
   },
-]
+];
