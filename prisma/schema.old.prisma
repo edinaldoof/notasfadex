@@ -1,18 +1,4 @@
-// =================================================================================
-// PRISMA SCHEMA - REFACTORED
-//
-// Key Improvements:
-// 1.  **Consistent Naming:** All models, fields, and enums are now in English
-//     for consistency and clarity (e.g., `FiscalNote` -> `Note`).
-// 2.  **Reduced Redundancy:** Removed duplicative fields like `attestedBy` (string)
-//     in favor of the `attestor` relation, and removed stored URLs in favor of
-//     generating them dynamically from Drive file IDs.
-// 3.  **Improved Data Integrity:** Introduced a `FileType` enum, expanded the `Role`
-//     enum to include `MEMBER` and `VIEWER`, and created a more granular,
-//     resource-based `PermissionType` enum.
-// 4.  **Enhanced Clarity:** Merged `issueDate` and `dataEmissao` into a single,
-//     unambiguous `issuedAt` field.
-// =================================================================================
+// schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -20,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // configuração simples, como antes
 }
 
 // ===================================
@@ -28,30 +14,21 @@ datasource db {
 // ===================================
 
 enum Role {
-  OWNER
+  USER
   MANAGER
-  MEMBER
-  VIEWER
+  OWNER
 }
 
-enum NoteStatus {
+enum InvoiceStatus {
   PENDENTE
   ATESTADA
   EXPIRADA
   REJEITADA
 }
 
-enum NoteType {
+enum InvoiceType {
   SERVICO
   PRODUTO
-}
-
-enum FileType {
-  PDF
-  XML
-  JPG
-  PNG
-  OTHER
 }
 
 enum HistoryType {
@@ -65,13 +42,11 @@ enum HistoryType {
   RESTORED
 }
 
-// More granular, resource-based permissions
 enum PermissionType {
-  NOTE_CREATE
-  NOTE_READ
-  NOTE_UPDATE
-  NOTE_DELETE
-  USER_MANAGE
+  CAN_MANAGE_USERS
+  CAN_MANAGE_SETTINGS
+  CAN_DELETE_PENDING_NOTE
+  CAN_MANAGE_TRASH
 }
 
 enum TutorialType {
@@ -89,15 +64,15 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  role          Role      @default(MEMBER)
+  role          Role      @default(USER)
 
   accounts      Account[]
   sessions      Session[]
-  createdNotes  Note[]        @relation("NoteCreator")
-  attestedNotes Note[]        @relation("Attestor")
-  historyEvents NoteHistory[] @relation("EventAuthor")
+  createdNotes  FiscalNote[]       @relation("NoteCreator")
+  attestedNotes FiscalNote[]       @relation("Attestor")
+  historyEvents NoteHistoryEvent[] @relation("EventAuthor")
   permissions   UserPermission[]
-  tutorials     Tutorial[]    @relation("TutorialAuthor")
+  tutorials     Tutorial[]         @relation("TutorialAuthor")
 }
 
 model Account {
@@ -143,71 +118,74 @@ model UserPermission {
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, permission])
-  @@index([userId])
 }
 
 // ===================================
 // App Core
 // ===================================
 
-model Note {
-  id                   String     @id @default(cuid())
+model FiscalNote {
+  id                   String        @id @default(cuid())
   description          String
   requester            String
-  issuedAt             DateTime   @default(now())
+  issueDate            DateTime      @default(now())
   attestationDeadline  DateTime?
-  status               NoteStatus @default(PENDENTE)
-  type                 NoteType   @default(SERVICO)
-  fileType             FileType   @default(PDF)
+  status               InvoiceStatus @default(PENDENTE)
+  invoiceType          InvoiceType   @default(SERVICO)
+  fileType             String
   fileName             String
+  originalFileUrl      String
   driveFileId          String
-  totalValue           Float?
-  hasWithholdingTax    Boolean    @default(false)
+  amount               Float?
+  hasWithholdingTax    Boolean       @default(false)
   projectTitle         String?
   projectAccountNumber String
   coordinatorName      String
   coordinatorEmail     String
-  ccEmailList          String? // Comma-separated list of emails
+  ccEmails             String?
+  attestedBy           String?
   attestedAt           DateTime?
+  attestedFileUrl      String?
   attestedDriveFileId  String?
   attestedById         String?
-  attestor             User?      @relation("Attestor", fields: [attestedById], references: [id], onDelete: SetNull)
+  attestor             User?         @relation("Attestor", fields: [attestedById], references: [id], onDelete: SetNull)
   reportFileName       String?
   reportDriveFileId    String?
+  reportFileUrl        String?
   observation          String?
-  providerName         String?
-  providerDocument     String? // CNPJ/CPF
-  clientName           String?
-  clientDocument       String? // CNPJ/CPF
-  noteNumber           String?
+  prestadorRazaoSocial String?
+  prestadorCnpj        String?
+  tomadorRazaoSocial   String?
+  tomadorCnpj          String?
+  numeroNota           String?
+  dataEmissao          String?
   userId               String
-  creator              User       @relation("NoteCreator", fields: [userId], references: [id], onDelete: Cascade)
-  history              NoteHistory[]
-  isDeleted            Boolean    @default(false)
+  user                 User          @relation("NoteCreator", fields: [userId], references: [id], onDelete: Cascade)
+  history              NoteHistoryEvent[]
+  deleted              Boolean       @default(false)
   deletedAt            DateTime?
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([userId])
   @@index([attestedById])
   @@index([status])
-  @@index([isDeleted])
-  @@index([projectAccountNumber])
+  @@index([deleted])
 }
 
-model NoteHistory {
+model NoteHistoryEvent {
   id           String      @id @default(cuid())
   date         DateTime    @default(now())
   type         HistoryType
   details      String
   userName     String?
-  noteId       String
-  note         Note        @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  authorId     String?
-  author       User?       @relation("EventAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  fiscalNoteId String
+  note         FiscalNote  @relation(fields: [fiscalNoteId], references: [id], onDelete: Cascade)
+  userId       String?
+  author       User?       @relation("EventAuthor", fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([noteId])
-  @@index([authorId])
+  @@index([fiscalNoteId])
+  @@index([userId])
 }
 
 model Settings {
@@ -235,7 +213,7 @@ model EmailTemplate {
 }
 
 // ===================================
-// Tutorials
+// Tutoriais
 // ===================================
 
 model Tutorial {
