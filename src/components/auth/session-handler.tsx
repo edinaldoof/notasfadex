@@ -11,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "../../../../components/ui/alert-dialog";
 import { LogOut } from 'lucide-react';
 
 export default function SessionHandler() {

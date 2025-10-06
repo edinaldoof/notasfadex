@@ -1,9 +1,9 @@
 
 'use server';
 
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
-import { InvoiceStatus, InvoiceType } from '@/lib/types';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
+import { NoteStatus, InvoiceType } from '../../../lib/types';
 import { z } from 'zod';
 import { startOfMonth, endOfMonth, eachMonthOfInterval, format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,7 +43,7 @@ export interface ReportData {
       totalValue: number;
   }[];
   // Para status_distribution
-  statusDistribution?: { status: InvoiceStatus; count: number }[];
+  statusDistribution?: { status: NoteStatus; count: number }[];
   averageAttestationTime?: number | null;
   // Para spending_by_project
   projectSpending?: { project: string; totalValue: number; noteCount: number }[];
@@ -55,7 +55,7 @@ export interface ReportData {
 
 export async function getReportData(input: ReportInput): Promise<ReportData> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.creator?.id) {
     throw new Error('Usuário não autenticado.');
   }
 
@@ -88,7 +88,7 @@ export async function getReportData(input: ReportInput): Promise<ReportData> {
 async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<ReportData> {
     const attestedNotes = await prisma.fiscalNote.findMany({
       where: {
-        status: InvoiceStatus.ATESTADA,
+        status: NoteStatus.ATESTADA,
         attestedAt: {
           gte: startDate,
           lte: endDate,
@@ -101,7 +101,7 @@ async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<Report
     });
 
     const totalAtested = attestedNotes.length;
-    const totalValueAtested = attestedNotes.reduce((sum, note) => sum + (note.amount || 0), 0);
+    const totalValueAtested = attestedNotes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     const monthlyDataMap = new Map<string, number>();
     const monthsInterval = eachMonthOfInterval({ start: startDate, end: endDate });
@@ -115,7 +115,7 @@ async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<Report
       if (note.attestedAt) {
         const monthKey = format(note.attestedAt, 'yyyy-MM');
         const currentTotal = monthlyDataMap.get(monthKey) || 0;
-        monthlyDataMap.set(monthKey, currentTotal + (note.amount || 0));
+        monthlyDataMap.set(monthKey, currentTotal + (note.totalValue || 0));
       }
     });
     
@@ -142,7 +142,7 @@ async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<Report
 }
 
 async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Promise<ReportData> {
-    const users = await prisma.user.findMany({
+    const users = await prisma.creator.findMany({
         include: {
             notes: {
                 where: {
@@ -160,7 +160,7 @@ async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Pro
 
     const performanceData = users.map(user => {
         const noteCount = user.notes.length;
-        const totalValue = user.notes.reduce((sum, note) => sum + (note.amount || 0), 0);
+        const totalValue = user.notes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
         return {
             id: user.id,
             name: user.name,
@@ -191,13 +191,13 @@ async function getStatusDistribution(startDate: Date, endDate: Date): Promise<Re
     });
 
     const statusCounts = notes.reduce((acc, note) => {
-        const status = note.status as InvoiceStatus;
+        const status = note.status as NoteStatus;
         acc[status] = (acc[status] || 0) + 1;
         return acc;
-    }, {} as Record<InvoiceStatus, number>);
+    }, {} as Record<NoteStatus, number>);
 
     const statusDistribution = Object.entries(statusCounts).map(([status, count]) => ({
-        status: status as InvoiceStatus,
+        status: status as NoteStatus,
         count
     }));
     

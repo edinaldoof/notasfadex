@@ -2,7 +2,7 @@
 'use server';
 
 import { getGmailService } from './google-gmail';
-import type { SendEmailOptions } from '@/lib/types';
+import type { SendEmailOptions } from '../../../lib/types';
 
 export async function sendEmail({ to, cc, subject, body, attachment }: SendEmailOptions) {
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GMAIL_IMPERSONATED_USER_EMAIL) {

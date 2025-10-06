@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { Target, DollarSign, Clock, FileCheck, TrendingUp, TrendingDown, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../../components/ui/card';
+import { Progress } from '../../../../components/ui/progress';
 import { getGoalsData, GoalsData } from './actions';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '../../../../components/ui/skeleton';
+import { cn } from '../../../lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { motion } from 'framer-motion';
 
 const formatCurrency = (value: number) => {

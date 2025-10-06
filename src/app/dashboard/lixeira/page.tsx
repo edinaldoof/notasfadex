@@ -14,7 +14,7 @@ import {
   MoreHorizontal,
   Eye,
 } from 'lucide-react';
-import { FiscalNote, PermissionType } from '@/lib/types';
+import { Note, PermissionType } from '../../../lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -22,14 +22,14 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from '@/components/ui/calendar';
+} from "../../../../components/ui/popover"
+import { Calendar } from '../../../../components/ui/calendar';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "../../../../components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,15 +37,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { cn } from '@/lib/utils';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "../../../../components/ui/dropdown-menu"
+import { cn } from '../../../lib/utils';
+import { Button, buttonVariants } from '../../../../components/ui/button';
+import { NoteDetailsSheet } from '../../../../components/dashboard/note-details-sheet';
+import { Skeleton } from '../../../../components/ui/skeleton';
 import { getNotes } from '../notas/data';
 import { deleteNote, restoreNote } from '../notas/actions';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '../../../../components/ui/input';
+import { useToast } from '../../../../hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,9 +56,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "../../../../components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
-import { hasPermission } from '@/lib/auth-utils';
+import { hasPermission } from '../../../lib/auth-utils';
 
 function TableSkeleton() {
   return (
@@ -106,13 +106,13 @@ function LixeiraClient() {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   
-  const [notes, setNotes] = useState<FiscalNote[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   
-  const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<FiscalNote | null>(null);
+  const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<Note | null>(null);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
   const [canManageTrash, setCanManageTrash] = useState(false);
 
@@ -233,15 +233,15 @@ function LixeiraClient() {
                            </div>
                            <div className="min-w-0">
                               <p className="font-medium text-white truncate" title={note.description}>{note.description}</p>
-                              <p className="text-sm text-slate-400 truncate" title={`${note.projectAccountNumber} - ${note.numeroNota || 'S/N'}`}>
-                                {note.projectAccountNumber} - {note.numeroNota || 'S/N'}
+                              <p className="text-sm text-slate-400 truncate" title={`${note.projectAccountNumber} - ${note.noteNumber || 'S/N'}`}>
+                                {note.projectAccountNumber} - {note.noteNumber || 'S/N'}
                               </p>
                            </div>
                         </div>
                       </td>
                       <td className="p-4 align-top text-slate-300">{note.deletedAt ? format(new Date(note.deletedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}</td>
                       <td className="p-4 align-top text-slate-300">{note.status}</td>
-                      <td className="p-4 align-top text-slate-300 font-medium">{note.amount ? `R$ ${note.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}</td>
+                      <td className="p-4 align-top text-slate-300 font-medium">{note.totalValue ? `R$ ${note.totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}</td>
                       <td className="p-4 align-top text-center">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild disabled={!canManageTrash}>

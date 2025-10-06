@@ -1,8 +1,8 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-import SessionProvider from '@/components/auth/session-provider';
-import { InteractiveBackground } from '@/components/effects/interactive-background';
+import { Toaster } from '../../../../components/ui/toaster';
+import SessionProvider from '../../../../components/auth/session-provider';
+import { InteractiveBackground } from '../../../../components/effects/interactive-background';
 
 export const metadata: Metadata = {
   title: 'Notas Fadex',

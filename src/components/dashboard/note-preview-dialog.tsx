@@ -9,8 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from '../../../../components/ui/dialog';
+import { Button } from '../../../../components/ui/button';
 import { 
   Download, 
   X, 

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
-import GoogleSignInButton from '@/components/auth/google-signin-button';
+import { auth } from '../../../auth';
+import GoogleSignInButton from '../../../../components/auth/google-signin-button';
 import { Layers, Shield, Users, Clock, Sparkles, ArrowRight, Star } from 'lucide-react';
 
 export default async function LoginPage(): Promise<JSX.Element> {

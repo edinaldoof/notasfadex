@@ -11,10 +11,10 @@ import {
   XCircle,
   FileText,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../../lib/utils';
 import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
+import { Skeleton } from '../../../../components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { HistoryType } from '@prisma/client';
@@ -127,7 +127,7 @@ export function RecentActivity({
               activity.author?.name || activity.userName || 'Sistema';
             const userImage = activity.author?.image;
             const noteReference = `Nota ${
-              activity.note.numeroNota || 'S/N'
+              activity.note.noteNumber || 'S/N'
             } - CC: ${activity.note.projectAccountNumber}`;
 
             return (

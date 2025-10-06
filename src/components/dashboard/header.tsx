@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '../../../../components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '../ui/sheet';
@@ -20,7 +20,7 @@ import { Sidebar } from './sidebar';
 
 export function Header() {
   const { data: session, status } = useSession();
-  const user = session?.user;
+  const user = session?.creator;
 
   const getInitials = (name: string) => {
     return name

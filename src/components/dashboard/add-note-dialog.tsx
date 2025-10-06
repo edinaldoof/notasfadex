@@ -4,38 +4,38 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Upload, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Upload, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
 
 // UI Components
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '../../../../components/ui/button';
+import { Calendar } from '../../../../components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/dialog';
+import { Input } from '../../../../components/ui/input';
+import { Label } from '../../../../components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '../../../../components/ui/popover';
+import { useToast } from '../../../../hooks/use-toast';
 
 // Utilities
-import { cn } from '@/lib/utils';
-import { toDataURL } from '@/lib/media-utils';
+import { cn } from '../../../lib/utils';
+import { toDataURL } from '../../../lib/media-utils';
 
 // Server Actions
 import { addNote } from '@/app/dashboard/notas/actions';
-import { extractNoteData } from '@/ai/flows/extract-note-data-flow';
+import { extractNoteData } from '../../../../ai/flows/extract-note-data-flow';
 
 // Validação do formulário com Zod
 const addNoteFormSchema = z.object({
-  prestadorRazaoSocial: z.string().optional(),
-  prestadorCnpj: z.string().optional(),
-  tomadorRazaoSocial: z.string().optional(),
-  tomadorCnpj: z.string().optional(),
-  numeroNota: z.string().optional(),
-  dataEmissao: z.string().optional(), // Mantido como string para dados extraídos
-  valorTotal: z.string().optional(),
-  descricaoServicos: z.string().min(3, { message: 'A descrição deve ter pelo menos 3 caracteres.' }),
+  providerName: z.string().optional(),
+  providerDocument: z.string().optional(),
+  clientName: z.string().optional(),
+  clientDocument: z.string().optional(),
+  noteNumber: z.string().optional(),
+  issuedAt: z.string().optional(), // Mantido para dados da AI
+  totalValue: z.string().optional(),
+  description: z.string().min(3, { message: 'A descrição deve ter pelo menos 3 caracteres.' }),
   issueDate: z.date({ required_error: 'A data é obrigatória.' }),
   file: z.any()
     .refine((files) => files?.[0], 'O arquivo é obrigatório.')
@@ -64,7 +64,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   const form = useForm<AddNoteFormValues>({
     resolver: zodResolver(addNoteFormSchema),
     defaultValues: {
-      descricaoServicos: "",
+      description: "",
       issueDate: new Date(),
     }
   });
@@ -81,13 +81,13 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       const documentUri = await toDataURL(file);
       const extractedData = await extractNoteData({ documentUri });
         
-      if (extractedData.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extractedData.prestadorRazaoSocial);
-      if (extractedData.prestadorCnpj) form.setValue('prestadorCnpj', extractedData.prestadorCnpj);
-      if (extractedData.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extractedData.tomadorRazaoSocial);
-      if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', extractedData.tomadorCnpj);
-      if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
-      if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
-      if (extractedData.valorTotal) form.setValue('valorTotal', String(extractedData.valorTotal));
+      if (extractedData.providerName) form.setValue('providerName', extractedData.providerName);
+      if (extractedData.providerDocument) form.setValue('providerDocument', extractedData.providerDocument);
+      if (extractedData.clientName) form.setValue('clientName', extractedData.clientName);
+      if (extractedData.clientDocument) form.setValue('clientDocument', extractedData.clientDocument);
+      if (extractedData.noteNumber) form.setValue('noteNumber', extractedData.noteNumber);
+      if (extractedData.issuedAt) form.setValue('issuedAt', extractedData.issuedAt);
+      if (extractedData.totalValue) form.setValue('totalValue', String(extractedData.totalValue));
       
       toast({
         title: "Extração Concluída",
@@ -109,7 +109,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
   };
 
   const onSubmit = async (data: AddNoteFormValues) => {
-    if (!session?.user) {
+    if (!session?.creator) {
       toast({ title: "Erro de Autenticação", description: "Sessão não encontrada.", variant: 'destructive' });
       return;
     }
@@ -194,9 +194,9 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
 
             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (isExtracting || isSubmitting) && "opacity-50 pointer-events-none")}>
                 <div>
-                    <Label htmlFor="descricaoServicos">Descrição dos Serviços/Produtos</Label>
-                    <Input id="descricaoServicos" {...form.register('descricaoServicos')} className={inputStyles} />
-                    {form.formState.errors.descricaoServicos && <p className="text-xs text-red-400 mt-1">{form.formState.errors.descricaoServicos.message}</p>}
+                    <Label htmlFor="description">Descrição dos Serviços/Produtos</Label>
+                    <Input id="description" {...form.register('description')} className={inputStyles} />
+                    {form.formState.errors.description && <p className="text-xs text-red-400 mt-1">{form.formState.errors.description.message}</p>}
                 </div>
 
                  <div>
@@ -229,32 +229,32 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                     {form.formState.errors.issueDate && <p className="text-xs text-red-400 mt-1">{form.formState.errors.issueDate.message}</p>}
                 </div>
                  <div>
-                    <Label htmlFor="prestadorRazaoSocial">Razão Social do Prestador</Label>
-                    <Input id="prestadorRazaoSocial" {...form.register('prestadorRazaoSocial')} className={inputStyles} />
+                    <Label htmlFor="providerName">Razão Social do Prestador</Label>
+                    <Input id="providerName" {...form.register('providerName')} className={inputStyles} />
                 </div>
                  <div>
-                    <Label htmlFor="prestadorCnpj">CNPJ do Prestador</Label>
-                    <Input id="prestadorCnpj" {...form.register('prestadorCnpj')} className={inputStyles} />
+                    <Label htmlFor="providerDocument">CNPJ do Prestador</Label>
+                    <Input id="providerDocument" {...form.register('providerDocument')} className={inputStyles} />
                 </div>
                 <div>
-                    <Label htmlFor="tomadorRazaoSocial">Razão Social do Tomador</Label>
-                    <Input id="tomadorRazaoSocial" {...form.register('tomadorRazaoSocial')} className={inputStyles} />
+                    <Label htmlFor="clientName">Razão Social do Tomador</Label>
+                    <Input id="clientName" {...form.register('clientName')} className={inputStyles} />
                 </div>
                 <div>
-                    <Label htmlFor="tomadorCnpj">CNPJ do Tomador</Label>
-                    <Input id="tomadorCnpj" {...form.register('tomadorCnpj')} className={inputStyles} />
+                    <Label htmlFor="clientDocument">CNPJ do Tomador</Label>
+                    <Input id="clientDocument" {...form.register('clientDocument')} className={inputStyles} />
                 </div>
                 <div>
-                    <Label htmlFor="numeroNota">Número da Nota Fiscal</Label>
-                    <Input id="numeroNota" {...form.register('numeroNota')} className={inputStyles} />
+                    <Label htmlFor="noteNumber">Número da Nota Fiscal</Label>
+                    <Input id="noteNumber" {...form.register('noteNumber')} className={inputStyles} />
                 </div>
                  <div>
-                    <Label htmlFor="dataEmissao">Data de Emissão (Extraída)</Label>
-                    <Input id="dataEmissao" {...form.register('dataEmissao')} className={inputStyles} />
+                    <Label htmlFor="issuedAt">Data de Emissão (Extraída)</Label>
+                    <Input id="issuedAt" {...form.register('issuedAt')} className={inputStyles} />
                 </div>
                  <div>
-                    <Label htmlFor="valorTotal">Valor Total (R$)</Label>
-                    <Input id="valorTotal" {...form.register('valorTotal')} className={inputStyles} />
+                    <Label htmlFor="totalValue">Valor Total (R$)</Label>
+                    <Input id="totalValue" {...form.register('totalValue')} className={inputStyles} />
                 </div>
             </div>
             

@@ -6,10 +6,10 @@
  * (CNPJ/CPF, datas e dinheiro) e geração com baixa temperatura para reduzir variação.
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel, SchemaType } from '@google/generative-ai';
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import { parseBRLMoneyToFloat } from '@/lib/utils'; // Importa a função do local centralizado
+import prisma from '../../lib/prisma';
+import { parseBRLMoneyToFloat } from '../../lib/utils'; // Importa a função do local centralizado
 
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -26,14 +26,14 @@ export const ExtractNoteDataInputSchema = z.object({
 export type ExtractNoteDataInput = z.infer<typeof ExtractNoteDataInputSchema>;
 
 export const ExtractNoteDataOutputSchema = z.object({
-  prestadorRazaoSocial: z.string().optional().describe('A razão social ou nome completo do PRESTADOR/EMITENTE.'),
-  prestadorCnpj: z.string().optional().describe('O CNPJ/CPF do PRESTADOR/EMITENTE, contendo apenas números.'),
-  tomadorRazaoSocial: z.string().optional().describe('A razão social ou nome completo do TOMADOR/DESTINATÁRIO/CLIENTE.'),
-  tomadorCnpj: z.string().optional().describe('O CNPJ/CPF do TOMADOR/DESTINATÁRIO/CLIENTE, contendo apenas números.'),
-  numeroNota: z.string().optional().describe('O número principal da nota fiscal, geralmente destacado no topo.'),
-  dataEmissao: z.string().optional().describe('A data de EMISSÃO ou GERAÇÃO da nota, formatada como DD/MM/AAAA.'),
-  valorTotal: z.number().optional().describe('O VALOR TOTAL LÍQUIDO da nota. Deve ser um número (float), usando ponto como separador decimal.'),
-  descricaoServicos: z.string().optional().describe('A descrição completa e detalhada dos serviços prestados ou dos produtos listados.'),
+  providerName: z.string().optional().describe('A razão social ou nome completo do PRESTADOR/EMITENTE.'),
+  providerDocument: z.string().optional().describe('O CNPJ/CPF do PRESTADOR/EMITENTE, contendo apenas números.'),
+  clientName: z.string().optional().describe('A razão social ou nome completo do TOMADOR/DESTINATÁRIO/CLIENTE.'),
+  clientDocument: z.string().optional().describe('O CNPJ/CPF do TOMADOR/DESTINATÁRIO/CLIENTE, contendo apenas números.'),
+  noteNumber: z.string().optional().describe('O número principal da nota fiscal, geralmente destacado no topo.'),
+  issuedAt: z.string().optional().describe('A data de EMISSÃO ou GERAÇÃO da nota, formatada como DD/MM/AAAA.'),
+  totalValue: z.number().optional().describe('O VALOR TOTAL LÍQUIDO da nota. Deve ser um número (float), usando ponto como separador decimal.'),
+  description: z.string().optional().describe('A descrição completa e detalhada dos serviços prestados ou dos produtos listados.'),
   type: InvoiceTypeSchema.optional().describe('O tipo da nota. Inferir como "PRODUTO" se for um DANFE, ou "SERVICO" se for uma NFS-e.'),
 });
 export type ExtractNoteDataOutput = z.infer<typeof ExtractNoteDataOutputSchema>;
@@ -48,17 +48,17 @@ const dataExtractionTool = {
       description:
         'Envia os dados extraídos da nota fiscal para o sistema. Use esta função para retornar todos os campos que conseguir encontrar no documento.',
       parameters: {
-        type: 'OBJECT',
+        type: SchemaType.OBJECT,
         properties: {
-          prestadorRazaoSocial: { type: 'STRING', description: 'Razão Social do EMITENTE/PRESTADOR.' },
-          prestadorCnpj: { type: 'STRING', description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
-          tomadorRazaoSocial: { type: 'STRING', description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
-          tomadorCnpj: { type: 'STRING', description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
-          numeroNota: { type: 'STRING', description: 'Número da nota fiscal.' },
-          dataEmissao: { type: 'STRING', description: 'Data de emissão no formato DD/MM/AAAA.' },
-          valorTotal: { type: 'NUMBER', description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
-          descricaoServicos: { type: 'STRING', description: 'Descrição detalhada dos produtos ou serviços.' },
-          type: { type: 'STRING', enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
+          providerName: { type: SchemaType.STRING, description: 'Razão Social do EMITENTE/PRESTADOR.' },
+          providerDocument: { type: SchemaType.STRING, description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
+          clientName: { type: SchemaType.STRING, description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
+          clientDocument: { type: SchemaType.STRING, description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
+          noteNumber: { type: SchemaType.STRING, description: 'Número da nota fiscal.' },
+          issuedAt: { type: SchemaType.STRING, description: 'Data de emissão no formato DD/MM/AAAA.' },
+          totalValue: { type: SchemaType.NUMBER, description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
+          description: { type: SchemaType.STRING, description: 'Descrição detalhada dos produtos ou serviços.' },
+          type: { type: SchemaType.STRING, enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
         },
         required: [],
       },
@@ -204,7 +204,7 @@ async function executeExtractionWithModel(
    - **Descrição**: capture **todo** o texto relevante da discriminação (mantenha quebras/pontuação essenciais).
 
 4) **NORMAS NUMÉRICAS (BRL) — CRÍTICAS**
-   Objetivo: preencher **valorTotal** como **número float** com **ponto** decimal.
+   Objetivo: preencher **totalValue** como **número float** com **ponto** decimal.
    **Algoritmo obrigatório** (aplique exatamente nesta ordem):
    1. Remova "R$", palavras de moeda e espaços (incluindo NBSP). Mantenha apenas dígitos, vírgula e ponto.
    2. Se houver **vírgula e ponto** (ex.: \`3.161,72\`): **ponto = milhar**, **vírgula = decimal** ⇒ remova todos os pontos, troque vírgula por ponto ⇒ \`3161.72\`.
@@ -243,23 +243,23 @@ async function executeExtractionWithModel(
   const extractedData: any = { ...call.args };
 
   // Pós-processamento robusto (mantido)
-  if (extractedData.prestadorCnpj) extractedData.prestadorCnpj = onlyDigits(extractedData.prestadorCnpj);
-  if (extractedData.tomadorCnpj) extractedData.tomadorCnpj = onlyDigits(extractedData.tomadorCnpj);
+  if (extractedData.providerDocument) extractedData.providerDocument = onlyDigits(extractedData.providerDocument);
+  if (extractedData.clientDocument) extractedData.clientDocument = onlyDigits(extractedData.clientDocument);
 
-  if (extractedData.dataEmissao) extractedData.dataEmissao = normalizeDateToBR(extractedData.dataEmissao);
+  if (extractedData.issuedAt) extractedData.issuedAt = normalizeDateToBR(extractedData.issuedAt);
 
-  if (extractedData.valorTotal != null) {
+  if (extractedData.totalValue != null) {
       // Usa a função centralizada para garantir consistência
-      const parsed = parseBRLMoneyToFloat(String(extractedData.valorTotal));
+      const parsed = parseBRLMoneyToFloat(String(extractedData.totalValue));
       if (parsed == null) {
-        delete extractedData.valorTotal;
+        delete extractedData.totalValue;
       } else {
-        extractedData.valorTotal = parsed;
+        extractedData.totalValue = parsed;
       }
   }
 
-  if (Array.isArray(extractedData.descricaoServicos)) {
-    extractedData.descricaoServicos = extractedData.descricaoServicos.filter(Boolean).join('\n');
+  if (Array.isArray(extractedData.description)) {
+    extractedData.description = extractedData.description.filter(Boolean).join('\n');
   }
 
   return ExtractNoteDataOutputSchema.parse(extractedData);

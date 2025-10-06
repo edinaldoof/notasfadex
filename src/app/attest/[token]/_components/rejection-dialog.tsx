@@ -14,14 +14,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "../../../../components/ui/alert-dialog";
+import { Button } from '../../../../components/ui/button';
+import { Label } from '../../../../components/ui/label';
+import { Textarea } from '../../../../components/ui/textarea';
 import { Loader2, XCircle, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { rejectNotePublic } from '../actions';
-import { Input } from '@/components/ui/input';
+import { useToast } from '../../../../hooks/use-toast';
+import { rejectNotePublic } from '../actions.ts';
+import { Input } from '../../../../components/ui/input';
 
 const rejectionSchema = z.object({
   coordinatorName: z

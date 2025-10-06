@@ -3,7 +3,7 @@
 // 1. IMPORTA AS BIBLIOTECAS NECESSÁRIAS
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
+import prisma from '../lib/prisma';
 
 // Garante que as variáveis de ambiente sejam carregadas
 import dotenv from 'dotenv';
@@ -17,28 +17,30 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 
 // 3. DEFINIÇÃO DA "FERRAMENTA" DE ACESSO À BASE DE DADOS (MAIS DETALHADA)
-const databaseTools = {
-  functionDeclarations: [
+const databaseTools = [
     {
-      name: "getLiveNoteStats",
-      description: "Ferramenta para buscar dados agregados e em tempo real sobre notas fiscais. Use esta ferramenta sempre que a pergunta do utilizador envolver contagens ('quantos', 'número de') ou somas de valores ('valor total', 'qual o montante') para um status específico ou para todas as notas.",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          status: {
-            type: "STRING",
-            description: "OPCIONAL. O status para filtrar a consulta (PENDENTE, ATESTADA, EXPIRADA). Se não for fornecido, a consulta será sobre o total de todas as notas.",
-          },
-          operation: {
-            type: "STRING",
-            description: "A operação a ser feita: 'count' para contar a quantidade de notas, ou 'sum' para somar o campo 'amount'.",
-          }
-        },
-        required: ["operation"]
-      },
-    },
-  ],
-};
+        functionDeclarations: [
+            {
+                name: "getLiveNoteStats",
+                description: "Ferramenta para buscar dados agregados e em tempo real sobre notas fiscais. Use esta ferramenta sempre que a pergunta do utilizador envolver contagens ('quantos', 'número de') ou somas de valores ('valor total', 'qual o montante') para um status específico ou para todas as notas.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        status: {
+                            type: "STRING",
+                            description: "OPCIONAL. O status para filtrar a consulta (PENDENTE, ATESTADA, EXPIRADA). Se não for fornecido, a consulta será sobre o total de todas as notas.",
+                        },
+                        operation: {
+                            type: "STRING",
+                            description: "A operação a ser feita: 'count' para contar a quantidade de notas, ou 'sum' para somar o campo 'totalValue'.",
+                        }
+                    },
+                    required: ["operation"]
+                },
+            },
+        ]
+    }
+];
 
 // 4. DEFINIÇÃO DOS SCHEMAS (NÃO MUDA)
 const ChatbotInputSchema = z.object({
@@ -119,14 +121,14 @@ export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
       const whereClause = args.status ? { status: args.status } : {};
 
       if (args.operation === 'count') {
-        const count = await prisma.fiscalNote.count({ where: whereClause });
+        const count = await prisma.note.count({ where: whereClause });
         toolResult = { ...args, result: count };
       } else if (args.operation === 'sum') {
-        const aggregate = await prisma.fiscalNote.aggregate({
-          _sum: { amount: true },
+        const aggregate = await prisma.note.aggregate({
+          _sum: { totalValue: true },
           where: whereClause,
         });
-        toolResult = { ...args, result: aggregate._sum.amount ?? 0 };
+        toolResult = { ...args, result: aggregate._sum.totalValue ?? 0 };
       }
 
       // Envia o resultado da ferramenta de volta para a IA formular a resposta final

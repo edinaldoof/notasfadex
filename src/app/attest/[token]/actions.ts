@@ -2,17 +2,17 @@
 'use server';
 
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import { uploadFileToDrive } from '@/lib/google-drive';
+import prisma from '../../../../lib/prisma';
+import { uploadFileToDrive } from '../../../../lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
-import { verifyAttestationToken } from '@/lib/token-utils';
-import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
-import type { FiscalNote } from '@/lib/types';
-import { Prisma } from '@prisma/client';
+import { verifyAttestationToken } from '../../../../lib/token-utils';
+import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '../../../../lib/email-actions';
+import type { Note } from '../../../../lib/types';
+import { Prisma, HistoryType } from '@prisma/client';
 
 export async function getNoteFromToken(token: string): Promise<{
-  note?: FiscalNote;
+  note?: Note;
   error?: string;
 }> {
   try {
@@ -25,26 +25,13 @@ export async function getNoteFromToken(token: string): Promise<{
       return { error: 'Token inválido ou expirado.' };
     }
 
-    const note = await prisma.fiscalNote.findUnique({
-      where: { id: decoded.noteId, deleted: false },
-      select: {
-        id: true,
-        requester: true,
-        projectTitle: true,
-        projectAccountNumber: true,
-        numeroNota: true,
-        amount: true,
-        issueDate: true,
-        description: true,
-        originalFileUrl: true,
-        status: true,
-        fileName: true,
-        reportFileUrl: true,
-        reportFileName: true,
-        user: {
-            select: { email: true, name: true, id: true }
+    const note = await prisma.note.findUnique({
+      where: { id: decoded.noteId, isDeleted: false },
+      include: {
+        creator: {
+          select: { email: true, name: true, id: true }
         }
-      },
+      }
     });
 
     if (!note) {
@@ -55,7 +42,7 @@ export async function getNoteFromToken(token: string): Promise<{
       return { error: 'Esta nota fiscal não está mais pendente de atesto.' };
     }
 
-    return { note: note as FiscalNote };
+    return { note: note as Note };
   } catch (err) {
     const error = err instanceof Error ? err : new Error('An unknown error occurred');
     console.error(`Error verifying token: ${error.name} - ${error.message}`);
@@ -108,9 +95,9 @@ export async function attestNotePublic(formData: FormData) {
         }
         const { noteId } = decodedToken;
 
-        const note = await prisma.fiscalNote.findUnique({
+        const note = await prisma.note.findUnique({
             where: { id: noteId },
-            include: { user: true }
+            include: { creator: true }
         });
 
         if (!note) {
@@ -119,7 +106,7 @@ export async function attestNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não está mais pendente de atesto.' };
         }
-         if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+         if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -138,7 +125,6 @@ export async function attestNotePublic(formData: FormData) {
         }
         
         const attestedDriveFileId = driveFile.id;
-        const attestedFileUrl = `/api/download/${driveFile.id}`;
         const attestationDate = new Date();
         
         let historyDetails = `Nota atestada por ${coordinatorName} (${coordinatorEmail}) via link público.`;
@@ -148,24 +134,22 @@ export async function attestNotePublic(formData: FormData) {
         historyDetails += ` Documento de atesto '${attestedFile.name}' foi salvo.`;
 
         await prisma.$transaction([
-          prisma.fiscalNote.update({
+          prisma.note.update({
               where: { id: noteId },
               data: {
                   status: 'ATESTADA',
                   attestedAt: attestationDate,
-                  attestedById: note.user.id, 
-                  attestedBy: coordinatorName,
+                  attestedById: note.creator.id,
                   observation: observation,
                   attestedDriveFileId: attestedDriveFileId,
-                  attestedFileUrl: attestedFileUrl,
               },
           }),
-          prisma.noteHistoryEvent.create({
+          prisma.noteHistory.create({
             data: {
-              type: 'ATTESTED',
+              type: HistoryType.ATTESTED,
               details: historyDetails,
-              userId: note.userId,
-              fiscalNoteId: noteId,
+              authorId: note.userId,
+              noteId: noteId,
             }
           })
         ]);
@@ -178,13 +162,13 @@ export async function attestNotePublic(formData: FormData) {
             noteId: note.id,
             coordinatorName: coordinatorName,
             coordinatorEmail: coordinatorEmail,
-            requesterEmail: note.user.email,
+            requesterEmail: note.creator.email,
             noteDescription: note.description,
             attestedFileId: attestedDriveFileId,
             attestedFileName: attestedFile.name,
             attestationDate: attestationDate,
             attestationObservation: observation,
-            numeroNota: note.numeroNota,
+            noteNumber: note.noteNumber,
             projectTitle: note.projectTitle,
             projectAccountNumber: note.projectAccountNumber
         });
@@ -225,9 +209,9 @@ export async function rejectNotePublic(formData: FormData) {
             return { success: false, message: 'Token inválido ou não corresponde à nota.' };
         }
 
-        const note = await prisma.fiscalNote.findUnique({
+        const note = await prisma.note.findUnique({
             where: { id: noteId },
-            include: { user: true }
+            include: { creator: true }
         });
 
         if (!note) {
@@ -236,7 +220,7 @@ export async function rejectNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não pode mais ser rejeitada.' };
         }
-        if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+        if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -244,19 +228,19 @@ export async function rejectNotePublic(formData: FormData) {
         const historyDetails = `Nota rejeitada por ${coordinatorName}. Motivo: "${rejectionReason}"`;
 
         await prisma.$transaction([
-          prisma.fiscalNote.update({
+          prisma.note.update({
               where: { id: noteId },
               data: {
                   status: 'REJEITADA',
                   observation: rejectionReason,
               }
           }),
-          prisma.noteHistoryEvent.create({
+          prisma.noteHistory.create({
             data: {
-              type: 'REJECTED',
+              type: HistoryType.REJECTED,
               details: historyDetails,
-              userId: note.userId,
-              fiscalNoteId: noteId,
+              authorId: note.userId,
+              noteId: noteId,
             }
           })
         ]);
@@ -268,12 +252,12 @@ export async function rejectNotePublic(formData: FormData) {
         await sendRejectionNotificationEmail({
             noteId: note.id,
             coordinatorName: coordinatorName,
-            requesterEmail: note.user.email,
+            requesterEmail: note.creator.email,
             noteDescription: note.description,
             rejectionReason: rejectionReason,
             rejectionDate: rejectionDate,
-            requesterName: note.user.name,
-            numeroNota: note.numeroNota,
+            requesterName: note.creator.name,
+            noteNumber: note.noteNumber,
             projectTitle: note.projectTitle,
             projectAccountNumber: note.projectAccountNumber
         });

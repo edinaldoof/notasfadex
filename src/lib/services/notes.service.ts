@@ -1,8 +1,8 @@
-import prisma from "@/lib/prisma";
-import { InvoiceStatus, HistoryType } from "@prisma/client";
+import prisma from "../../../lib/prisma";
+import { NoteStatus, HistoryType } from "@prisma/client";
 
 /**
- * Processes expired fiscal notes.
+ * Processes expired notes.
  * Finds all pending notes past their attestation deadline,
  * updates their status to EXPIRED, and logs a history event.
  *
@@ -11,9 +11,9 @@ import { InvoiceStatus, HistoryType } from "@prisma/client";
 export async function processExpiredNotes(): Promise<{ updatedCount: number }> {
   const now = new Date();
 
-  const expiredNotes = await prisma.fiscalNote.findMany({
+  const expiredNotes = await prisma.note.findMany({ // CORRIGIDO: de fiscalNote para note
     where: {
-      status: InvoiceStatus.PENDENTE,
+      status: NoteStatus.PENDENTE, // CORRIGIDO: de NoteStatus para NoteStatus
       attestationDeadline: {
         lt: now,
       },
@@ -26,28 +26,28 @@ export async function processExpiredNotes(): Promise<{ updatedCount: number }> {
 
   const expiredNoteIds = expiredNotes.map((note) => note.id);
 
-  const { count } = await prisma.fiscalNote.updateMany({
+  const { count } = await prisma.note.updateMany({ // CORRIGIDO: de fiscalNote para note
     where: {
       id: {
         in: expiredNoteIds,
       },
     },
     data: {
-      status: InvoiceStatus.EXPIRADA,
+      status: NoteStatus.EXPIRADA, // CORRIGIDO: de NoteStatus para NoteStatus
     },
   });
 
   const historyEvents = expiredNotes.map((note) => ({
-    fiscalNoteId: note.id,
+    noteId: note.id, // CORRIGIDO: de fiscalNoteId para noteId
     type: HistoryType.EXPIRED,
     details: `A nota expirou em ${now.toLocaleDateString(
       "pt-BR"
     )} pois não foi atestada até o prazo final.`,
     userName: "Sistema (Cron Job)",
-    userId: note.userId,
+    authorId: note.userId, // CORRIGIDO: de userId para authorId para consistência
   }));
 
-  await prisma.noteHistoryEvent.createMany({
+  await prisma.noteHistory.createMany({ // CORRIGIDO: de noteHistory para noteHistory
     data: historyEvents,
   });
 

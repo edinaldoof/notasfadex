@@ -5,12 +5,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { format, isSameDay, isToday, isPast, isFuture, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Calendar } from '../../../../components/ui/calendar';
+import { Badge } from '../../../../components/ui/badge';
+import { Button } from '../../../../components/ui/button';
+import { Separator } from '../../../../components/ui/separator';
+import { ScrollArea } from '../../../../components/ui/scroll-area';
 import { NoteForCalendar } from '../actions';
 import { NoteCard } from './note-card';
 import { 
@@ -40,7 +40,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../../lib/utils';
 
 // Componente de Quick Stats - Simplificado
 const QuickStats = ({ notes }: { notes: NoteForCalendar[] }) => {

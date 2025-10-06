@@ -25,26 +25,26 @@ import {
   Building,
   RotateCcw,
 } from 'lucide-react';
-import { FiscalNote, InvoiceStatus, PermissionType } from '@/lib/types';
+import { Note, NoteStatus, PermissionType } from '../../../lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
-import { CheckBadge } from '@/components/icons/check-badge';
+import { CheckBadge } from '../../../../components/icons/check-badge';
 import { isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { AttestNoteDialog } from '@/components/dashboard/attest-note-dialog';
+import { AttestNoteDialog } from '../../../../components/dashboard/attest-note-dialog';
 import { EditNoteDialog } from '@/app/dashboard/notas/edit-note-dialog';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from '@/components/ui/calendar';
+} from "../../../../components/ui/popover"
+import { Calendar } from '../../../../components/ui/calendar';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "../../../../components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,16 +52,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { cn } from '@/lib/utils';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "../../../../components/ui/dropdown-menu"
+import { cn } from '../../../lib/utils';
+import { Button, buttonVariants } from '../../../../components/ui/button';
+import { NoteDetailsSheet } from '../../../../components/dashboard/note-details-sheet';
+import { Skeleton } from '../../../../components/ui/skeleton';
 import { getNotes } from './data';
 import { revertAttestation, attestNote, notifyAllPendingCoordinators, deleteNote } from './actions';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '../../../../components/ui/input';
+import { Label } from '../../../../components/ui/label';
+import { useToast } from '../../../../hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,10 +72,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "../../../../components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client';
-import { hasPermission } from '@/lib/auth-utils';
+import { hasPermission } from '../../../lib/auth-utils';
 
 const formatDate = (date: Date | string) => {
   return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -85,7 +85,7 @@ const formatDateTime = (date: Date | string) => {
     return new Date(date).toLocaleString('pt-BR', { timeZone: 'UTC' });
 };
 
-const getStatusConfig = (status: InvoiceStatus) => {
+const getStatusConfig = (status: NoteStatus) => {
   switch (status) {
     case 'ATESTADA':
       return {
@@ -180,7 +180,7 @@ function NotasClient() {
     return undefined;
   });
 
-  const [notes, setNotes] = useState<FiscalNote[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isTransitioning, startTransition] = useTransition();
@@ -190,8 +190,8 @@ function NotasClient() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAttestModal, setShowAttestModal] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<FiscalNote | null>(null);
-  const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<FiscalNote | null>(null);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedNoteForDetails, setSelectedNoteForDetails] = useState<Note | null>(null);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
   const [canDeleteNotes, setCanDeleteNotes] = useState(false);
 
@@ -228,24 +228,24 @@ function NotasClient() {
     fetchNotes();
   }, [fetchNotes]);
 
-  const getDynamicStatus = (note: FiscalNote): InvoiceStatus => {
+  const getDynamicStatus = (note: Note): NoteStatus => {
     if (note.status === 'PENDENTE' && note.attestationDeadline && isPast(new Date(note.attestationDeadline))) {
       return 'EXPIRADA';
     }
     return note.status;
   };
 
-  const handleOpenAttestModal = (note: FiscalNote) => {
+  const handleOpenAttestModal = (note: Note) => {
     setSelectedNote(note);
     setShowAttestModal(true);
   };
   
-  const handleOpenEditModal = (note: FiscalNote) => {
+  const handleOpenEditModal = (note: Note) => {
     setSelectedNote(note);
     setShowEditModal(true);
   };
   
-  const handleOpenDetails = (note: FiscalNote) => {
+  const handleOpenDetails = (note: Note) => {
     setSelectedNoteForDetails(note);
     setShowDetailsSheet(true);
   };
@@ -353,7 +353,7 @@ function NotasClient() {
           onAddNote={() => setShowAddModal(true)}
           onNotifyAll={handleNotifyAll}
           isNotifying={isNotifying}
-          canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
+          canNotify={session?.creator?.role === Role.OWNER || session?.creator?.role === Role.MANAGER}
           onApplyFilters={handleApplyFilters}
           onClearFilters={handleClearFilters}
         />
@@ -375,7 +375,7 @@ function NotasClient() {
         onAddNote={() => setShowAddModal(true)}
         onNotifyAll={handleNotifyAll}
         isNotifying={isNotifying}
-        canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
+        canNotify={session?.creator?.role === Role.OWNER || session?.creator?.role === Role.MANAGER}
         onApplyFilters={handleApplyFilters}
         onClearFilters={handleClearFilters}
       />
@@ -398,9 +398,9 @@ function NotasClient() {
                 notes.map((note) => {
                   const dynamicStatus = getDynamicStatus(note);
                   const statusConfig = getStatusConfig(dynamicStatus);
-                  const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
-                  const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
-                  const isOwner = note.user?.id === session?.user?.id;
+                  const canManage = session?.creator?.role === 'OWNER' || session?.creator?.role === 'MANAGER';
+                  const canAttest = canManage || note.coordinatorEmail === session?.creator?.email;
+                  const isOwner = note.creator?.id === session?.creator?.id;
                   const canEdit = isOwner || canManage;
                   const isDeletable = (dynamicStatus === 'PENDENTE' || dynamicStatus === 'REJEITADA') && canDeleteNotes;
 
@@ -415,8 +415,8 @@ function NotasClient() {
                              <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
                            </div>
                            <div className="min-w-0">
-                              <p className="font-medium text-white truncate" title={`${note.projectAccountNumber} - ${note.numeroNota || 'S/N'}`}>
-                                {note.projectAccountNumber} - {note.numeroNota || 'S/N'}
+                              <p className="font-medium text-white truncate" title={`${note.projectAccountNumber} - ${note.noteNumber || 'S/N'}`}>
+                                {note.projectAccountNumber} - {note.noteNumber || 'S/N'}
                               </p>
                               <p className="text-sm text-slate-400 truncate" title={note.description}>{note.description}</p>
                            </div>
@@ -425,8 +425,8 @@ function NotasClient() {
                        <td className="p-4 align-top">
                         <div className="flex items-center space-x-2">
                           <div className="min-w-0">
-                            <div className="text-slate-300 truncate" title={note.prestadorRazaoSocial}>{note.prestadorRazaoSocial || 'Não informado'}</div>
-                            <div className="text-xs text-slate-500 truncate" title={note.prestadorCnpj}>CNPJ: {note.prestadorCnpj || 'N/A'}</div>
+                            <div className="text-slate-300 truncate" title={note.providerName}>{note.providerName || 'Não informado'}</div>
+                            <div className="text-xs text-slate-500 truncate" title={note.providerDocument}>CNPJ: {note.providerDocument || 'N/A'}</div>
                           </div>
                         </div>
                       </td>
@@ -445,7 +445,7 @@ function NotasClient() {
                       </td>
                       <td className="p-4 align-top">
                         <span className="text-slate-300 font-medium whitespace-nowrap">
-                          {note.amount ? `R$ ${note.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}
+                          {note.totalValue ? `R$ ${note.totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}
                         </span>
                       </td>
                       <td className="p-4 align-top">

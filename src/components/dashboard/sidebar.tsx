@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../../lib/utils';
 import {
   Layers,
   FileSpreadsheet,
@@ -69,7 +69,7 @@ function NavItem({ href, label, icon: Icon }: NavItemProps) {
  */
 export function Sidebar() {
   const { data: session } = useSession();
-  const userRole = session?.user?.role;
+  const userRole = session?.creator?.role;
 
   const accessibleNavItems = navItems.filter(item => {
     if (!item.requiredRole) {
@@ -102,17 +102,17 @@ export function Sidebar() {
 
       {/* Seção de Perfil do Usuário e Logout */}
       <div className="mt-auto p-4 border-t border-slate-800/50">
-        {session?.user && (
+        {session?.creator && (
           <div className="flex flex-col space-y-4">
             <div className="flex items-center space-x-3">
               <img
-                src={session.user.image ?? `https://avatar.vercel.sh/${session.user.email}.png`}
+                src={session.creator.image ?? `https://avatar.vercel.sh/${session.creator.email}.png`}
                 alt="Avatar do usuário"
                 className="w-10 h-10 rounded-full border-2 border-slate-700"
               />
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-semibold text-white truncate">{session.user.name}</p>
-                <p className="text-xs text-slate-400 truncate">{session.user.email}</p>
+                <p className="text-sm font-semibold text-white truncate">{session.creator.name}</p>
+                <p className="text-xs text-slate-400 truncate">{session.creator.email}</p>
               </div>
             </div>
             <button

@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
+import { auth } from "../../../auth";
+import prisma from "../../../lib/prisma";
 import { Role, PermissionType } from "@prisma/client";
 import { hasRolePermission } from "./permissions";
 
@@ -16,8 +16,8 @@ export async function hasPermission(
   requiredPermission: PermissionType
 ): Promise<boolean> {
   const session = await auth();
-  const userId = session?.user?.id;
-  const userRole = session?.user?.role;
+  const userId = session?.creator?.id;
+  const userRole = session?.creator?.role;
 
   if (!userId || !userRole) {
     return false; // User not authenticated

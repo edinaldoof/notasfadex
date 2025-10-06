@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processExpiredNotes } from "@/lib/services/notes.service";
+import { processExpiredNotes } from "../../../lib/services/notes.service";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

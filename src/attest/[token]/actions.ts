@@ -2,18 +2,18 @@
 'use server';
 
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import { uploadFileToDrive } from '@/lib/google-drive';
+import prisma from '../../../lib/prisma';
+import { uploadFileToDrive } from '../../../lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
-import { verifyAttestationToken } from '@/lib/token-utils';
-import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
-import type { FiscalNote } from '@/lib/types';
+import { verifyAttestationToken } from '../../../lib/token-utils';
+import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '../../../lib/email-actions';
+import type { Note } from '../../../lib/types';
 
 
 // Esta função agora está corretamente em uma Server Action.
 export async function getNoteFromToken(token: string): Promise<{
-  note?: FiscalNote;
+  note?: Note;
   error?: string;
 }> {
   try {
@@ -32,7 +32,7 @@ export async function getNoteFromToken(token: string): Promise<{
         id: true,
         requester: true,
         projectAccountNumber: true,
-        numeroNota: true,
+        noteNumber: true,
         amount: true,
         issueDate: true,
         description: true,
@@ -52,7 +52,7 @@ export async function getNoteFromToken(token: string): Promise<{
       return { error: 'Esta nota fiscal não está mais pendente de ateste.' };
     }
 
-    return { note: note as FiscalNote };
+    return { note: note as Note };
   } catch (err) {
     console.error('Error verifying token:', err);
     
@@ -118,7 +118,7 @@ export async function attestNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não está mais pendente de ateste.' };
         }
-         if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+         if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -151,7 +151,7 @@ export async function attestNotePublic(formData: FormData) {
             data: {
                 status: 'ATESTADA',
                 attestedAt: attestationDate,
-                attestedById: note.user.id, 
+                attestedById: note.creator.id,
                 attestedBy: coordinatorName,
                 observation: observation,
                 attestedDriveFileId: attestedDriveFileId,
@@ -160,7 +160,7 @@ export async function attestNotePublic(formData: FormData) {
                     create: {
                         type: 'ATTESTED',
                         details: historyDetails,
-                        userId: note.user.id,
+                        userId: note.creator.id,
                     }
                 }
             },
@@ -174,13 +174,13 @@ export async function attestNotePublic(formData: FormData) {
             noteId: note.id,
             coordinatorName: coordinatorName,
             coordinatorEmail: coordinatorEmail,
-            requesterEmail: note.user.email,
+            requesterEmail: note.creator.email,
             noteDescription: note.description,
             attestedFileId: attestedDriveFileId,
             attestedFileName: attestedFile.name,
             attestationDate: attestationDate,
             attestationObservation: observation,
-            numeroNota: note.numeroNota,
+            noteNumber: note.noteNumber,
             projectAccountNumber: note.projectAccountNumber
         });
 
@@ -232,7 +232,7 @@ export async function rejectNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não pode mais ser rejeitada.' };
         }
-        if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
+        if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -261,12 +261,12 @@ export async function rejectNotePublic(formData: FormData) {
         await sendRejectionNotificationEmail({
             noteId: note.id,
             coordinatorName: coordinatorName,
-            requesterEmail: note.user.email,
+            requesterEmail: note.creator.email,
             noteDescription: note.description,
             rejectionReason: rejectionReason,
             rejectionDate: rejectionDate,
-            requesterName: note.user.name,
-            numeroNota: note.numeroNota,
+            requesterName: note.creator.name,
+            noteNumber: note.noteNumber,
             projectAccountNumber: note.projectAccountNumber
         });
 

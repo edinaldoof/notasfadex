@@ -15,7 +15,6 @@ import './actions.js'
 // Configuração correta, criando uma instância 'ai' com os plugins
 const ai = genkit({
   plugins: [googleAI()],
-  logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
 
@@ -39,9 +38,8 @@ export const menuChat = ai.defineFlow(
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-pro'),
       prompt: input.message,
-      history: input.history,
     });
 
-    return llmResponse.text();
+    return llmResponse.text;
   }
 );

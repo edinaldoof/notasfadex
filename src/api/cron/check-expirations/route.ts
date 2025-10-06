@@ -1,6 +1,6 @@
 
-import prisma from '@/lib/prisma';
-import { InvoiceStatus } from '@prisma/client';
+import prisma from '../../../lib/prisma';
+import { NoteStatus, HistoryType } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -13,9 +13,9 @@ export async function GET(request: NextRequest) {
         const now = new Date();
 
         // 1. Find all notes that are pending and their deadline has passed
-        const expiredNotes = await prisma.fiscalNote.findMany({
+        const expiredNotes = await prisma.note.findMany({
             where: {
-                status: InvoiceStatus.PENDENTE,
+                status: NoteStatus.PENDENTE,
                 attestationDeadline: {
                     lt: now, // Less than now -> deadline has passed
                 },
@@ -29,28 +29,27 @@ export async function GET(request: NextRequest) {
         const expiredNoteIds = expiredNotes.map(note => note.id);
 
         // 2. Update their status to EXPIRED
-        const updateResult = await prisma.fiscalNote.updateMany({
+        const updateResult = await prisma.note.updateMany({
             where: {
                 id: {
                     in: expiredNoteIds,
                 },
             },
             data: {
-                status: InvoiceStatus.EXPIRADA,
+                status: NoteStatus.EXPIRADA,
             },
         });
 
         // 3. (Optional but recommended) Create a history event for each expiration
         const historyEvents = expiredNotes.map(note => ({
-            fiscalNoteId: note.id,
-            type: 'EXPIRED',
+            noteId: note.id,
+            type: HistoryType.EXPIRED,
             details: `A nota expirou em ${now.toLocaleDateString('pt-BR')} pois não foi atestada até o prazo final.`,
             userName: 'Sistema (Cron Job)',
-            userId: null,
+            authorId: null,
         }));
         
-        await prisma.noteHistoryEvent.createMany({
-            // @ts-ignore
+        await prisma.noteHistory.createMany({
             data: historyEvents
         });
         

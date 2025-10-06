@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import {
   BarChart,
   Bar,
@@ -15,8 +15,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { NoteForCalendar } from '../actions.js';
-import { InvoiceStatus } from '@/lib/types';
+import { NoteForCalendar } from '../actions.ts';
+import { NoteStatus } from '../../../../lib/types';
 import { differenceInDays, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 const formatCurrency = (value: number) =>
@@ -25,7 +25,7 @@ const formatCurrency = (value: number) =>
   );
 
 const STATUS_CONFIG: Record<
-  InvoiceStatus,
+  NoteStatus,
   { label: string; color: string }
 > = {
   ATESTADA: { label: 'Atestada', color: '#10b981' },
@@ -51,18 +51,18 @@ const AnalyticsView = ({ notes }: { notes: NoteForCalendar[] }) => {
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       },
-      {} as Record<InvoiceStatus, number>
+      {} as Record<NoteStatus, number>
     );
 
     const statusDistribution = Object.entries(statusCounts).map(
       ([status, count]) => ({
-        name: STATUS_CONFIG[status as InvoiceStatus]?.label || status,
+        name: STATUS_CONFIG[status as NoteStatus]?.label || status,
         value: count,
-        fill: STATUS_CONFIG[status as InvoiceStatus]?.color || '#8884d8',
+        fill: STATUS_CONFIG[status as NoteStatus]?.color || '#8884d8',
       })
     );
 
-    const totalValue = notes.reduce((sum, note) => sum + (note.amount || 0), 0);
+    const totalValue = notes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
     const averageValue = notes.length > 0 ? totalValue / notes.length : 0;
 
     const now = new Date();
@@ -94,7 +94,7 @@ const AnalyticsView = ({ notes }: { notes: NoteForCalendar[] }) => {
     const projectSpending = notes.reduce(
       (acc, note) => {
         const project = note.projectTitle || 'Não especificado';
-        acc[project] = (acc[project] || 0) + (note.amount || 0);
+        acc[project] = (acc[project] || 0) + (note.totalValue || 0);
         return acc;
       },
       {} as Record<string, number>

@@ -1,20 +1,20 @@
 
 'use server';
 
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
-import { InvoiceStatus } from '@prisma/client';
+import prisma from '../../../../lib/prisma';
+import { auth } from '../../../../auth';
+import { NoteStatus } from '@prisma/client';
 
 export type NoteForCalendar = {
     id: string;
     description: string | null;
     attestationDeadline: Date | null;
-    status: InvoiceStatus;
+    status: NoteStatus;
     requester: string;
     projectTitle: string | null;
-    amount?: number | null;
-    numeroNota?: string | null;
-    prestadorRazaoSocial?: string | null;
+    totalValue?: number | null;
+    noteNumber?: string | null;
+    providerName?: string | null;
     createdAt?: Date;
     attestedAt?: Date | null; // Adicionado para diferenciar as datas no calendário
 };
@@ -38,7 +38,7 @@ export type NotesGrouped = {
 
 export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -47,7 +47,7 @@ export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
             where: {
                 // CORREÇÃO: Busca notas PENDENTES ou ATESTADAS
                 status: {
-                    in: [InvoiceStatus.PENDENTE, InvoiceStatus.ATESTADA]
+                    in: [NoteStatus.PENDENTE, NoteStatus.ATESTADA]
                 },
                 OR: [
                     { attestationDeadline: { not: null } },
@@ -62,8 +62,8 @@ export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
                 requester: true,
                 projectTitle: true,
                 amount: true,
-                numeroNota: true,
-                prestadorRazaoSocial: true,
+                noteNumber: true,
+                providerName: true,
                 createdAt: true,
                 attestedAt: true, // Adicionado
             },
@@ -82,7 +82,7 @@ export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
 
 export async function getCalendarStats(): Promise<CalendarStats> {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -95,7 +95,7 @@ export async function getCalendarStats(): Promise<CalendarStats> {
 
         const notes = await prisma.fiscalNote.findMany({
             where: {
-                status: InvoiceStatus.PENDENTE,
+                status: NoteStatus.PENDENTE,
                 attestationDeadline: {
                     not: null,
                 }
@@ -141,7 +141,7 @@ export async function getCalendarStats(): Promise<CalendarStats> {
 
 export async function getGroupedNotes(): Promise<NotesGrouped> {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -188,7 +188,7 @@ export async function getGroupedNotes(): Promise<NotesGrouped> {
 
 export async function markNoteAsAttested(noteId: string): Promise<void> {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -196,9 +196,9 @@ export async function markNoteAsAttested(noteId: string): Promise<void> {
         await prisma.fiscalNote.update({
             where: { id: noteId },
             data: { 
-                status: InvoiceStatus.ATESTADA,
+                status: NoteStatus.ATESTADA,
                 attestedAt: new Date(),
-                attestedById: session.user.id
+                attestedById: session.creator.id
             }
         });
     } catch (error) {
@@ -209,7 +209,7 @@ export async function markNoteAsAttested(noteId: string): Promise<void> {
 
 export async function postponeDeadline(noteId: string, newDeadline: Date): Promise<void> {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Usuário não autenticado.');
     }
 

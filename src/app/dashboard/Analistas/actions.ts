@@ -1,8 +1,8 @@
 
 'use server';
 
-import { auth } from '@/auth';
-import prisma from '@/lib/prisma';
+import { auth } from '../../../../auth';
+import prisma from '../../../../lib/prisma';
 import { Role } from '@prisma/client';
 import type { User } from '@prisma/client';
 import * as XLSX from 'xlsx';
@@ -21,14 +21,15 @@ export interface CollaboratorStats {
     roleDistribution: {
         OWNER: number;
         MANAGER: number;
-        USER: number;
+        MEMBER: number;
+        VIEWER: number;
     };
 }
 
 export async function getCollaborators(): Promise<UserWithNoteCount[]> {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         console.error('getCollaborators: Acesso não autorizado. Usuário não logado.');
         return [];
     }
@@ -37,18 +38,18 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const usersWithNotes = await prisma.user.findMany({
+        const usersWithNotes = await prisma.creator.findMany({
             orderBy: {
                 name: 'asc'
             },
             include: {
                 _count: {
                     select: {
-                        createdNotes: { where: { deleted: false } },
+                        createdNotes: { where: { isDeleted: false } },
                     },
                 },
                 createdNotes: {
-                    where: { deleted: false },
+                    where: { isDeleted: false },
                     select: {
                         createdAt: true,
                     },
@@ -66,7 +67,7 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
             );
             
             return {
-                ...user,
+                ...creator,
                 noteCount: user._count.createdNotes,
                 recentNotesCount: recentNotes.length,
                 lastNoteDate: user.createdNotes.length > 0 ? user.createdNotes[0].createdAt : null,
@@ -81,16 +82,16 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
 export async function getCollaboratorStats(): Promise<CollaboratorStats> {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Acesso não autorizado');
     }
 
     try {
-        const users = await prisma.user.findMany({
+        const users = await prisma.creator.findMany({
             include: {
                 _count: {
                     select: {
-                        createdNotes: { where: { deleted: false } },
+                        createdNotes: { where: { isDeleted: false } },
                     },
                 },
             },
@@ -104,7 +105,7 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
         const roleDistribution = users.reduce((acc, user) => {
             acc[user.role as keyof typeof acc] = (acc[user.role as keyof typeof acc] || 0) + 1;
             return acc;
-        }, { OWNER: 0, MANAGER: 0, USER: 0 });
+        }, { OWNER: 0, MANAGER: 0, MEMBER: 0, VIEWER: 0 });
 
         return {
             totalUsers,
@@ -126,15 +127,15 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
 export async function getNotesByUserId(userId: string) {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         throw new Error('Acesso não autorizado. Você precisa estar logado.');
     }
     
     try {
-        const notes = await prisma.fiscalNote.findMany({
+        const notes = await prisma.note.findMany({
             where: {
                 userId: userId,
-                deleted: false,
+                isDeleted: false,
             },
             orderBy: {
                 createdAt: 'desc',
@@ -145,7 +146,7 @@ export async function getNotesByUserId(userId: string) {
                         date: 'desc'
                     }
                 },
-                user: {
+                creator: {
                     select: {
                         name: true,
                         email: true,
@@ -167,16 +168,16 @@ export async function getNotesByUserId(userId: string) {
  */
 export async function exportCollaboratorsData() {
     const session = await auth();
-    const userRole = session?.user?.role;
+    const userRole = session?.creator?.role;
 
     if (userRole !== Role.OWNER && userRole !== Role.MANAGER) {
         throw new Error('Acesso não autorizado para exportar dados.');
     }
 
     try {
-        const users = await prisma.user.findMany({
+        const users = await prisma.creator.findMany({
             include: {
-                createdNotes: { where: { deleted: false } },
+                createdNotes: { where: { isDeleted: false } },
             }
         });
 
@@ -200,18 +201,17 @@ export async function exportCollaboratorsData() {
                         'ID da Nota': note.id,
                         'Descrição': note.description,
                         'Status': note.status,
-                        'Valor': note.amount,
-                        'Tipo de Nota': note.invoiceType,
+                        'Valor': note.totalValue,
+                        'Tipo de Nota': note.type,
                         'Conta do Projeto': note.projectAccountNumber,
-                        'Nº da Nota Fiscal': note.numeroNota,
-                        'Data de Emissão': note.issueDate,
-                        'CNPJ Prestador': note.prestadorCnpj,
-                        'Razão Social Prestador': note.prestadorRazaoSocial,
-                        'CNPJ Tomador': note.tomadorCnpj,
-                        'Razão Social Tomador': note.tomadorRazaoSocial,
+                        'Nº da Nota Fiscal': note.noteNumber,
+                        'Data de Emissão': note.issuedAt,
+                        'CNPJ Prestador': note.providerDocument,
+                        'Razão Social Prestador': note.providerName,
+                        'CNPJ Tomador': note.clientDocument,
+                        'Razão Social Tomador': note.clientName,
                         'Nome Coordenador': note.coordinatorName,
                         'Email Coordenador': note.coordinatorEmail,
-                        'Atestado Por': note.attestedBy,
                         'Data Atesto': note.attestedAt,
                         'Link Drive': note.driveFileId ? `${process.env.NEXT_PUBLIC_APP_URL}/api/download/${note.driveFileId}` : 'N/A',
                     });
@@ -241,7 +241,7 @@ export async function exportCollaboratorsData() {
  */
 export async function getUserActivitySummary(userId: string) {
     const session = await auth();
-    const userRole = session?.user?.role;
+    const userRole = session?.creator?.role;
 
     if (userRole !== Role.OWNER && userRole !== Role.MANAGER) {
         throw new Error('Acesso não autorizado.');
@@ -254,7 +254,7 @@ export async function getUserActivitySummary(userId: string) {
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-        const whereClause = { userId: userId, deleted: false };
+        const whereClause = { userId: userId, isDeleted: false };
 
         const [
             totalNotes,
@@ -263,25 +263,25 @@ export async function getUserActivitySummary(userId: string) {
             firstNote,
             lastNote
         ] = await Promise.all([
-            prisma.fiscalNote.count({ where: whereClause }),
-            prisma.fiscalNote.count({
+            prisma.note.count({ where: whereClause }),
+            prisma.note.count({
                 where: { 
                     ...whereClause,
                     createdAt: { gte: thirtyDaysAgo }
                 }
             }),
-            prisma.fiscalNote.count({
+            prisma.note.count({
                 where: { 
                     ...whereClause,
                     createdAt: { gte: ninetyDaysAgo }
                 }
             }),
-            prisma.fiscalNote.findFirst({
+            prisma.note.findFirst({
                 where: whereClause,
                 orderBy: { createdAt: 'asc' },
                 select: { createdAt: true }
             }),
-            prisma.fiscalNote.findFirst({
+            prisma.note.findFirst({
                 where: whereClause,
                 orderBy: { createdAt: 'desc' },
                 select: { createdAt: true }

@@ -1,10 +1,9 @@
-
 import { 
-  FiscalNote as PrismaFiscalNote, 
-  NoteHistoryEvent as PrismaNoteHistoryEvent, 
+  Note as PrismaNote,
+  NoteHistory as PrismaNoteHistory,
   HistoryType,
-  InvoiceStatus as PrismaInvoiceStatus,
-  InvoiceType,
+  NoteStatus as PrismaNoteStatus,
+  NoteType,
   Role,
   User as PrismaUser,
   PermissionType as PrismaPermissionType,
@@ -15,8 +14,8 @@ import {
   EmailTemplate as PrismaEmailTemplate,
 } from '@prisma/client';
 
-export const InvoiceStatus = { ...PrismaInvoiceStatus };
-export type InvoiceStatus = PrismaInvoiceStatus;
+export const NoteStatus = { ...PrismaNoteStatus };
+export type NoteStatus = PrismaNoteStatus;
 
 export const PermissionType = PrismaPermissionType;
 export type PermissionType = PrismaPermissionType;
@@ -25,21 +24,21 @@ export const TutorialType = PrismaTutorialType;
 export type TutorialType = PrismaTutorialType;
 
 
-export { HistoryType, InvoiceType, Role };
+export { HistoryType, NoteType, Role };
 
 export type Settings = PrismaSettings;
 export type SqlServerSettings = PrismaSqlServerSettings;
 export type EmailTemplate = PrismaEmailTemplate;
 
 
-export interface NoteHistoryEvent extends PrismaNoteHistoryEvent {
+export interface NoteHistory extends PrismaNoteHistory {
   author?: Partial<PrismaUser> | null;
 }
 
-export interface FiscalNote extends Omit<PrismaFiscalNote, 'amount'> {
-  amount: number | null;
-  history?: NoteHistoryEvent[];
-  user?: Partial<PrismaUser>; // Relação 'user' da nota
+export interface Note extends PrismaNote {
+  history?: NoteHistory[];
+  creator?: Partial<PrismaUser>; // Relação 'creator' da nota
+  attestor?: Partial<PrismaUser> | null; // Relação 'attestor' da nota
 }
 
 export interface SendEmailOptions {
@@ -65,7 +64,7 @@ export interface AttestationEmailPayload {
     driveFileId: string;
     fileName: string;
     fileType: string;
-    numeroNota: string | null;
+    noteNumber: string | null;
     projectTitle: string | null;
     projectAccountNumber: string;
     secureLink?: string;
@@ -73,7 +72,7 @@ export interface AttestationEmailPayload {
 
 export interface CoordinatorConfirmationEmailPayload {
     noteId: string;
-    coordinatorName: string;
+    coordinatorName:string;
     coordinatorEmail: string;
     requesterEmail: string;
     noteDescription: string;
@@ -81,7 +80,7 @@ export interface CoordinatorConfirmationEmailPayload {
     attestedFileName: string;
     attestationDate: Date;
     attestationObservation?: string | null;
-    numeroNota: string | null;
+    noteNumber: string | null;
     projectTitle: string | null;
     projectAccountNumber: string;
 }
@@ -94,7 +93,7 @@ export interface RejectionEmailPayload {
     noteDescription: string;
     rejectionReason: string;
     rejectionDate: Date;
-    numeroNota: string | null;
+    noteNumber: string | null;
     projectTitle: string | null;
     projectAccountNumber: string;
 }
@@ -119,4 +118,3 @@ export interface ProjectDetails {
   projectTitle: string;
   coordinators: Coordinator[];
 }
-

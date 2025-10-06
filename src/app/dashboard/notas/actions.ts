@@ -3,20 +3,20 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
-import { InvoiceStatus, InvoiceType, Role, PermissionType } from '@prisma/client';
-import { uploadFileToDrive } from '@/lib/google-drive';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
+import { NoteStatus, InvoiceType, Role, PermissionType } from '@prisma/client';
+import { uploadFileToDrive } from '../../../lib/google-drive';
 import { Readable } from 'stream';
 import { addDays, differenceInDays } from 'date-fns';
 import { 
     sendAttestationRequestEmail, 
     sendAttestationReminderEmail 
-} from '@/lib/email-actions';
-import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '@/ai/flows/extract-note-data-flow';
-import { hasPermission } from '@/lib/auth-utils';
+} from '../../../lib/email-actions';
+import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '../../../../ai/flows/extract-note-data-flow';
+import { hasPermission } from '../../../lib/auth-utils';
 import { Prisma } from '@prisma/client';
-import { parseBRLMoneyToFloat } from '@/lib/utils';
+import { parseBRLMoneyToFloat } from '../../../lib/utils';
 
 
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
@@ -30,25 +30,25 @@ const noteFormSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça uma lista de e-mails válidos, separados por vírgula.' }).optional(),
-  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
-  prestadorCnpj: z.string().optional(),
-  tomadorRazaoSocial: z.string().optional(),
-  tomadorCnpj: z.string().optional(),
-  numeroNota: z.string().optional(),
-  dataEmissao: z.string().optional(),
-  valorTotal: z.string().optional(),
-  prestadorRazaoSocial: z.string().optional(),
+  description: z.string().min(1, 'A descrição é obrigatória.'),
+  providerDocument: z.string().optional(),
+  clientName: z.string().optional(),
+  clientDocument: z.string().optional(),
+  noteNumber: z.string().optional(),
+  issuedAt: z.string().optional(),
+  totalValue: z.string().optional(),
+  providerName: z.string().optional(),
 });
 
 
 export async function addNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.user?.id || !session.user.email || !session.user.name) {
+    if (!session?.creator?.id || !session.creator.email || !session.creator.name) {
       return { success: false, message: 'Usuário não autenticado ou informações do usuário ausentes. Acesso negado.' };
     }
     
-    const { id: userId, name: userName, email: userEmail } = session.user;
+    const { id: userId, name: userName, email: userEmail } = session.creator;
 
     const file = formData.get('file') as File;
     const reportFile = formData.get('reportFile') as File | null;
@@ -76,14 +76,14 @@ export async function addNote(formData: FormData) {
       };
     }
 
-    const { descricaoServicos, valorTotal, ...data } = validatedFields.data;
+    const { description, totalValue, ...data } = validatedFields.data;
 
-    if (!forceCreate && data.numeroNota && data.projectAccountNumber) {
+    if (!forceCreate && data.noteNumber && data.projectAccountNumber) {
         const existing = await prisma.fiscalNote.findFirst({
             where: {
-                numeroNota: data.numeroNota,
+                noteNumber: data.noteNumber,
                 projectAccountNumber: data.projectAccountNumber,
-                deleted: false,
+                isDeleted: false,
             },
         });
         if (existing) {
@@ -127,11 +127,11 @@ export async function addNote(formData: FormData) {
     const newNote = await prisma.fiscalNote.create({
       data: {
         ...data,
-        description: descricaoServicos,
-        amount: parseBRLMoneyToFloat(valorTotal),
+        description: description,
+        amount: parseBRLMoneyToFloat(totalValue),
         requester: userName,
         issueDate: submissionDate,
-        status: InvoiceStatus.PENDENTE,
+        status: NoteStatus.PENDENTE,
         fileType: file.type,
         fileName: file.name,
         originalFileUrl: `/api/download/${driveFile.id}`,
@@ -162,7 +162,7 @@ export async function addNote(formData: FormData) {
       driveFileId: newNote.driveFileId,
       fileName: newNote.fileName,
       fileType: newNote.fileType,
-      numeroNota: newNote.numeroNota,
+      noteNumber: newNote.noteNumber,
       projectTitle: newNote.projectTitle,
       projectAccountNumber: newNote.projectAccountNumber,
     });
@@ -188,10 +188,10 @@ export async function addNote(formData: FormData) {
 export async function updateNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
       return { success: false, message: 'Usuário não autenticado.' };
     }
-    const { id: editorId, name: editorName, role } = session.user;
+    const { id: editorId, name: editorName, role } = session.creator;
     
     const noteId = formData.get('noteId') as string;
     if (!noteId) {
@@ -216,12 +216,12 @@ export async function updateNote(formData: FormData) {
       return { success: false, message: 'Erro de validação.', errors: validatedFields.error.flatten().fieldErrors };
     }
 
-    const { descricaoServicos, valorTotal, ...data } = validatedFields.data;
+    const { description, totalValue, ...data } = validatedFields.data;
     
     const updateData: Prisma.FiscalNoteUpdateInput = {
         ...data,
-        description: descricaoServicos,
-        amount: parseBRLMoneyToFloat(valorTotal),
+        description: description,
+        amount: parseBRLMoneyToFloat(totalValue),
     };
 
     const newFile = formData.get('file') as File | null;
@@ -285,11 +285,11 @@ const attestNoteSchema = z.object({
 export async function attestNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.user?.id || !session.user.name) {
+    if (!session?.creator?.id || !session.creator.name) {
         return { success: false, message: 'Acesso negado.' };
     }
     
-    const { id: attestedById, name: userName } = session.user;
+    const { id: attestedById, name: userName } = session.creator;
 
     const rawData = Object.fromEntries(formData.entries());
     const validated = attestNoteSchema.safeParse(rawData);
@@ -354,7 +354,7 @@ export async function attestNote(formData: FormData) {
           where: { id: noteId },
           data: dataToUpdate,
       }),
-      prisma.noteHistoryEvent.create({
+      prisma.noteHistory.create({
         data: {
           type: 'ATTESTED',
           details: historyDetails,
@@ -379,11 +379,11 @@ export async function attestNote(formData: FormData) {
 export async function revertAttestation(noteId: string) {
   try {
     const session = await auth();
-    if (!session?.user?.id || !session.user.name) {
+    if (!session?.creator?.id || !session.creator.name) {
         return { success: false, message: 'Acesso negado.' };
     }
 
-    const { id: userId } = session.user;
+    const { id: userId } = session.creator;
     
     await prisma.$transaction([
       prisma.fiscalNote.update({
@@ -398,7 +398,7 @@ export async function revertAttestation(noteId: string) {
               attestedFileUrl: null,
           }
       }),
-      prisma.noteHistoryEvent.create({
+      prisma.noteHistory.create({
         data: {
           type: 'REVERTED',
           details: 'O atesto da nota foi desfeito.',
@@ -419,25 +419,25 @@ export async function revertAttestation(noteId: string) {
   }
 }
 
-export async function checkExistingNote(input: { numeroNota: string; projectAccountNumber: string }): Promise<boolean> {
+export async function checkExistingNote(input: { noteNumber: string; projectAccountNumber: string }): Promise<boolean> {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
         console.error("Unauthorized attempt to check for existing notes.");
         return false;
     }
     
     const checkExistingNoteSchema = z.object({
-      numeroNota: z.string(),
+      noteNumber: z.string(),
       projectAccountNumber: z.string(),
     });
 
     const validatedInput = checkExistingNoteSchema.parse(input);
     const existing = await prisma.fiscalNote.findFirst({
         where: {
-            numeroNota: validatedInput.numeroNota,
+            noteNumber: validatedInput.noteNumber,
             projectAccountNumber: validatedInput.projectAccountNumber,
-            deleted: false
+            isDeleted: false
         },
     });
     return !!existing;
@@ -450,7 +450,7 @@ export async function checkExistingNote(input: { numeroNota: string; projectAcco
 export async function extractNoteData(input: ExtractNoteDataInput): Promise<ExtractNoteDataOutput> {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.creator?.id) {
       throw new Error('Acesso não autorizado.');
     }
     return performExtraction(input);
@@ -463,7 +463,7 @@ export async function extractNoteData(input: ExtractNoteDataInput): Promise<Extr
 export async function deleteNote(noteId: string, permanent: boolean = false): Promise<{ success: boolean; message: string; }> {
     try {
         const session = await auth();
-        if (!session?.user?.id) {
+        if (!session?.creator?.id) {
           return { success: false, message: "Acesso negado." };
         }
 
@@ -494,7 +494,7 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
              if (!canSoftDelete) {
                  return { success: false, message: "Acesso negado. Você não tem permissão para mover notas para a lixeira." };
              }
-             if (note.status !== InvoiceStatus.PENDENTE && note.status !== InvoiceStatus.REJEITADA) {
+             if (note.status !== NoteStatus.PENDENTE && note.status !== NoteStatus.REJEITADA) {
                 return { success: false, message: `Não é possível mover uma nota com status "${note.status}" para a lixeira.` };
             }
             await prisma.$transaction([
@@ -505,11 +505,11 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
                         deletedAt: new Date(),
                     }
                 }),
-                prisma.noteHistoryEvent.create({
+                prisma.noteHistory.create({
                   data: {
                     type: 'DELETED',
                     details: 'Nota movida para a lixeira.',
-                    userId: session.user.id,
+                    userId: session.creator.id,
                     fiscalNoteId: noteId,
                   }
                 })
@@ -528,7 +528,7 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
 export async function restoreNote(noteId: string): Promise<{ success: boolean, message: string }> {
     try {
       const session = await auth();
-      if (!session?.user?.id) {
+      if (!session?.creator?.id) {
           return { success: false, message: "Acesso negado." };
       }
 
@@ -541,15 +541,15 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
           prisma.fiscalNote.update({
               where: { id: noteId },
               data: {
-                  deleted: false,
+                  isDeleted: false,
                   deletedAt: null,
               }
           }),
-          prisma.noteHistoryEvent.create({
+          prisma.noteHistory.create({
             data: {
               type: 'RESTORED',
               details: 'Nota restaurada da lixeira.',
-              userId: session.user.id,
+              userId: session.creator.id,
               fiscalNoteId: noteId,
             }
           })
@@ -566,15 +566,15 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
 
 export async function notifyAllPendingCoordinators(): Promise<{ success: boolean; message: string; notifiedCount?: number; }> {
     const session = await auth();
-    if (session?.user?.role !== Role.OWNER && session?.user?.role !== Role.MANAGER) {
+    if (session?.creator?.role !== Role.OWNER && session?.creator?.role !== Role.MANAGER) {
         return { success: false, message: "Acesso negado. Apenas administradores podem executar esta ação." };
     }
 
     try {
         const pendingNotes = await prisma.fiscalNote.findMany({
             where: {
-                status: InvoiceStatus.PENDENTE,
-                deleted: false,
+                status: NoteStatus.PENDENTE,
+                isDeleted: false,
                 attestationDeadline: {
                     gte: new Date(),
                 },
@@ -593,7 +593,7 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
         }
 
         const emailPromises = pendingNotes.map(note => {
-            if (!note.user?.email) {
+            if (!note.creator?.email) {
                 console.warn(`Nota ${note.id} não tem um solicitante com e-mail para ser copiado.`);
                 return Promise.resolve();
             }
@@ -602,11 +602,11 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
                 noteId: note.id,
                 coordinatorEmail: note.coordinatorEmail,
                 coordinatorName: note.coordinatorName,
-                requesterEmail: note.user.email,
+                requesterEmail: note.creator.email,
                 ccEmails: note.ccEmails,
                 noteDescription: note.description,
                 projectTitle: note.projectTitle,
-                numeroNota: note.numeroNota,
+                noteNumber: note.noteNumber,
                 daysRemaining: Math.max(0, daysRemaining),
             });
         });

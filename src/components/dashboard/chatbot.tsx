@@ -3,9 +3,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bot, Loader2, Send, X, User, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { askChatbot } from '@/ai/actions';
+import { Button } from '../../../../components/ui/button';
+import { cn } from '../../../lib/utils';
+import { askChatbot } from '../../../../ai/actions';
 import Textarea from 'react-textarea-autosize';
 
 type Message = {

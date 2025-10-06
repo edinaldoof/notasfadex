@@ -1,13 +1,13 @@
 import type { NextAuthConfig } from "next-auth";
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import prisma from "@/lib/prisma";
+import prisma from "./lib/prisma";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import {
   refreshAccessToken,
   handleUserRole,
   persistOAuthTokens,
-} from "@/lib/auth.helpers";
+} from "./lib/auth.helpers";
 import { Role } from "@prisma/client";
 
 export const authConfig = {
@@ -65,9 +65,9 @@ export const authConfig = {
     },
 
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
+      if (session.creator) {
+        session.creator.id = token.id as string;
+        session.creator.role = token.role as Role;
       }
       if (token.error) {
         // @ts-ignore

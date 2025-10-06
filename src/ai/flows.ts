@@ -15,7 +15,6 @@ export const ai = genkit({
   plugins: [
     googleAI(),
   ],
-  logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
 
@@ -35,34 +34,32 @@ const ChatbotOutputSchema = z.object({
 export type ChatbotOutput = z.infer<typeof ChatbotOutputSchema>;
 
 
-// 3. DEFINIÇÃO DIRETA DO FLOW E DA FUNÇÃO DE EXPORTAÇÃO
-export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
-  // O fluxo é definido e executado aqui dentro, garantindo que 'ai' está configurado.
-  const chatbotFlow = ai.defineFlow(
-    {
-      name: 'chatbotFlow',
-      inputSchema: ChatbotInputSchema,
-      outputSchema: ChatbotOutputSchema,
-    },
-    async (flowInput) => {
-      
-      const llmResponse = await ai.generate({
-          model: 'gemini-1.5-flash',
-          prompt: `Baseado no histórico, responda à pergunta do usuário. Histórico: ${JSON.stringify(flowInput.history)}. Pergunta: ${flowInput.query}`,
-          output: {
-              schema: ChatbotOutputSchema,
-          },
-      });
+// 3. DEFINIÇÃO DO FLOW
+const chatbotFlow = ai.defineFlow(
+  {
+    name: 'chatbotFlow',
+    inputSchema: ChatbotInputSchema,
+    outputSchema: ChatbotOutputSchema,
+  },
+  async (flowInput) => {
+    const llmResponse = await ai.generate({
+        model: 'gemini-1.5-flash',
+        prompt: `Baseado no histórico, responda à pergunta do usuário. Histórico: ${JSON.stringify(flowInput.history)}. Pergunta: ${flowInput.query}`,
+        output: {
+            schema: ChatbotOutputSchema,
+        },
+    });
 
-      const output = llmResponse.output();
-      if (output) {
-        return output;
-      }
-      
-      return { response: "Desculpe, não consegui processar a sua pergunta." };
+    const output = llmResponse.output;
+    if (output) {
+      return output;
     }
-  );
 
-  // Executa o fluxo com a entrada recebida.
+    return { response: "Desculpe, não consegui processar a sua pergunta." };
+  }
+);
+
+// 4. FUNÇÃO DE EXPORTAÇÃO
+export async function askChatbot(input: ChatbotInput): Promise<ChatbotOutput> {
   return chatbotFlow(input);
 }

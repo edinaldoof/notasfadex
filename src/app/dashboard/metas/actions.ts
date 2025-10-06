@@ -1,10 +1,10 @@
 
 'use server';
 
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
 import { startOfMonth, endOfMonth, subMonths, differenceInDays } from 'date-fns';
-import { InvoiceStatus } from '@prisma/client';
+import { NoteStatus } from '@prisma/client';
 
 export interface GoalsData {
   currentMonthSpending: number;
@@ -17,7 +17,7 @@ export interface GoalsData {
 
 export async function getGoalsData(): Promise<GoalsData> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.creator?.id) {
     throw new Error('Usuário não autenticado.');
   }
 
@@ -32,7 +32,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     // 1. Gastos do mês atual
     const currentMonthNotes = await prisma.fiscalNote.findMany({
       where: {
-        status: InvoiceStatus.ATESTADA,
+        status: NoteStatus.ATESTADA,
         attestedAt: {
           gte: startOfCurrentMonth,
           lte: endOfCurrentMonth,
@@ -40,12 +40,12 @@ export async function getGoalsData(): Promise<GoalsData> {
       },
       select: { amount: true },
     });
-    const currentMonthSpending = currentMonthNotes.reduce((sum, note) => sum + (note.amount || 0), 0);
+    const currentMonthSpending = currentMonthNotes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     // 2. Gastos do mês anterior
     const lastMonthNotes = await prisma.fiscalNote.findMany({
       where: {
-        status: InvoiceStatus.ATESTADA,
+        status: NoteStatus.ATESTADA,
         attestedAt: {
           gte: startOfLastMonth,
           lte: endOfLastMonth,
@@ -53,12 +53,12 @@ export async function getGoalsData(): Promise<GoalsData> {
       },
       select: { amount: true },
     });
-    const lastMonthSpending = lastMonthNotes.reduce((sum, note) => sum + (note.amount || 0), 0);
+    const lastMonthSpending = lastMonthNotes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     // 3. Tempo médio de ateste (baseado nas notas atestadas no mês atual)
     const attestedNotesForTiming = await prisma.fiscalNote.findMany({
         where: {
-            status: InvoiceStatus.ATESTADA,
+            status: NoteStatus.ATESTADA,
             attestedAt: {
                 gte: startOfCurrentMonth,
                 lte: endOfCurrentMonth,
@@ -100,7 +100,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     // 6. Notas que expiraram este mês
     const expiredNotesThisMonth = await prisma.fiscalNote.count({
       where: {
-        status: InvoiceStatus.EXPIRADA,
+        status: NoteStatus.EXPIRADA,
         updatedAt: { 
           gte: startOfCurrentMonth,
           lte: endOfCurrentMonth,

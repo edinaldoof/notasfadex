@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFileForDownload } from "@/lib/services/download.service";
-import { nodeToWebStream } from "@/lib/google-drive-utils";
+import { getFileForDownload } from "../../../../lib/services/download.service";
+import { nodeToWebStream } from "../../../../lib/google-drive-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -2,10 +2,10 @@
 'use server';
 
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
 import { Role, TutorialType } from '@prisma/client';
-import { uploadFileToDrive } from '@/lib/google-drive';
+import { uploadFileToDrive } from '../../../lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
 
@@ -18,7 +18,7 @@ const addTutorialSchema = z.object({
 
 export async function addTutorial(formData: FormData) {
   const session = await auth();
-  if (session?.user?.role !== Role.OWNER) {
+  if (session?.creator?.role !== Role.OWNER) {
     throw new Error('Acesso não autorizado.');
   }
 
@@ -61,7 +61,7 @@ export async function addTutorial(formData: FormData) {
       type,
       url: fileUrl,
       driveFileId,
-      authorId: session.user.id,
+      authorId: session.creator.id,
     },
   });
 
@@ -70,7 +70,7 @@ export async function addTutorial(formData: FormData) {
 
 export async function getTutorials() {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.creator?.id) {
     throw new Error('Usuário não autenticado.');
   }
   return prisma.tutorial.findMany({
@@ -82,7 +82,7 @@ export async function getTutorials() {
 
 export async function deleteTutorial(id: string) {
     const session = await auth();
-    if (session?.user?.role !== Role.OWNER) {
+    if (session?.creator?.role !== Role.OWNER) {
         throw new Error('Acesso não autorizado.');
     }
 

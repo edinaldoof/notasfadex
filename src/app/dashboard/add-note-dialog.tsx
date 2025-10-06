@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from '../../../../components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "../../../../components/ui/alert-dialog"
 import {
   Command,
   CommandEmpty,
@@ -25,34 +25,34 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "../../../../components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "../../../../components/ui/popover";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../../../../components/ui/form";
+import { ScrollArea } from "../../../../components/ui/scroll-area";
 
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Input } from '../../../../components/ui/input';
+import { Label } from '../../../../components/ui/label';
 import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature, Paperclip, PlusCircle, Star } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '../../../../hooks/use-toast';
 import { extractNoteData } from '@/app/dashboard/notas/actions';
 import { addNote } from '@/app/dashboard/notas/actions';
 import { checkExistingNote } from '@/app/dashboard/notas/actions';
 import { getProjectAccounts, getProjectDetails } from '@/app/dashboard/actions';
-import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils'; 
-import { Button } from '@/components/ui/button';
+import { cn, maskCnpj, parseBRLMoneyToFloat } from '../../../lib/utils';
+import { Button } from '../../../../components/ui/button';
 import { useSession } from 'next-auth/react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import type { Coordinator } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
+import { Switch } from '../../../../components/ui/switch';
+import { Separator } from '../../../../components/ui/separator';
+import type { Coordinator } from '../../../lib/types';
 
 const invoiceTypes = [
   { value: "SERVICO", label: "Serviço" },
@@ -83,14 +83,14 @@ const addNoteFormSchema = z.object({
   
   reportFile: z.any().optional(),
 
-  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
-  prestadorRazaoSocial: z.string().optional(),
-  prestadorCnpj: z.string().optional(),
-  tomadorRazaoSocial: z.string().optional(),
-  tomadorCnpj: z.string().optional(),
-  numeroNota: z.string().optional(),
-  dataEmissao: z.string().optional(),
-  valorTotal: z.string().optional(),
+  description: z.string().min(1, 'A descrição é obrigatória.'),
+  providerName: z.string().optional(),
+  providerDocument: z.string().optional(),
+  clientName: z.string().optional(),
+  clientDocument: z.string().optional(),
+  noteNumber: z.string().optional(),
+  issuedAt: z.string().optional(),
+  totalValue: z.string().optional(),
 });
 
 type AddNoteFormValues = z.infer<typeof addNoteFormSchema>;
@@ -137,14 +137,14 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       ccEmails: "",
       file: undefined,
       reportFile: undefined,
-      descricaoServicos: "",
-      prestadorRazaoSocial: "",
-      prestadorCnpj: "",
-      tomadorRazaoSocial: "",
-      tomadorCnpj: "",
-      numeroNota: "",
-      dataEmissao: "",
-      valorTotal: "",
+      description: "",
+      providerName: "",
+      providerDocument: "",
+      clientName: "",
+      clientDocument: "",
+      noteNumber: "",
+      issuedAt: "",
+      totalValue: "",
     }
   });
 
@@ -171,7 +171,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
 
   const handleValorTotalBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const formatted = formatCurrencyForDisplay(e.target.value);
-    form.setValue('valorTotal', formatted, { shouldValidate: true });
+    form.setValue('totalValue', formatted, { shouldValidate: true });
   }
 
   useEffect(() => {
@@ -204,7 +204,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       } else if (key === 'reportFile' && value?.[0]) {
         formData.append('reportFile', value[0]);
       } else if (value !== undefined && value !== null) {
-        if ((key === 'prestadorCnpj' || key === 'tomadorCnpj') && typeof value === 'string') {
+        if ((key === 'providerDocument' || key === 'clientDocument') && typeof value === 'string') {
           formData.append(key, value.replace(/\D/g, ''));
         } else {
           formData.append(key, String(value));
@@ -212,7 +212,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
       }
     });
     
-    formData.set('valorTotal', String(parseBRLMoneyToFloat(data.valorTotal)));
+    formData.set('totalValue', String(parseBRLMoneyToFloat(data.totalValue)));
 
     if (forceCreate) {
         formData.append('forceCreate', 'true');
@@ -251,9 +251,9 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
 
   const onSubmit = async (data: AddNoteFormValues) => {
     setIsSubmitting(true);
-    if (data.numeroNota && data.projectAccountNumber) {
+    if (data.noteNumber && data.projectAccountNumber) {
         const isDuplicate = await checkExistingNote({
-            numeroNota: data.numeroNota,
+            noteNumber: data.noteNumber,
             projectAccountNumber: data.projectAccountNumber,
         });
 
@@ -363,15 +363,15 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                                             const extractedData = await extractNoteData({ documentUri: dataUri });
                                             
                                             if (extractedData.type) form.setValue('invoiceType', extractedData.type);
-                                            if (extractedData.descricaoServicos) form.setValue('descricaoServicos', extractedData.descricaoServicos);
-                                            if (extractedData.prestadorRazaoSocial) form.setValue('prestadorRazaoSocial', extractedData.prestadorRazaoSocial);
-                                            if (extractedData.prestadorCnpj) form.setValue('prestadorCnpj', maskCnpj(extractedData.prestadorCnpj));
-                                            if (extractedData.tomadorRazaoSocial) form.setValue('tomadorRazaoSocial', extractedData.tomadorRazaoSocial);
-                                            if (extractedData.tomadorCnpj) form.setValue('tomadorCnpj', maskCnpj(extractedData.tomadorCnpj));
-                                            if (extractedData.numeroNota) form.setValue('numeroNota', extractedData.numeroNota);
-                                            if (extractedData.dataEmissao) form.setValue('dataEmissao', extractedData.dataEmissao);
-                                            if (extractedData.valorTotal) {
-                                              form.setValue('valorTotal', formatCurrencyForDisplay(extractedData.valorTotal));
+                                            if (extractedData.description) form.setValue('description', extractedData.description);
+                                            if (extractedData.providerName) form.setValue('providerName', extractedData.providerName);
+                                            if (extractedData.providerDocument) form.setValue('providerDocument', maskCnpj(extractedData.providerDocument));
+                                            if (extractedData.clientName) form.setValue('clientName', extractedData.clientName);
+                                            if (extractedData.clientDocument) form.setValue('clientDocument', maskCnpj(extractedData.clientDocument));
+                                            if (extractedData.noteNumber) form.setValue('noteNumber', extractedData.noteNumber);
+                                            if (extractedData.issuedAt) form.setValue('issuedAt', extractedData.issuedAt);
+                                            if (extractedData.totalValue) {
+                                              form.setValue('totalValue', formatCurrencyForDisplay(extractedData.totalValue));
                                             }
                                             
                                             toast({
@@ -623,7 +623,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                       <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                           <FormField
                             control={form.control}
-                            name="descricaoServicos"
+                            name="description"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><FileText className='w-4 h-4 text-slate-400' />Descrição</FormLabel>
@@ -636,7 +636,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="valorTotal"
+                            name="totalValue"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Banknote className='w-4 h-4 text-slate-400' />Valor Total (R$)</FormLabel>
@@ -653,7 +653,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="numeroNota"
+                            name="noteNumber"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Receipt className='w-4 h-4 text-slate-400' />Número da Nota</FormLabel>
@@ -666,7 +666,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="dataEmissao"
+                            name="issuedAt"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Briefcase className='w-4 h-4 text-slate-400' />Data de Emissão (Extraída)</FormLabel>
@@ -679,7 +679,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="prestadorRazaoSocial"
+                            name="providerName"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Building className='w-4 h-4 text-slate-400' />Razão Social do Prestador</FormLabel>
@@ -692,7 +692,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="prestadorCnpj"
+                            name="providerDocument"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />CNPJ do Prestador</FormLabel>
@@ -705,7 +705,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="tomadorRazaoSocial"
+                            name="clientName"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Building className='w-4 h-4 text-slate-400' />Razão Social do Tomador</FormLabel>
@@ -718,7 +718,7 @@ export function AddNoteDialog({ open, onOpenChange, onNoteAdded }: AddNoteDialog
                           />
                           <FormField
                             control={form.control}
-                            name="tomadorCnpj"
+                            name="clientDocument"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className='flex items-center gap-2 text-slate-300'><Copy className='w-4 h-4 text-slate-400' />CNPJ do Tomador</FormLabel>

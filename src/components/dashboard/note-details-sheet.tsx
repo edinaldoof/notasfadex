@@ -7,14 +7,14 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '@/components/ui/sheet';
-import { FiscalNote, HistoryType } from '@/lib/types';
+} from '../../../../components/ui/sheet';
+import { Note, HistoryType } from '../../../lib/types';
 import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature, Paperclip, Trash2, Undo as UndoIcon } from 'lucide-react';
 import { Separator } from '../ui/separator';
 import { Button } from '../ui/button';
 
 interface NoteDetailsSheetProps {
-  note: FiscalNote | null;
+  note: Note | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -92,10 +92,10 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
                 <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Documento</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
                     <DetailItem icon={BadgeInfo} label="Status" value={note.status} />
-                    <DetailItem icon={Hash} label="Nº da Nota" value={note.numeroNota} />
+                    <DetailItem icon={Hash} label="Nº da Nota" value={note.noteNumber} />
                     <DetailItem icon={FileType} label="Tipo de Nota" value={note.invoiceType} />
-                    <DetailItem icon={Calendar} label="Data de Emissão (Extraída)" value={note.dataEmissao} />
-                    <DetailItem icon={CircleDollarSign} label="Valor Total" value={formatCurrency(note.amount)} />
+                    <DetailItem icon={Calendar} label="Data de Emissão (Extraída)" value={note.issuedAt} />
+                    <DetailItem icon={CircleDollarSign} label="Valor Total" value={formatCurrency(note.totalValue)} />
                     <DetailItem icon={Percent} label="Possui Retenção" value={note.hasWithholdingTax} />
                     <DetailItem icon={Download} label="Arquivo Original" fullWidth>
                         <Button asChild variant="link" className="p-0 h-auto text-sm text-primary hover:underline">
@@ -120,16 +120,16 @@ export function NoteDetailsSheet({ note, open, onOpenChange }: NoteDetailsSheetP
             <div>
                 <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Prestador</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
-                    <DetailItem icon={Building} label="Razão Social" value={note.prestadorRazaoSocial} fullWidth/>
-                    <DetailItem icon={Copy} label="CNPJ" value={note.prestadorCnpj} fullWidth/>
+                    <DetailItem icon={Building} label="Razão Social" value={note.providerName} fullWidth/>
+                    <DetailItem icon={Copy} label="CNPJ" value={note.providerDocument} fullWidth/>
                 </div>
             </div>
 
             <div>
                 <h3 className='text-lg font-semibold mb-4 text-slate-300'>Informações do Tomador</h3>
                 <div className='grid grid-cols-2 gap-x-4 gap-y-6 bg-slate-900/50 p-4 rounded-xl border border-border'>
-                    <DetailItem icon={Building} label="Razão Social" value={note.tomadorRazaoSocial} fullWidth/>
-                    <DetailItem icon={Copy} label="CNPJ" value={note.tomadorCnpj} fullWidth/>
+                    <DetailItem icon={Building} label="Razão Social" value={note.clientName} fullWidth/>
+                    <DetailItem icon={Copy} label="CNPJ" value={note.clientDocument} fullWidth/>
                 </div>
             </div>
             

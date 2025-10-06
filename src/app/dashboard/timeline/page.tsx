@@ -2,19 +2,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiscalNote, HistoryType } from '@/lib/types';
+import { Note, HistoryType } from '../../../lib/types';
 import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, AlertTriangle, XCircle, FileSpreadsheet, Trash2, Undo } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "../../../../components/ui/accordion"
 import { getNotesForTimeline } from './data';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '../../../../components/ui/skeleton';
+import { Input } from '../../../../components/ui/input';
+import { Badge } from '../../../../components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
 
 const getEventTypeConfig = (type: HistoryType) => {
     switch(type) {
@@ -61,7 +61,7 @@ const formatTimelineDateTime = (date: Date) => {
     });
 }
 
-const getStatusBadge = (note: FiscalNote) => {
+const getStatusBadge = (note: Note) => {
     const lastEvent = note.history?.[0];
     if (!lastEvent) return null;
     
@@ -80,10 +80,10 @@ const getInitials = (name: string | null) => {
 
 
 export default function TimelinePage() {
-  const [notes, setNotes] = useState<FiscalNote[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredNotes, setFilteredNotes] = useState<FiscalNote[]>([]);
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -103,7 +103,7 @@ export default function TimelinePage() {
 
   useEffect(() => {
     const filtered = notes.filter(note => 
-        note.numeroNota?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.noteNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.projectTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.requester?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -193,7 +193,7 @@ export default function TimelinePage() {
                             <div className='flex flex-col items-start flex-1'>
                                 <div className="flex items-center gap-3 mb-2">
                                   <h2 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
-                                      {note.projectTitle || `Nota ${note.numeroNota || 'S/N'}`}
+                                      {note.projectTitle || `Nota ${note.noteNumber || 'S/N'}`}
                                   </h2>
                                   {getStatusBadge(note)}
                                 </div>

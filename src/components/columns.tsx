@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, ArrowUpDown } from "lucide-react";
 import { Note } from "@prisma/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "../../../../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +11,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+} from "../../../../components/ui/dropdown-menu";
+import { Checkbox } from "../../../../components/ui/checkbox";
+import { Badge } from "../../../../components/ui/badge";
 import { DataTableColumnHeader } from "./ui/data-table-column-header";
 
 const formatCurrency = (amount: number | null) => {
@@ -55,25 +55,25 @@ export const columns: ColumnDef<Note>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "numeroNota",
+    accessorKey: "noteNumber",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Número" />
     ),
   },
   {
-    accessorKey: "prestadorRazaoSocial",
+    accessorKey: "providerName",
     header: "Prestador",
   },
   {
-    accessorKey: "tomadorCnpj",
+    accessorKey: "clientDocument",
     header: "CNPJ Tomador",
   },
   {
-    accessorKey: "valorTotal",
+    accessorKey: "totalValue",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Valor Total" />
     ),
-    cell: ({ row }) => formatCurrency(row.original.valorTotal),
+    cell: ({ row }) => formatCurrency(row.original.totalValue),
   },
   {
     accessorKey: "status",

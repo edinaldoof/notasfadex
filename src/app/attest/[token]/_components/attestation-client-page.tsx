@@ -20,16 +20,16 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { RejectionDialog } from './rejection-dialog';
-import AttestationForm from './attestation-form';
-import type { FiscalNote } from '@/lib/types';
-import { NotePreviewDialog } from '@/components/dashboard/note-preview-dialog';
+import { RejectionDialog } from './rejection-dialog.tsx';
+import AttestationForm from './attestation-form.tsx';
+import type { Note } from '../../../../lib/types';
+import { NotePreviewDialog } from '../../../../components/dashboard/note-preview-dialog';
 
 
 type SubmissionStatus = 'pending' | 'attested' | 'rejected';
 
 interface AttestationClientPageProps {
-  initialNote: FiscalNote;
+  initialNote: Note;
   token: string;
 }
 
@@ -187,13 +187,13 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
   
   const note = initialNote;
 
-  const originalFileUrl = note?.originalFileUrl.startsWith('/api') 
-    ? `${note.originalFileUrl}?token=${token}` 
-    : note?.originalFileUrl || '';
+  const originalFileUrl = note?.driveFileId
+    ? `/api/download/${note.driveFileId}?token=${token}`
+    : '';
 
-  const reportFileUrl = note?.reportFileUrl?.startsWith('/api') 
-    ? `${note.reportFileUrl}?token=${token}` 
-    : note?.reportFileUrl || '';
+  const reportFileUrl = note?.reportDriveFileId
+    ? `/api/download/${note.reportDriveFileId}?token=${token}`
+    : '';
 
   return (
     <>
@@ -251,17 +251,17 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                   <InfoItem 
                     icon={FileText}
                     label="Nº da Nota" 
-                    value={note.numeroNota} 
+                    value={note.noteNumber}
                   />
                   <InfoItem 
                     icon={DollarSign}
                     label="Valor" 
-                    value={formatCurrency(note.amount)} 
+                    value={formatCurrency(note.totalValue)}
                   />
                   <InfoItem 
                     icon={Calendar}
                     label="Data de Envio" 
-                    value={formatDate(note.issueDate)} 
+                    value={formatDate(note.issuedAt)}
                   />
                   <InfoItem 
                     icon={FileText}
@@ -284,7 +284,7 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                     icon={Download}
                     variant="primary"
                   />
-                  {note.reportFileUrl && (
+                  {note.reportDriveFileId && (
                      <ActionButton 
                         href={reportFileUrl}
                         text="Baixar Relatório Anexo"
@@ -318,7 +318,7 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                 <AttestationForm token={token} onSuccess={() => setSubmissionStatus('attested')} />
 
                 <div className="mt-6 text-center">
-                   <RejectionDialog token={token} noteId={note.id} requesterEmail={note.user?.email} onSuccess={() => setSubmissionStatus('rejected')} />
+                   <RejectionDialog token={token} noteId={note.id} requesterEmail={note.creator?.email} onSuccess={() => setSubmissionStatus('rejected')} />
                 </div>
               </section>
             </div>

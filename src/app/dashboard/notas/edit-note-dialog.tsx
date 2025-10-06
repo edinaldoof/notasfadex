@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '../../../../components/ui/dialog';
 import {
   Command,
   CommandEmpty,
@@ -17,29 +17,29 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "../../../../components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from '@/components/ui/input';
+} from "../../../../components/ui/popover";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../../../components/ui/form";
+import { Input } from '../../../../components/ui/input';
 import {
   Loader2, Upload, SquarePen, Paperclip, Check, ChevronsUpDown, Star
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '../../../../hooks/use-toast';
 import { updateNote } from './actions';
 import { getProjectAccounts, getProjectDetails } from '@/app/dashboard/actions';
-import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { FiscalNote, Coordinator } from '@/lib/types';
+import { cn, maskCnpj, parseBRLMoneyToFloat } from '../../../lib/utils';
+import { Button } from '../../../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
+import { Switch } from '../../../../components/ui/switch';
+import { Separator } from '../../../../components/ui/separator';
+import { Note, Coordinator } from '../../../lib/types';
 
 // Tipos e constantes
 const invoiceTypes = [
@@ -61,14 +61,14 @@ const editNoteFormSchema = z.object({
   coordinatorEmail: z.string().regex(emailRegex, { message: 'Formato de e-mail inválido.' }),
   projectAccountNumber: z.string().min(1, 'A conta do projeto é obrigatória.'),
   ccEmails: z.string().regex(emailListRegex, { message: 'Forneça e-mails válidos, separados por vírgula.' }).optional(),
-  descricaoServicos: z.string().min(1, 'A descrição é obrigatória.'),
-  prestadorCnpj: z.string().optional(),
-  tomadorRazaoSocial: z.string().optional(),
-  tomadorCnpj: z.string().optional(),
-  numeroNota: z.string().optional(),
-  dataEmissao: z.string().optional(),
-  valorTotal: z.string().optional(),
-  prestadorRazaoSocial: z.string().optional(),
+  description: z.string().min(1, 'A descrição é obrigatória.'),
+  providerDocument: z.string().optional(),
+  clientName: z.string().optional(),
+  clientDocument: z.string().optional(),
+  noteNumber: z.string().optional(),
+  issuedAt: z.string().optional(),
+  totalValue: z.string().optional(),
+  providerName: z.string().optional(),
   file: z.any().optional(),
   reportFile: z.any().optional(),
 });
@@ -78,7 +78,7 @@ type EditNoteFormValues = z.infer<typeof editNoteFormSchema>;
 interface EditNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  note: FiscalNote | null;
+  note: Note | null;
   onNoteEdited: () => void;
 }
 
@@ -105,14 +105,14 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
       coordinatorEmail: "",
       projectAccountNumber: "",
       ccEmails: "",
-      descricaoServicos: "",
-      prestadorCnpj: "",
-      tomadorRazaoSocial: "",
-      tomadorCnpj: "",
-      numeroNota: "",
-      dataEmissao: "",
-      valorTotal: "",
-      prestadorRazaoSocial: "",
+      description: "",
+      providerDocument: "",
+      clientName: "",
+      clientDocument: "",
+      noteNumber: "",
+      issuedAt: "",
+      totalValue: "",
+      providerName: "",
       file: undefined,
       reportFile: undefined,
     }
@@ -182,13 +182,13 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
       form.reset({
         ...note,
         // mapeamentos/coerções para o form
-        descricaoServicos: note.description ?? '',
+        description: note.description ?? '',
         ccEmails: note.ccEmails ?? '',
-        valorTotal: typeof note.amount === 'number'
-          ? note.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          : (note.amount as any) ?? '',
-        prestadorCnpj: note.prestadorCnpj ? maskCnpj(note.prestadorCnpj) : '',
-        tomadorCnpj: note.tomadorCnpj ? maskCnpj(note.tomadorCnpj) : '',
+        totalValue: typeof note.totalValue === 'number'
+          ? note.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : (note.totalValue as any) ?? '',
+        providerDocument: note.providerDocument ? maskCnpj(note.providerDocument) : '',
+        clientDocument: note.clientDocument ? maskCnpj(note.clientDocument) : '',
       });
       setFileName(note.fileName ?? null);
       setReportFileName(note.reportFileName ?? null);
@@ -252,7 +252,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
     const formatted = (numericValue !== null && !Number.isNaN(numericValue))
       ? numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : '';
-    form.setValue('valorTotal', formatted, { shouldValidate: true });
+    form.setValue('totalValue', formatted, { shouldValidate: true });
   };
 
   return (
@@ -531,7 +531,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="descricaoServicos"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Descrição</FormLabel>
@@ -543,7 +543,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="valorTotal"
+                  name="totalValue"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valor Total (R$)</FormLabel>
@@ -555,7 +555,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="numeroNota"
+                  name="noteNumber"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Número da Nota</FormLabel>
@@ -567,7 +567,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="dataEmissao"
+                  name="issuedAt"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Data de Emissão</FormLabel>
@@ -579,7 +579,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="prestadorRazaoSocial"
+                  name="providerName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Razão Social do Prestador</FormLabel>
@@ -591,7 +591,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="prestadorCnpj"
+                  name="providerDocument"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>CNPJ do Prestador</FormLabel>
@@ -609,7 +609,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="tomadorRazaoSocial"
+                  name="clientName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Razão Social do Tomador</FormLabel>
@@ -621,7 +621,7 @@ export function EditNoteDialog({ open, onOpenChange, note, onNoteEdited }: EditN
 
                 <FormField
                   control={form.control}
-                  name="tomadorCnpj"
+                  name="clientDocument"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>CNPJ do Tomador</FormLabel>

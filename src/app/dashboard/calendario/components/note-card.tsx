@@ -12,13 +12,13 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { NoteForCalendar } from '../actions';
+import { Button } from '../../../../components/ui/button';
+import { Badge } from '../../../../components/ui/badge';
+import { NoteForCalendar } from '../actions.ts';
 import { differenceInDays, format, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
+import { cn } from '../../../../lib/utils';
+import { NoteDetailsSheet } from '../../../../components/dashboard/note-details-sheet.tsx';
 
 const DeadlineBadge = ({
   deadline,
@@ -111,7 +111,7 @@ export const NoteCard = ({
               {note.projectTitle || 'Projeto não informado'}
             </h3>
             <p className="text-xs text-slate-400">
-              Nota: {note.numeroNota || 'N/A'}
+              Nota: {note.noteNumber || 'N/A'}
             </p>
           </div>
            <Button
@@ -142,11 +142,11 @@ export const NoteCard = ({
             <User className="w-4 h-4" />
             <span>{note.requester}</span>
           </div>
-          {note.amount && (
+          {note.totalValue && (
             <div className="flex items-center gap-2 text-green-400 font-semibold">
               <DollarSign className="w-4 h-4" />
               <span>
-                {note.amount.toLocaleString('pt-BR', {
+                {note.totalValue.toLocaleString('pt-BR', {
                   style: 'currency',
                   currency: 'BRL',
                 })}

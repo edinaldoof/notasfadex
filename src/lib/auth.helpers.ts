@@ -1,6 +1,6 @@
 import { JWT } from "next-auth/jwt";
 import { User, Account } from "next-auth";
-import prisma from "@/lib/prisma";
+import prisma from "../../../lib/prisma";
 import { Role } from "@prisma/client";
 
 /**
@@ -55,7 +55,7 @@ export async function refreshAccessToken(token: JWT): Promise<JWT> {
  * @returns The assigned role for the user.
  */
 export async function handleUserRole(user: User): Promise<Role> {
-  const dbUser = await prisma.user.findUnique({
+  const dbUser = await prisma.creator.findUnique({
     where: { id: user.id },
     select: { role: true },
   });
@@ -63,13 +63,13 @@ export async function handleUserRole(user: User): Promise<Role> {
   let assignedRole = dbUser?.role || Role.MEMBER;
 
   const ownerEmail = process.env.OWNER_EMAIL;
-  const userCount = await prisma.user.count();
+  const userCount = await prisma.creator.count();
   const isOwnerByEmail = ownerEmail && user.email === ownerEmail;
 
   const shouldBeOwner = isOwnerByEmail || userCount === 1;
 
   if (shouldBeOwner && assignedRole !== Role.OWNER) {
-    await prisma.user.update({
+    await prisma.creator.update({
       where: { id: user.id },
       data: { role: Role.OWNER },
     });

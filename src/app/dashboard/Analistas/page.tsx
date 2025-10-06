@@ -21,31 +21,31 @@ import {
     Info,
     MoreVertical
 } from 'lucide-react';
-import { getCollaborators, getNotesByUserId, type UserWithNoteCount, exportCollaboratorsData } from './actions';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { getCollaborators, getNotesByUserId, type UserWithNoteCount, exportCollaboratorsData } from './actions.ts';
+import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
+import { Badge } from '../../../../components/ui/badge';
+import { Skeleton } from '../../../../components/ui/skeleton';
+import { Input } from '../../../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Separator } from '../../../../components/ui/separator';
 import { 
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
-import { FiscalNote } from '@/lib/types';
-import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
-import { CollaboratorDetailsSheet } from './collaborator-details-sheet';
-import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+} from '../../../../components/ui/dropdown-menu';
+import { Note } from '../../../../lib/types';
+import { NoteDetailsSheet } from '../../note-details-sheet';
+import { CollaboratorDetailsSheet } from './collaborator-details-sheet.tsx';
+import { useToast } from '../../../../hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../components/ui/tooltip';
 
 type SortOption = 'name' | 'notes' | 'role';
 type SortOrder = 'asc' | 'desc';
-type RoleFilter = 'all' | 'OWNER' | 'MANAGER' | 'USER';
+type RoleFilter = 'all' | 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
 
 function CollaboratorSkeleton() {
     return (
@@ -116,7 +116,7 @@ export default function CollaboratorsPage() {
     const [collaborators, setCollaborators] = useState<UserWithNoteCount[]>([]);
     const [selectedCollaborator, setSelectedCollaborator] = useState<UserWithNoteCount | null>(null);
     const [collaboratorDetailsOpen, setCollaboratorDetailsOpen] = useState(false);
-    const [notes, setNotes] = useState<FiscalNote[]>([]);
+    const [notes, setNotes] = useState<Note[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isNotesLoading, startNotesTransition] = useTransition();
     const [isExporting, startExportingTransition] = useTransition();
@@ -593,7 +593,7 @@ export default function CollaboratorsPage() {
     );
 }
 
-function NoteItem({ note }: { note: FiscalNote }) {
+function NoteItem({ note }: { note: Note }) {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
     return (
@@ -604,7 +604,7 @@ function NoteItem({ note }: { note: FiscalNote }) {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <p className="font-semibold text-white truncate">
-                                    Nota: {note.numeroNota || 'S/N'}
+                                    Nota: {note.noteNumber || 'S/N'}
                                 </p>
                                 {note.projectAccountNumber && (
                                     <Badge variant="outline" className="text-xs">

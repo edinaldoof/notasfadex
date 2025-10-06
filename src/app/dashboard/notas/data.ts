@@ -1,9 +1,9 @@
 
 'use server';
 
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
-import type { FiscalNote } from '@/lib/types';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
+import type { Note } from '../../../lib/types';
 import { Role } from '@prisma/client';
 import { DateRange } from 'react-day-picker';
 
@@ -23,22 +23,22 @@ export async function getNotes({
   status,
   dateRange,
   showDeleted = false,
-}: GetNotesParams): Promise<{ notes: FiscalNote[]; total: number }> {
+}: GetNotesParams): Promise<{ notes: Note[]; total: number }> {
   const session = await auth();
 
-  if (!session?.user?.id) {
+  if (!session?.creator?.id) {
     console.error('getNotes: User not authenticated');
     return { notes: [], total: 0 };
   }
 
-  const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
+  const isManagerOrOwner = session.creator.role === Role.OWNER || session.creator.role === Role.MANAGER;
   
   const where: any = {
     deleted: showDeleted,
   };
 
   if (!isManagerOrOwner) {
-    where.userId = session.user.id;
+    where.userId = session.creator.id;
   }
 
   if (query) {
@@ -46,8 +46,8 @@ export async function getNotes({
       { description: { contains: query, mode: 'insensitive' } },
       { requester: { contains: query, mode: 'insensitive' } },
       { projectAccountNumber: { contains: query, mode: 'insensitive' } },
-      { numeroNota: { contains: query, mode: 'insensitive' } },
-      { prestadorCnpj: { contains: query, mode: 'insensitive' } },
+      { noteNumber: { contains: query, mode: 'insensitive' } },
+      { providerDocument: { contains: query, mode: 'insensitive' } },
       { coordinatorName: { contains: query, mode: 'insensitive' } },
     ];
   }
@@ -96,7 +96,7 @@ export async function getNotes({
       prisma.fiscalNote.count({ where }),
     ]);
 
-    return { notes: notes as FiscalNote[], total };
+    return { notes: notes as Note[], total };
   } catch (error) {
     console.error('Failed to fetch notes from database:', error);
     return { notes: [], total: 0 };

@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { CheckBadge } from '@/components/icons/check-badge';
+import { cn } from '../../../lib/utils';
+import { CheckBadge } from '../../../../components/icons/check-badge';
 
 interface OverviewCardProps {
   attestedPercentage: number;

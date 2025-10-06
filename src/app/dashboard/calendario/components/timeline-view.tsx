@@ -7,9 +7,9 @@ import { format, isSameDay, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { NoteForCalendar } from '../actions.js';
 import { Calendar as CalendarIcon, DollarSign, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '../../../../components/ui/badge';
+import { cn } from '../../../lib/utils';
+import { ScrollArea } from '../../../../components/ui/scroll-area';
 
 const TimelineView = ({ notes }: { notes: NoteForCalendar[] }) => {
   const sortedNotes = useMemo(() => {
@@ -114,10 +114,10 @@ const TimelineView = ({ notes }: { notes: NoteForCalendar[] }) => {
                         <User className="w-3 h-3" />
                         {note.requester}
                       </span>
-                      {note.amount && (
+                      {note.totalValue && (
                         <span className="text-green-400 font-medium flex items-center gap-1">
                           <DollarSign className="w-3 h-3" />
-                          {note.amount.toLocaleString('pt-BR')}
+                          {note.totalValue.toLocaleString('pt-BR')}
                         </span>
                       )}
                     </div>

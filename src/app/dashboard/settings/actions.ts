@@ -1,14 +1,14 @@
 
 'use server';
 
-import prisma from '@/lib/prisma';
-import { auth } from '@/auth';
-import { Role, Settings, EmailTemplate, InvoiceStatus, PermissionType, SqlServerSettings } from '@prisma/client';
+import prisma from '../../../lib/prisma';
+import { auth } from '../../../auth';
+import { Role, Settings, EmailTemplate, NoteStatus, PermissionType, SqlServerSettings } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
-import { sendEmail } from '@/lib/email';
+import { sendEmail } from '../../../lib/email';
 import { z } from 'zod';
-import { generateAttestationToken } from '@/lib/token-utils';
-import { getOrCreateEmailTemplate, getDefaultTemplate } from '@/lib/email-actions';
+import { generateAttestationToken } from '../../../lib/token-utils';
+import { getOrCreateEmailTemplate, getDefaultTemplate } from '../../../lib/email-actions';
 
 /**
  * Fetches all users from the database.
@@ -16,14 +16,14 @@ import { getOrCreateEmailTemplate, getDefaultTemplate } from '@/lib/email-action
  */
 export async function getUsers() {
   const session = await auth();
-  const userRole = session?.user?.role;
+  const userRole = session?.creator?.role;
 
   if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
     throw new Error('Acesso não autorizado para visualizar usuários.');
   }
 
   try {
-    const users = await prisma.user.findMany({
+    const users = await prisma.creator.findMany({
       orderBy: {
         name: 'asc',
       },
@@ -41,8 +41,8 @@ export async function getUsers() {
  */
 export async function updateUserRole(userId: string, role: 'USER' | 'MANAGER') {
   const session = await auth();
-  const userRole = session?.user?.role;
-  const currentUserId = session?.user?.id;
+  const userRole = session?.creator?.role;
+  const currentUserId = session?.creator?.id;
 
   if (userRole !== 'OWNER') {
     throw new Error('Apenas o Dono do sistema pode alterar cargos.');
@@ -53,7 +53,7 @@ export async function updateUserRole(userId: string, role: 'USER' | 'MANAGER') {
   }
 
   try {
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    const targetUser = await prisma.creator.findUnique({ where: { id: userId } });
     if (!targetUser) {
       throw new Error('Usuário não encontrado.');
     }
@@ -61,7 +61,7 @@ export async function updateUserRole(userId: string, role: 'USER' | 'MANAGER') {
         throw new Error('O cargo de Dono não pode ser alterado.');
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.creator.update({
       where: { id: userId },
       data: { role },
     });
@@ -102,7 +102,7 @@ export async function saveSettings(data: Partial<Settings>) {
 
 export async function getSqlServerSettings(): Promise<SqlServerSettings | null> {
     const session = await auth();
-    if (session?.user?.role !== Role.OWNER) {
+    if (session?.creator?.role !== Role.OWNER) {
         return null;
     }
     return prisma.sqlServerSettings.findFirst();
@@ -110,7 +110,7 @@ export async function getSqlServerSettings(): Promise<SqlServerSettings | null> 
 
 export async function saveSqlServerSettings(data: Omit<SqlServerSettings, 'id'>) {
     const session = await auth();
-    if (session?.user?.role !== Role.OWNER) {
+    if (session?.creator?.role !== Role.OWNER) {
         throw new Error('Acesso não autorizado.');
     }
     await prisma.sqlServerSettings.upsert({
@@ -153,7 +153,7 @@ export async function saveEmailTemplates(templates: Partial<EmailTemplate>[]) {
  */
 export async function sendTestEmail(recipientEmail: string, subject: string, body: string) {
     const session = await auth();
-    const userRole = session?.user?.role;
+    const userRole = session?.creator?.role;
 
     if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
        return { success: false, message: 'Acesso não autorizado.' };
@@ -202,7 +202,7 @@ export async function sendTestEmail(recipientEmail: string, subject: string, bod
 
 export async function getPreviewAttestationLink(): Promise<{ success: boolean; link?: string; message?: string }> {
     const session = await auth();
-    const userRole = session?.user?.role;
+    const userRole = session?.creator?.role;
 
     if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
         return { success: false, message: 'Acesso não autorizado.' };
@@ -211,7 +211,7 @@ export async function getPreviewAttestationLink(): Promise<{ success: boolean; l
     try {
         const latestPendingNote = await prisma.fiscalNote.findFirst({
             where: {
-                status: InvoiceStatus.PENDENTE,
+                status: NoteStatus.PENDENTE,
             },
             orderBy: {
                 createdAt: 'desc',

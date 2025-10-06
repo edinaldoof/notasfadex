@@ -461,7 +461,7 @@ export const sendAttestationRequestEmail = async (payload: AttestationEmailPaylo
             'NomeSolicitante': payload.requesterName,
             'LinkAteste': publicAttestationLink,
             'DescricaoNota': payload.noteDescription,
-            'NumeroNota': payload.numeroNota,
+            'NumeroNota': payload.noteNumber,
             'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };
@@ -492,7 +492,7 @@ export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload
             'NomeCoordenador': payload.coordinatorName,
             'LinkAteste': publicAttestationLink,
             'DescricaoNota': payload.noteDescription,
-            'NumeroNota': payload.numeroNota,
+            'NumeroNota': payload.noteNumber,
             'TituloProjeto': payload.projectTitle,
             'DiasRestantes': String(payload.daysRemaining),
         };
@@ -523,7 +523,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
             'DescricaoNota': payload.noteDescription,
             'DataAtesto': payload.attestationDate.toLocaleString('pt-BR'),
             'ObservacaoAtesto': payload.attestationObservation || 'Nenhuma',
-            'NumeroNota': payload.numeroNota,
+            'NumeroNota': payload.noteNumber,
             'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };
@@ -571,7 +571,7 @@ export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayl
             'DescricaoNota': payload.noteDescription,
             'MotivoRejeicao': payload.rejectionReason,
             'DataRejeicao': payload.rejectionDate.toLocaleString('pt-BR'),
-            'NumeroNota': payload.numeroNota,
+            'NumeroNota': payload.noteNumber,
             'TituloProjeto': payload.projectTitle,
             'ContaProjeto': payload.projectAccountNumber,
         };

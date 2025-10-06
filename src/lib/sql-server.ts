@@ -2,7 +2,7 @@
 'use server';
 
 import sql from 'mssql';
-import type { SqlServerSettings, ProjectDetails, Coordinator } from '@/lib/types';
+import type { SqlServerSettings, ProjectDetails, Coordinator } from '../../../lib/types';
 
 const getDbConfig = (settings: SqlServerSettings) => {
   if (!settings.sqlServerIp || !settings.sqlServerUser || !settings.sqlServerPassword) {

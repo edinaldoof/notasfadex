@@ -3,8 +3,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getNoteFromToken } from './actions';
-import AttestationClientPage from './_components/attestation-client-page';
+import { getNoteFromToken } from './actions.ts';
+import AttestationClientPage from './_components/attestation-client-page.tsx';
 
 
 function ErrorPage({ error }: { error: string }) {

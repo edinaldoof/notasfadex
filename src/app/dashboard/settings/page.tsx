@@ -42,17 +42,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "../../../../components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "../../../../components/ui/avatar";
+import { Button } from "../../../../components/ui/button";
+import { Input } from "../../../../components/ui/input";
+import { Label } from "../../../../components/ui/label";
+import { Textarea } from "../../../../components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
+import { useToast } from "../../../../hooks/use-toast";
+import { Skeleton } from "../../../../components/ui/skeleton";
+import { cn } from "../../../lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
 
 
 const availableAiModels = [
@@ -176,7 +176,7 @@ export default function SettingsPage() {
   
   const { toast } = useToast();
 
-  const currentUserRole = session?.user?.role;
+  const currentUserRole = session?.creator?.role;
   const hasPermission = currentUserRole === 'OWNER' || currentUserRole === 'MANAGER';
   const isOwner = currentUserRole === 'OWNER'; // Nova variável para verificar se é OWNER
   
@@ -543,7 +543,7 @@ export default function SettingsPage() {
         
         {/* Card de Gerenciamento de Cargos */}
         {isOwner && (
-            <UserManagement currentUserId={session?.user?.id ?? ''} currentUserRole={currentUserRole} />
+            <UserManagement currentUserId={session?.creator?.id ?? ''} currentUserRole={currentUserRole} />
         )}
       </div>
     </div>
@@ -668,10 +668,10 @@ function UserManagement({ currentUserId, currentUserRole }: { currentUserId: str
   const handleRoleChange = async (userId: string, newRole: 'USER' | 'MANAGER') => {
     try {
       const result = await updateUserRole(userId, newRole);
-      if (result.success && result.user) {
+      if (result.success && result.creator) {
         toast({
           title: "Sucesso!",
-          description: `O cargo de ${result.user.name} foi atualizado.`,
+          description: `O cargo de ${result.creator.name} foi atualizado.`,
         });
         const updatedUsers = await getUsers(); 
         setUsers(updatedUsers);
