@@ -353,7 +353,7 @@ function NotasClient() {
           onAddNote={() => setShowAddModal(true)}
           onNotifyAll={handleNotifyAll}
           isNotifying={isNotifying}
-          canNotify={session?.creator?.role === Role.OWNER || session?.creator?.role === Role.MANAGER}
+          canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
           onApplyFilters={handleApplyFilters}
           onClearFilters={handleClearFilters}
         />
@@ -375,7 +375,7 @@ function NotasClient() {
         onAddNote={() => setShowAddModal(true)}
         onNotifyAll={handleNotifyAll}
         isNotifying={isNotifying}
-        canNotify={session?.creator?.role === Role.OWNER || session?.creator?.role === Role.MANAGER}
+        canNotify={session?.user?.role === Role.OWNER || session?.user?.role === Role.MANAGER}
         onApplyFilters={handleApplyFilters}
         onClearFilters={handleClearFilters}
       />
@@ -398,9 +398,9 @@ function NotasClient() {
                 notes.map((note) => {
                   const dynamicStatus = getDynamicStatus(note);
                   const statusConfig = getStatusConfig(dynamicStatus);
-                  const canManage = session?.creator?.role === 'OWNER' || session?.creator?.role === 'MANAGER';
-                  const canAttest = canManage || note.coordinatorEmail === session?.creator?.email;
-                  const isOwner = note.creator?.id === session?.creator?.id;
+                  const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
+                  const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
+                  const isOwner = note.user?.id === session?.user?.id;
                   const canEdit = isOwner || canManage;
                   const isDeletable = (dynamicStatus === 'PENDENTE' || dynamicStatus === 'REJEITADA') && canDeleteNotes;
 

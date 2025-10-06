@@ -26,19 +26,19 @@ export async function getNotes({
 }: GetNotesParams): Promise<{ notes: Note[]; total: number }> {
   const session = await auth();
 
-  if (!session?.creator?.id) {
+  if (!session?.user?.id) {
     console.error('getNotes: User not authenticated');
     return { notes: [], total: 0 };
   }
 
-  const isManagerOrOwner = session.creator.role === Role.OWNER || session.creator.role === Role.MANAGER;
+  const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
   
   const where: any = {
     deleted: showDeleted,
   };
 
   if (!isManagerOrOwner) {
-    where.userId = session.creator.id;
+    where.userId = session.user.id;
   }
 
   if (query) {

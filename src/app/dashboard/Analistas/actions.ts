@@ -1,8 +1,8 @@
 
 'use server';
 
-import { auth } from '../../../../auth';
-import prisma from '../../../../lib/prisma';
+import { auth } from '@/auth';
+import prisma from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import type { User } from '@prisma/client';
 import * as XLSX from 'xlsx';
@@ -29,7 +29,7 @@ export interface CollaboratorStats {
 export async function getCollaborators(): Promise<UserWithNoteCount[]> {
     const session = await auth();
 
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         console.error('getCollaborators: Acesso não autorizado. Usuário não logado.');
         return [];
     }
@@ -38,17 +38,17 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const usersWithNotes = await prisma.creator.findMany({
+        const usersWithNotes = await prisma.user.findMany({
             orderBy: {
                 name: 'asc'
             },
             include: {
                 _count: {
                     select: {
-                        createdNotes: { where: { isDeleted: false } },
+                        notes: { where: { isDeleted: false } },
                     },
                 },
-                createdNotes: {
+                notes: {
                     where: { isDeleted: false },
                     select: {
                         createdAt: true,
@@ -62,15 +62,15 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
         });
 
         return usersWithNotes.map(user => {
-            const recentNotes = user.createdNotes.filter(note => 
+            const recentNotes = user.notes.filter(note =>
                 new Date(note.createdAt) > thirtyDaysAgo
             );
             
             return {
-                ...creator,
-                noteCount: user._count.createdNotes,
+                ...user,
+                noteCount: user._count.notes,
                 recentNotesCount: recentNotes.length,
-                lastNoteDate: user.createdNotes.length > 0 ? user.createdNotes[0].createdAt : null,
+                lastNoteDate: user.notes.length > 0 ? user.notes[0].createdAt : null,
             };
         });
     } catch (error) {
@@ -82,24 +82,24 @@ export async function getCollaborators(): Promise<UserWithNoteCount[]> {
 export async function getCollaboratorStats(): Promise<CollaboratorStats> {
     const session = await auth();
 
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Acesso não autorizado');
     }
 
     try {
-        const users = await prisma.creator.findMany({
+        const users = await prisma.user.findMany({
             include: {
                 _count: {
                     select: {
-                        createdNotes: { where: { isDeleted: false } },
+                        notes: { where: { isDeleted: false } },
                     },
                 },
             },
         });
 
         const totalUsers = users.length;
-        const activeUsers = users.filter(user => user._count.createdNotes > 0).length;
-        const totalNotes = users.reduce((sum, user) => sum + user._count.createdNotes, 0);
+        const activeUsers = users.filter(user => user._count.notes > 0).length;
+        const totalNotes = users.reduce((sum, user) => sum + user._count.notes, 0);
         const averageNotesPerUser = totalUsers > 0 ? totalNotes / totalUsers : 0;
 
         const roleDistribution = users.reduce((acc, user) => {
@@ -127,7 +127,7 @@ export async function getCollaboratorStats(): Promise<CollaboratorStats> {
 export async function getNotesByUserId(userId: string) {
     const session = await auth();
 
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Acesso não autorizado. Você precisa estar logado.');
     }
     
@@ -146,7 +146,7 @@ export async function getNotesByUserId(userId: string) {
                         date: 'desc'
                     }
                 },
-                creator: {
+                user: {
                     select: {
                         name: true,
                         email: true,
@@ -168,23 +168,23 @@ export async function getNotesByUserId(userId: string) {
  */
 export async function exportCollaboratorsData() {
     const session = await auth();
-    const userRole = session?.creator?.role;
+    const userRole = session?.user?.role;
 
     if (userRole !== Role.OWNER && userRole !== Role.MANAGER) {
         throw new Error('Acesso não autorizado para exportar dados.');
     }
 
     try {
-        const users = await prisma.creator.findMany({
+        const users = await prisma.user.findMany({
             include: {
-                createdNotes: { where: { isDeleted: false } },
+                notes: { where: { isDeleted: false } },
             }
         });
 
         const dataToExport = [];
 
         for (const user of users) {
-            if (user.createdNotes.length === 0) {
+            if (user.notes.length === 0) {
                 dataToExport.push({
                     'Nome Analista': user.name,
                     'Email Analista': user.email,
@@ -194,7 +194,7 @@ export async function exportCollaboratorsData() {
                     'Link Drive': 'N/A',
                 });
             } else {
-                for (const note of user.createdNotes) {
+                for (const note of user.notes) {
                     dataToExport.push({
                         'Nome Analista': user.name,
                         'Email Analista': user.email,
@@ -241,7 +241,7 @@ export async function exportCollaboratorsData() {
  */
 export async function getUserActivitySummary(userId: string) {
     const session = await auth();
-    const userRole = session?.creator?.role;
+    const userRole = session?.user?.role;
 
     if (userRole !== Role.OWNER && userRole !== Role.MANAGER) {
         throw new Error('Acesso não autorizado.');

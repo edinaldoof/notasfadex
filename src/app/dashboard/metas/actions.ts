@@ -17,7 +17,7 @@ export interface GoalsData {
 
 export async function getGoalsData(): Promise<GoalsData> {
   const session = await auth();
-  if (!session?.creator?.id) {
+  if (!session?.user?.id) {
     throw new Error('Usuário não autenticado.');
   }
 

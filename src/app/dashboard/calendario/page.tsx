@@ -23,14 +23,14 @@ import { DateRange } from 'react-day-picker';
 import { format, addDays, isPast, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
 import { ptBR } from 'date-fns/locale';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '../../../../components/ui/dialog';
-import { Calendar } from '../../../../components/ui/calendar';
-import { Label } from '../../../../components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
-import { Skeleton } from '../../../../components/ui/skeleton';
-import { useToast } from '../../../../hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import {
   getNotesForCalendar,
   getCalendarStats,

@@ -349,9 +349,9 @@ export default function NotasClientPage() {
                 filteredNotes.map((note) => {
                   const dynamicStatus = getDynamicStatus(note);
                   const statusConfig = getStatusConfig(dynamicStatus);
-                  const canManage = session?.creator?.role === 'OWNER' || session?.creator?.role === 'MANAGER';
-                  const canAttest = canManage || note.coordinatorEmail === session?.creator?.email;
-                  const isOwner = note.userId === session?.creator?.id;
+                  const canManage = session?.user?.role === 'OWNER' || session?.user?.role === 'MANAGER';
+                  const canAttest = canManage || note.coordinatorEmail === session?.user?.email;
+                  const isOwner = note.userId === session?.user?.id;
                   const canEdit = isOwner && dynamicStatus === 'REJEITADA';
 
                   return (

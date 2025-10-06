@@ -79,6 +79,7 @@
     "@types/gapi": "^0.0.47",
     "@types/inquirer": "^9.0.8",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/mssql": "^9.1.8",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -88,6 +89,6 @@
     "prisma": "^5.17.0",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.20.3",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

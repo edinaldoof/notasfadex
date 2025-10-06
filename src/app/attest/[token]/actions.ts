@@ -2,13 +2,13 @@
 'use server';
 
 import { z } from 'zod';
-import prisma from '../../../../lib/prisma';
-import { uploadFileToDrive } from '../../../../lib/google-drive';
+import prisma from '@/lib/prisma';
+import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
-import { verifyAttestationToken } from '../../../../lib/token-utils';
-import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '../../../../lib/email-actions';
-import type { Note } from '../../../../lib/types';
+import { verifyAttestationToken } from '@/lib/token-utils';
+import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
+import type { Note } from '@/lib/types';
 import { Prisma, HistoryType } from '@prisma/client';
 
 export async function getNoteFromToken(token: string): Promise<{
@@ -28,7 +28,7 @@ export async function getNoteFromToken(token: string): Promise<{
     const note = await prisma.note.findUnique({
       where: { id: decoded.noteId, isDeleted: false },
       include: {
-        creator: {
+        user: {
           select: { email: true, name: true, id: true }
         }
       }
@@ -97,7 +97,7 @@ export async function attestNotePublic(formData: FormData) {
 
         const note = await prisma.note.findUnique({
             where: { id: noteId },
-            include: { creator: true }
+            include: { user: true }
         });
 
         if (!note) {
@@ -106,7 +106,7 @@ export async function attestNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não está mais pendente de atesto.' };
         }
-         if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
+         if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -139,7 +139,7 @@ export async function attestNotePublic(formData: FormData) {
               data: {
                   status: 'ATESTADA',
                   attestedAt: attestationDate,
-                  attestedById: note.creator.id,
+                  attestedById: note.userId,
                   observation: observation,
                   attestedDriveFileId: attestedDriveFileId,
               },
@@ -162,7 +162,7 @@ export async function attestNotePublic(formData: FormData) {
             noteId: note.id,
             coordinatorName: coordinatorName,
             coordinatorEmail: coordinatorEmail,
-            requesterEmail: note.creator.email,
+            requesterEmail: note.user.email,
             noteDescription: note.description,
             attestedFileId: attestedDriveFileId,
             attestedFileName: attestedFile.name,
@@ -211,7 +211,7 @@ export async function rejectNotePublic(formData: FormData) {
 
         const note = await prisma.note.findUnique({
             where: { id: noteId },
-            include: { creator: true }
+            include: { user: true }
         });
 
         if (!note) {
@@ -220,7 +220,7 @@ export async function rejectNotePublic(formData: FormData) {
         if (note.status !== 'PENDENTE') {
             return { success: false, message: 'Esta nota não pode mais ser rejeitada.' };
         }
-        if (!note.creator || !note.creator.email || !note.creator.id || !note.creator.name) {
+        if (!note.user || !note.user.email || !note.user.id || !note.user.name) {
             return { success: false, message: 'Não foi possível encontrar o solicitante original para notificação.' };
         }
 
@@ -252,11 +252,11 @@ export async function rejectNotePublic(formData: FormData) {
         await sendRejectionNotificationEmail({
             noteId: note.id,
             coordinatorName: coordinatorName,
-            requesterEmail: note.creator.email,
+            requesterEmail: note.user.email,
             noteDescription: note.description,
             rejectionReason: rejectionReason,
             rejectionDate: rejectionDate,
-            requesterName: note.creator.name,
+            requesterName: note.user.name,
             noteNumber: note.noteNumber,
             projectTitle: note.projectTitle,
             projectAccountNumber: note.projectAccountNumber

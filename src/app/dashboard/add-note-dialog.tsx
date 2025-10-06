@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '../../../../components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../../../../components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"
 import {
   Command,
   CommandEmpty,
@@ -25,34 +25,34 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "../../../../components/ui/command";
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "../../../../components/ui/popover";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../../../../components/ui/form";
-import { ScrollArea } from "../../../../components/ui/scroll-area";
+} from "@/components/ui/popover";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Loader2, Upload, FileUp, FileText, Briefcase, Mail, User, ShieldCheck, Building, Receipt, Banknote, Check, ChevronsUpDown, Copy, FileSignature, Paperclip, PlusCircle, Star } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from '../../../../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { extractNoteData } from '@/app/dashboard/notas/actions';
 import { addNote } from '@/app/dashboard/notas/actions';
 import { checkExistingNote } from '@/app/dashboard/notas/actions';
 import { getProjectAccounts, getProjectDetails } from '@/app/dashboard/actions';
-import { cn, maskCnpj, parseBRLMoneyToFloat } from '../../../lib/utils';
-import { Button } from '../../../../components/ui/button';
+import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
-import { Switch } from '../../../../components/ui/switch';
-import { Separator } from '../../../../components/ui/separator';
-import type { Coordinator } from '../../../lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import type { Coordinator } from '@/lib/types';
 
 const invoiceTypes = [
   { value: "SERVICO", label: "Serviço" },

@@ -20,7 +20,7 @@ import { Sidebar } from './sidebar';
 
 export function Header() {
   const { data: session, status } = useSession();
-  const user = session?.creator;
+  const user = session?.user;
 
   const getInitials = (name: string) => {
     return name

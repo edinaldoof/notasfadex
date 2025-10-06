@@ -37,8 +37,8 @@ export interface NoteHistory extends PrismaNoteHistory {
 
 export interface Note extends PrismaNote {
   history?: NoteHistory[];
-  creator?: Partial<PrismaUser>; // Relação 'creator' da nota
-  attestor?: Partial<PrismaUser> | null; // Relação 'attestor' da nota
+  user?: Partial<PrismaUser>;
+  attestor?: Partial<PrismaUser> | null;
 }
 
 export interface SendEmailOptions {

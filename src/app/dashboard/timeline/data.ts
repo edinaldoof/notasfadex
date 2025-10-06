@@ -9,7 +9,7 @@ import { auth } from '../../../auth';
 export async function getNotesForTimeline(): Promise<Note[]> {
   const session = await auth();
 
-  if (!session?.creator?.id) {
+  if (!session?.user?.id) {
     console.error('getNotesForTimeline: User not authenticated');
     return [];
   }
@@ -30,14 +30,13 @@ export async function getNotesForTimeline(): Promise<Note[]> {
             }
           }
         },
-        user: true, // CORREÇÃO: Usar 'user' em vez de 'creator'
+        user: true,
       },
       orderBy: {
         updatedAt: 'desc',
       },
     });
-    // @ts-ignore
-    return notes;
+    return notes as Note[];
   } catch (error) {
     console.error('Failed to fetch timeline notes from database:', error);
     return [];

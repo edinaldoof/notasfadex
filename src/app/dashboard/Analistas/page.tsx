@@ -21,27 +21,26 @@ import {
     Info,
     MoreVertical
 } from 'lucide-react';
-import { getCollaborators, getNotesByUserId, type UserWithNoteCount, exportCollaboratorsData } from './actions.ts';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
-import { Badge } from '../../../../components/ui/badge';
-import { Skeleton } from '../../../../components/ui/skeleton';
-import { Input } from '../../../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
-import { Button } from '../../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Separator } from '../../../../components/ui/separator';
+import { getCollaborators, getNotesByUserId, type UserWithNoteCount, exportCollaboratorsData } from './actions';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { 
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator
-} from '../../../../components/ui/dropdown-menu';
-import { Note } from '../../../../lib/types';
-import { NoteDetailsSheet } from '../../note-details-sheet';
-import { CollaboratorDetailsSheet } from './collaborator-details-sheet.tsx';
-import { useToast } from '../../../../hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../components/ui/tooltip';
+} from '@/components/ui/dropdown-menu';
+import { Note } from '@/lib/types';
+import { NoteDetailsSheet } from '@/app/dashboard/note-details-sheet';
+import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type SortOption = 'name' | 'notes' | 'role';
 type SortOrder = 'asc' | 'desc';
@@ -105,7 +104,6 @@ const getRoleLabel = (role: string) => {
     switch (role) {
         case 'OWNER': return 'Proprietário';
         case 'MANAGER': return 'Gerente';
-        case 'USER': return 'Usuário';
         default: return role;
     }
 };
@@ -387,7 +385,8 @@ export default function CollaboratorsPage() {
                                             <SelectItem value="all">Todas as funções</SelectItem>
                                             <SelectItem value="OWNER">Proprietário</SelectItem>
                                             <SelectItem value="MANAGER">Gerente</SelectItem>
-                                            <SelectItem value="USER">Usuário</SelectItem>
+                                            <SelectItem value="MEMBER">Membro</SelectItem>
+                                            <SelectItem value="VIEWER">Visualizador</SelectItem>
                                         </SelectContent>
                                     </Select>
 
@@ -477,8 +476,8 @@ export default function CollaboratorsPage() {
                                                         <p className="text-sm text-slate-400 truncate">{user.email}</p>
                                                         <div className="flex items-center gap-2 mt-2">
                                                             <Badge variant={getRoleVariant(user.role)} className="text-xs">
-                                                                {user.role === 'USER' && <UserIcon className="w-3 h-3 mr-1" />}
-                                                                {user.role !== 'USER' && <Shield className="w-3 h-3 mr-1" />}
+                                                                {user.role === 'MEMBER' && <UserIcon className="w-3 h-3 mr-1" />}
+                                                                {user.role !== 'MEMBER' && <Shield className="w-3 h-3 mr-1" />}
                                                                 {getRoleLabel(user.role)}
                                                             </Badge>
                                                             <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -536,8 +535,8 @@ export default function CollaboratorsPage() {
                                                 </div>
                                             </div>
                                             <Badge variant={getRoleVariant(selectedCollaborator.role)}>
-                                                {selectedCollaborator.role === 'USER' && <UserIcon className="w-3 h-3 mr-1" />}
-                                                {selectedCollaborator.role !== 'USER' && <Shield className="w-3 h-3 mr-1" />}
+                                                {selectedCollaborator.role === 'MEMBER' && <UserIcon className="w-3 h-3 mr-1" />}
+                                                {selectedCollaborator.role !== 'MEMBER' && <Shield className="w-3 h-3 mr-1" />}
                                                 {getRoleLabel(selectedCollaborator.role)}
                                             </Badge>
                                         </div>

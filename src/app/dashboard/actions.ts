@@ -4,16 +4,16 @@
 import { subDays } from 'date-fns';
 import { Role, SqlServerSettings } from '@prisma/client';
 
-import { auth } from '../../../auth';
-import prisma from '../../../lib/prisma';
-import { getProjectAccountsFromSqlServer, getProjectDetailsByAccount } from '../../../lib/sql-server';
+import { auth } from '@/auth';
+import prisma from '@/lib/prisma';
+import { getProjectAccountsFromSqlServer, getProjectDetailsByAccount } from '@/lib/sql-server';
 import { z } from 'zod';
-import type { ProjectDetails } from '../../../lib/types';
+import type { ProjectDetails } from '@/lib/types';
 
 export async function getDashboardSummary() {
   try {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
       return {
         totalNotes: 0,
         attestedNotes: 0,
@@ -23,14 +23,14 @@ export async function getDashboardSummary() {
       };
     }
 
-    const isManagerOrOwner = session.creator.role === Role.OWNER || session.creator.role === Role.MANAGER;
-    const whereClause = isManagerOrOwner ? { isDeleted: false } : { userId: session.creator.id, isDeleted: false };
+    const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
+    const whereClause = isManagerOrOwner ? { isDeleted: false } : { userId: session.user.id, isDeleted: false };
 
-    const notes = await prisma.fiscalNote.findMany({
+    const notes = await prisma.note.findMany({
       where: whereClause,
       select: {
         status: true,
-        amount: true,
+        totalValue: true,
       },
     });
 
@@ -40,7 +40,7 @@ export async function getDashboardSummary() {
     const totalAmount = notes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     const thirtyDaysAgo = subDays(new Date(), 30);
-    const recentNotes = await prisma.fiscalNote.findMany({
+    const recentNotes = await prisma.note.findMany({
         where: {
             ...whereClause,
             createdAt: {
@@ -81,11 +81,11 @@ export async function getDashboardSummary() {
 export async function getRecentActivities() {
     try {
         const session = await auth();
-        if (!session?.creator?.id) {
+        if (!session?.user?.id) {
             return [];
         }
         
-        const isManagerOrOwner = session.creator.role === Role.OWNER || session.creator.role === Role.MANAGER;
+        const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
 
         const historyEvents = await prisma.noteHistory.findMany({
             take: 3,
@@ -111,7 +111,7 @@ export async function getRecentActivities() {
 
         const filteredEvents = isManagerOrOwner
             ? historyEvents
-            : historyEvents.filter(event => event.note.userId === session.creator.id);
+            : historyEvents.filter(event => event.note.userId === session.user.id);
             
         return filteredEvents;
     } catch (error) {
@@ -122,7 +122,7 @@ export async function getRecentActivities() {
 
 export async function getProjectAccounts() {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
     
@@ -135,7 +135,7 @@ export async function getProjectAccounts() {
         }
     }
     
-    const notes = await prisma.fiscalNote.findMany({
+    const notes = await prisma.note.findMany({
         where: { isDeleted: false },
         distinct: ['projectAccountNumber'],
         select: {
@@ -155,7 +155,7 @@ export async function getProjectAccounts() {
 
 export async function getProjectDetails(accountNumber: string): Promise<ProjectDetails | null> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 

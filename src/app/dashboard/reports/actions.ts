@@ -55,7 +55,7 @@ export interface ReportData {
 
 export async function getReportData(input: ReportInput): Promise<ReportData> {
   const session = await auth();
-  if (!session?.creator?.id) {
+  if (!session?.user?.id) {
     throw new Error('Usuário não autenticado.');
   }
 
@@ -86,7 +86,7 @@ export async function getReportData(input: ReportInput): Promise<ReportData> {
 }
 
 async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<ReportData> {
-    const attestedNotes = await prisma.fiscalNote.findMany({
+    const attestedNotes = await prisma.note.findMany({
       where: {
         status: NoteStatus.ATESTADA,
         attestedAt: {
@@ -95,7 +95,7 @@ async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<Report
         },
       },
       select: {
-        amount: true,
+        totalValue: true,
         attestedAt: true,
       },
     });
@@ -142,7 +142,7 @@ async function getTotalsByPeriod(startDate: Date, endDate: Date): Promise<Report
 }
 
 async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Promise<ReportData> {
-    const users = await prisma.creator.findMany({
+    const users = await prisma.user.findMany({
         include: {
             notes: {
                 where: {
@@ -152,7 +152,7 @@ async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Pro
                     },
                 },
                 select: {
-                    amount: true,
+                    totalValue: true,
                 },
             },
         },
@@ -170,8 +170,8 @@ async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Pro
             totalValue,
         };
     })
-    .filter(user => user.noteCount > 0) // Only include users with notes in the period
-    .sort((a, b) => b.totalValue - a.totalValue); // Sort by total value descending
+    .filter(user => user.noteCount > 0)
+    .sort((a, b) => b.totalValue - a.totalValue);
 
     return {
         reportType: 'performance_by_collaborator',
@@ -183,7 +183,7 @@ async function getPerformanceByCollaborator(startDate: Date, endDate: Date): Pro
 
 
 async function getStatusDistribution(startDate: Date, endDate: Date): Promise<ReportData> {
-    const notes = await prisma.fiscalNote.findMany({
+    const notes = await prisma.note.findMany({
         where: {
             createdAt: { gte: startDate, lte: endDate },
         },
@@ -221,21 +221,21 @@ async function getStatusDistribution(startDate: Date, endDate: Date): Promise<Re
 }
 
 async function getSpendingByProject(startDate: Date, endDate: Date): Promise<ReportData> {
-    const spending = await prisma.fiscalNote.groupBy({
+    const spending = await prisma.note.groupBy({
         by: ['projectAccountNumber'],
         where: {
             status: 'ATESTADA',
             attestedAt: { gte: startDate, lte: endDate }
         },
         _sum: {
-            amount: true,
+            totalValue: true,
         },
         _count: {
             id: true,
         },
         orderBy: {
             _sum: {
-                amount: 'desc'
+                totalValue: 'desc'
             }
         },
     });
@@ -246,20 +246,20 @@ async function getSpendingByProject(startDate: Date, endDate: Date): Promise<Rep
         endDate,
         projectSpending: spending.map(p => ({
             project: p.projectAccountNumber,
-            totalValue: p._sum.amount || 0,
+            totalValue: p._sum.totalValue || 0,
             noteCount: p._count.id,
         })),
     };
 }
 
 async function getTypeAnalysis(startDate: Date, endDate: Date): Promise<ReportData> {
-    const analysis = await prisma.fiscalNote.groupBy({
-        by: ['invoiceType'],
+    const analysis = await prisma.note.groupBy({
+        by: ['type'],
         where: {
             createdAt: { gte: startDate, lte: endDate }
         },
         _sum: {
-            amount: true,
+            totalValue: true,
         },
         _count: {
             id: true,
@@ -271,8 +271,8 @@ async function getTypeAnalysis(startDate: Date, endDate: Date): Promise<ReportDa
         startDate,
         endDate,
         typeAnalysis: analysis.map(item => ({
-            type: item.invoiceType,
-            totalValue: item._sum.amount || 0,
+            type: item.type,
+            totalValue: item._sum.totalValue || 0,
             noteCount: item._count.id,
         })),
     }

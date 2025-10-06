@@ -318,7 +318,7 @@ export default function AttestationClientPage({ initialNote, token }: Attestatio
                 <AttestationForm token={token} onSuccess={() => setSubmissionStatus('attested')} />
 
                 <div className="mt-6 text-center">
-                   <RejectionDialog token={token} noteId={note.id} requesterEmail={note.creator?.email} onSuccess={() => setSubmissionStatus('rejected')} />
+                   <RejectionDialog token={token} noteId={note.id} requesterEmail={note.user?.email} onSuccess={() => setSubmissionStatus('rejected')} />
                 </div>
               </section>
             </div>

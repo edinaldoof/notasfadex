@@ -44,11 +44,11 @@ const noteFormSchema = z.object({
 export async function addNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.creator?.id || !session.creator.email || !session.creator.name) {
+    if (!session?.user?.id || !session.user.email || !session.user.name) {
       return { success: false, message: 'Usuário não autenticado ou informações do usuário ausentes. Acesso negado.' };
     }
     
-    const { id: userId, name: userName, email: userEmail } = session.creator;
+    const { id: userId, name: userName, email: userEmail } = session.user;
 
     const file = formData.get('file') as File;
     const reportFile = formData.get('reportFile') as File | null;
@@ -188,10 +188,10 @@ export async function addNote(formData: FormData) {
 export async function updateNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
       return { success: false, message: 'Usuário não autenticado.' };
     }
-    const { id: editorId, name: editorName, role } = session.creator;
+    const { id: editorId, name: editorName, role } = session.user;
     
     const noteId = formData.get('noteId') as string;
     if (!noteId) {
@@ -285,11 +285,11 @@ const attestNoteSchema = z.object({
 export async function attestNote(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.creator?.id || !session.creator.name) {
+    if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
     
-    const { id: attestedById, name: userName } = session.creator;
+    const { id: attestedById, name: userName } = session.user;
 
     const rawData = Object.fromEntries(formData.entries());
     const validated = attestNoteSchema.safeParse(rawData);
@@ -379,11 +379,11 @@ export async function attestNote(formData: FormData) {
 export async function revertAttestation(noteId: string) {
   try {
     const session = await auth();
-    if (!session?.creator?.id || !session.creator.name) {
+    if (!session?.user?.id || !session.user.name) {
         return { success: false, message: 'Acesso negado.' };
     }
 
-    const { id: userId } = session.creator;
+    const { id: userId } = session.user;
     
     await prisma.$transaction([
       prisma.fiscalNote.update({
@@ -422,7 +422,7 @@ export async function revertAttestation(noteId: string) {
 export async function checkExistingNote(input: { noteNumber: string; projectAccountNumber: string }): Promise<boolean> {
   try {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         console.error("Unauthorized attempt to check for existing notes.");
         return false;
     }
@@ -450,7 +450,7 @@ export async function checkExistingNote(input: { noteNumber: string; projectAcco
 export async function extractNoteData(input: ExtractNoteDataInput): Promise<ExtractNoteDataOutput> {
   try {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
       throw new Error('Acesso não autorizado.');
     }
     return performExtraction(input);
@@ -463,7 +463,7 @@ export async function extractNoteData(input: ExtractNoteDataInput): Promise<Extr
 export async function deleteNote(noteId: string, permanent: boolean = false): Promise<{ success: boolean; message: string; }> {
     try {
         const session = await auth();
-        if (!session?.creator?.id) {
+        if (!session?.user?.id) {
           return { success: false, message: "Acesso negado." };
         }
 
@@ -509,7 +509,7 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
                   data: {
                     type: 'DELETED',
                     details: 'Nota movida para a lixeira.',
-                    userId: session.creator.id,
+                    userId: session.user.id,
                     fiscalNoteId: noteId,
                   }
                 })
@@ -528,7 +528,7 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
 export async function restoreNote(noteId: string): Promise<{ success: boolean, message: string }> {
     try {
       const session = await auth();
-      if (!session?.creator?.id) {
+      if (!session?.user?.id) {
           return { success: false, message: "Acesso negado." };
       }
 
@@ -549,7 +549,7 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
             data: {
               type: 'RESTORED',
               details: 'Nota restaurada da lixeira.',
-              userId: session.creator.id,
+              userId: session.user.id,
               fiscalNoteId: noteId,
             }
           })
@@ -566,7 +566,7 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
 
 export async function notifyAllPendingCoordinators(): Promise<{ success: boolean; message: string; notifiedCount?: number; }> {
     const session = await auth();
-    if (session?.creator?.role !== Role.OWNER && session?.creator?.role !== Role.MANAGER) {
+    if (session?.user?.role !== Role.OWNER && session?.user?.role !== Role.MANAGER) {
         return { success: false, message: "Acesso negado. Apenas administradores podem executar esta ação." };
     }
 
@@ -593,7 +593,7 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
         }
 
         const emailPromises = pendingNotes.map(note => {
-            if (!note.creator?.email) {
+            if (!note.user?.email) {
                 console.warn(`Nota ${note.id} não tem um solicitante com e-mail para ser copiado.`);
                 return Promise.resolve();
             }
@@ -602,7 +602,7 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
                 noteId: note.id,
                 coordinatorEmail: note.coordinatorEmail,
                 coordinatorName: note.coordinatorName,
-                requesterEmail: note.creator.email,
+                requesterEmail: note.user.email,
                 ccEmails: note.ccEmails,
                 noteDescription: note.description,
                 projectTitle: note.projectTitle,

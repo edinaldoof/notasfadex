@@ -18,7 +18,7 @@ const addTutorialSchema = z.object({
 
 export async function addTutorial(formData: FormData) {
   const session = await auth();
-  if (session?.creator?.role !== Role.OWNER) {
+  if (session?.user?.role !== Role.OWNER) {
     throw new Error('Acesso não autorizado.');
   }
 
@@ -61,7 +61,7 @@ export async function addTutorial(formData: FormData) {
       type,
       url: fileUrl,
       driveFileId,
-      authorId: session.creator.id,
+      authorId: session.user.id,
     },
   });
 
@@ -70,7 +70,7 @@ export async function addTutorial(formData: FormData) {
 
 export async function getTutorials() {
   const session = await auth();
-  if (!session?.creator?.id) {
+  if (!session?.user?.id) {
     throw new Error('Usuário não autenticado.');
   }
   return prisma.tutorial.findMany({
@@ -82,7 +82,7 @@ export async function getTutorials() {
 
 export async function deleteTutorial(id: string) {
     const session = await auth();
-    if (session?.creator?.role !== Role.OWNER) {
+    if (session?.user?.role !== Role.OWNER) {
         throw new Error('Acesso não autorizado.');
     }
 

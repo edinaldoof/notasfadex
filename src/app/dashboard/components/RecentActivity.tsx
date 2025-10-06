@@ -11,14 +11,14 @@ import {
   XCircle,
   FileText,
 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
-import { Skeleton } from '../../../../components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { HistoryType } from '@prisma/client';
-import { getRecentActivities } from '../actions';
+import { getRecentActivities } from '@/app/dashboard/actions';
 
 type RecentActivityEvent = Awaited<ReturnType<typeof getRecentActivities>>[0];
 

@@ -1,9 +1,9 @@
 
 import type { Metadata } from "next";
-import { Header } from "../../../../components/dashboard/header";
-import { Sidebar } from "../../../../components/dashboard/sidebar";
-import { Chatbot } from "../../../../components/dashboard/chatbot";
-import SessionHandler from "../../../../components/auth/session-handler";
+import { Header } from "@/components/dashboard/header";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import { Chatbot } from "@/components/dashboard/chatbot";
+import SessionHandler from "@/components/auth/session-handler";
 
 export const metadata: Metadata = {
   title: "Dashboard | Notas Fadex",

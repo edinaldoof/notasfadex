@@ -65,13 +65,12 @@ export const authConfig = {
     },
 
     async session({ session, token }) {
-      if (session.creator) {
-        session.creator.id = token.id as string;
-        session.creator.role = token.role as Role;
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as Role;
       }
       if (token.error) {
-        // @ts-ignore
-        session.error = token.error;
+        session.error = token.error as "RefreshAccessTokenError";
       }
       return session;
     },

@@ -1,8 +1,8 @@
 
 'use server';
 
-import prisma from '../../../../lib/prisma';
-import { auth } from '../../../../auth';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { NoteStatus } from '@prisma/client';
 
 export type NoteForCalendar = {
@@ -38,14 +38,13 @@ export type NotesGrouped = {
 
 export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
     try {
-        const notes = await prisma.fiscalNote.findMany({
+        const notes = await prisma.note.findMany({
             where: {
-                // CORREÇÃO: Busca notas PENDENTES ou ATESTADAS
                 status: {
                     in: [NoteStatus.PENDENTE, NoteStatus.ATESTADA]
                 },
@@ -61,16 +60,17 @@ export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
                 status: true,
                 requester: true,
                 projectTitle: true,
-                amount: true,
+                totalValue: true,
                 noteNumber: true,
                 providerName: true,
                 createdAt: true,
-                attestedAt: true, // Adicionado
+                attestedAt: true,
             },
             orderBy: {
                 attestationDeadline: 'asc',
             }
         });
+        // @ts-ignore
         return notes;
 
     } catch (error) {
@@ -82,7 +82,7 @@ export async function getNotesForCalendar(): Promise<NoteForCalendar[]> {
 
 export async function getCalendarStats(): Promise<CalendarStats> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -93,7 +93,7 @@ export async function getCalendarStats(): Promise<CalendarStats> {
         const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const notes = await prisma.fiscalNote.findMany({
+        const notes = await prisma.note.findMany({
             where: {
                 status: NoteStatus.PENDENTE,
                 attestationDeadline: {
@@ -141,7 +141,7 @@ export async function getCalendarStats(): Promise<CalendarStats> {
 
 export async function getGroupedNotes(): Promise<NotesGrouped> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
@@ -188,17 +188,17 @@ export async function getGroupedNotes(): Promise<NotesGrouped> {
 
 export async function markNoteAsAttested(noteId: string): Promise<void> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
     try {
-        await prisma.fiscalNote.update({
+        await prisma.note.update({
             where: { id: noteId },
             data: { 
                 status: NoteStatus.ATESTADA,
                 attestedAt: new Date(),
-                attestedById: session.creator.id
+                attestedById: session.user.id
             }
         });
     } catch (error) {
@@ -209,12 +209,12 @@ export async function markNoteAsAttested(noteId: string): Promise<void> {
 
 export async function postponeDeadline(noteId: string, newDeadline: Date): Promise<void> {
     const session = await auth();
-    if (!session?.creator?.id) {
+    if (!session?.user?.id) {
         throw new Error('Usuário não autenticado.');
     }
 
     try {
-        await prisma.fiscalNote.update({
+        await prisma.note.update({
             where: { id: noteId },
             data: { 
                 attestationDeadline: newDeadline,

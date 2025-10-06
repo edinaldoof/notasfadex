@@ -93,7 +93,7 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
-  createdNotes  Note[]        @relation("NoteCreator")
+  notes         Note[]        @relation("UserNotes")
   attestedNotes Note[]        @relation("Attestor")
   historyEvents NoteHistory[] @relation("EventAuthor")
   permissions   UserPermission[]
@@ -181,7 +181,7 @@ model Note {
   clientDocument       String? // CNPJ/CPF
   noteNumber           String?
   userId               String
-  creator              User       @relation("NoteCreator", fields: [userId], references: [id], onDelete: Cascade)
+  user                 User       @relation("UserNotes", fields: [userId], references: [id], onDelete: Cascade)
   history              NoteHistory[]
   isDeleted            Boolean    @default(false)
   deletedAt            DateTime?

@@ -38,7 +38,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <DashboardHeader
         greeting={greeting}
-        userName={session?.creator?.name}
+        userName={session?.user?.name}
         currentDate={currentDate}
         onAddNote={() => setShowAddModal(true)}
         loading={status === 'loading'}
