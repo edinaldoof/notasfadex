@@ -516,7 +516,7 @@ export const sendAttestationReminderEmail = async (payload: ReminderEmailPayload
 export const sendAttestationConfirmationToCoordinator = async (payload: CoordinatorConfirmationEmailPayload) => {
      try {
         const template = await getOrCreateEmailTemplate('ATTESTATION_CONFIRMATION_COORDINATOR');
-        const note = await prisma.fiscalNote.findUnique({ where: { id: payload.noteId } });
+        const note = await prisma.note.findUnique({ where: { id: payload.noteId } });
         
         const replacements = {
             'NomeCoordenador': payload.coordinatorName,
@@ -563,7 +563,7 @@ export const sendAttestationConfirmationToCoordinator = async (payload: Coordina
 export const sendRejectionNotificationEmail = async (payload: RejectionEmailPayload) => {
     try {
         const template = await getOrCreateEmailTemplate('NOTE_REJECTED');
-        const note = await prisma.fiscalNote.findUnique({ where: { id: payload.noteId } });
+        const note = await prisma.note.findUnique({ where: { id: payload.noteId } });
 
         const replacements = {
             'NomeSolicitante': payload.requesterName,

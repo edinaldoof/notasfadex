@@ -26,7 +26,7 @@ export async function getNoteFromToken(token: string): Promise<{
       return { error: 'Token inválido ou expirado.' };
     }
 
-    const note = await prisma.fiscalNote.findUnique({
+    const note = await prisma.note.findUnique({
       where: { id: decoded.noteId },
       select: {
         id: true,
@@ -107,7 +107,7 @@ export async function attestNotePublic(formData: FormData) {
         }
         const { noteId } = decodedToken;
 
-        const note = await prisma.fiscalNote.findUnique({
+        const note = await prisma.note.findUnique({
             where: { id: noteId },
             include: { user: { select: { email: true, id: true, name: true } } }
         });
@@ -146,7 +146,7 @@ export async function attestNotePublic(formData: FormData) {
         }
         historyDetails += ` Documento de atesto '${attestedFile.name}' foi salvo.`;
 
-        await prisma.fiscalNote.update({
+        await prisma.note.update({
             where: { id: noteId },
             data: {
                 status: 'ATESTADA',
@@ -221,7 +221,7 @@ export async function rejectNotePublic(formData: FormData) {
             return { success: false, message: 'Token inválido ou não corresponde à nota.' };
         }
 
-        const note = await prisma.fiscalNote.findUnique({
+        const note = await prisma.note.findUnique({
             where: { id: noteId },
             include: { user: { select: { email: true, id: true, name: true } } }
         });
@@ -239,7 +239,7 @@ export async function rejectNotePublic(formData: FormData) {
         const rejectionDate = new Date();
         const historyDetails = `Nota rejeitada por ${coordinatorName}. Motivo: "${rejectionReason}"`;
 
-        await prisma.fiscalNote.update({
+        await prisma.note.update({
             where: { id: noteId },
             data: {
                 status: 'REJEITADA',

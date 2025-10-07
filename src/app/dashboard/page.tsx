@@ -10,7 +10,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
-import { CheckBadge } from '../../../../components/icons/check-badge';
+import { CheckBadge } from '@/components/icons/check-badge';
 import { useDashboard } from './hooks/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { StatCard } from './components/StatCards';

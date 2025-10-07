@@ -1,7 +1,7 @@
 'use server';
 
 // 1. IMPORTA AS BIBLIOTECAS NECESSÁRIAS
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Type } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, FunctionDeclarationSchemaType } from '@google/generative-ai';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 
@@ -24,14 +24,14 @@ const databaseTools = [
                 name: "getLiveNoteStats",
                 description: "Ferramenta para buscar dados agregados e em tempo real sobre notas fiscais. Use esta ferramenta sempre que a pergunta do utilizador envolver contagens ('quantos', 'número de') ou somas de valores ('valor total', 'qual o montante') para um status específico ou para todas as notas.",
                 parameters: {
-                    type: Type.OBJECT,
+                    type: FunctionDeclarationSchemaType.OBJECT,
                     properties: {
                         status: {
-                            type: Type.STRING,
+                            type: FunctionDeclarationSchemaType.STRING,
                             description: "OPCIONAL. O status para filtrar a consulta (PENDENTE, ATESTADA, EXPIRADA). Se não for fornecido, a consulta será sobre o total de todas as notas.",
                         },
                         operation: {
-                            type: Type.STRING,
+                            type: FunctionDeclarationSchemaType.STRING,
                             description: "A operação a ser feita: 'count' para contar a quantidade de notas, ou 'sum' para somar o campo 'totalValue'.",
                         }
                     },

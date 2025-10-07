@@ -5,7 +5,9 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 // Sintaxe de importação correta para Genkit v1.x com "type": "module"
-import { genkit, defineFlow } from 'genkit';
+import { genkit } from 'genkit';
+import { defineFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import './index.js';
@@ -34,11 +36,11 @@ export const menuChat = defineFlow(
     }
 
     // A chamada para 'generate' continua a mesma
-    const llmResponse = await ai.generate({
+    const llmResponse = await generate({
       model: googleAI.model('gemini-pro'),
       prompt: input.message,
     });
 
-    return llmResponse.text;
+    return llmResponse.text();
   }
 );

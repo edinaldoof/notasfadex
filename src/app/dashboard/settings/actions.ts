@@ -209,7 +209,7 @@ export async function getPreviewAttestationLink(): Promise<{ success: boolean; l
     }
 
     try {
-        const latestPendingNote = await prisma.fiscalNote.findFirst({
+        const latestPendingNote = await prisma.note.findFirst({
             where: {
                 status: NoteStatus.PENDENTE,
             },

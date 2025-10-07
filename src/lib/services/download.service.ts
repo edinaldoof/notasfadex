@@ -1,8 +1,8 @@
-import { auth } from "../../../auth";
-import { getDriveService } from "../../../lib/google-drive";
-import prisma from "../../../lib/prisma";
-import { verifyAttestationToken } from "../../../lib/token-utils";
-import { getExportMimeType } from "../../../lib/google-drive-utils";
+import { auth } from "@/auth";
+import { getDriveService } from "@/lib/google-drive";
+import prisma from "@/lib/prisma";
+import { verifyAttestationToken } from "@/lib/token-utils";
+import { getExportMimeType } from "@/lib/google-drive-utils";
 import { Readable } from "node:stream";
 import { Role } from "@prisma/client";
 
@@ -15,10 +15,10 @@ import { Role } from "@prisma/client";
  */
 async function authorizeFileAccess(fileId: string, token?: string | null) {
   const session = await auth();
-  const userId = session?.creator?.id;
-  const userRole = session?.creator?.role;
+  const userId = session?.user?.id;
+  const userRole = session?.user?.role;
 
-  const note = await prisma.fiscalNote.findFirst({
+  const note = await prisma.note.findFirst({
     where: {
       OR: [
         { driveFileId: fileId },

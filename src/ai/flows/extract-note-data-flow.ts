@@ -6,10 +6,10 @@
  * (CNPJ/CPF, datas e dinheiro) e geração com baixa temperatura para reduzir variação.
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel, SchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel, FunctionDeclarationSchemaType } from '@google/generative-ai';
 import { z } from 'zod';
-import prisma from '../../lib/prisma';
-import { parseBRLMoneyToFloat } from '../../lib/utils'; // Importa a função do local centralizado
+import prisma from '@/lib/prisma';
+import { parseBRLMoneyToFloat } from '@/lib/utils'; // Importa a função do local centralizado
 
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -48,17 +48,17 @@ const dataExtractionTool = {
       description:
         'Envia os dados extraídos da nota fiscal para o sistema. Use esta função para retornar todos os campos que conseguir encontrar no documento.',
       parameters: {
-        type: SchemaType.OBJECT,
+        type: FunctionDeclarationSchemaType.OBJECT,
         properties: {
-          providerName: { type: SchemaType.STRING, description: 'Razão Social do EMITENTE/PRESTADOR.' },
-          providerDocument: { type: SchemaType.STRING, description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
-          clientName: { type: SchemaType.STRING, description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
-          clientDocument: { type: SchemaType.STRING, description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
-          noteNumber: { type: SchemaType.STRING, description: 'Número da nota fiscal.' },
-          issuedAt: { type: SchemaType.STRING, description: 'Data de emissão no formato DD/MM/AAAA.' },
-          totalValue: { type: SchemaType.NUMBER, description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
-          description: { type: SchemaType.STRING, description: 'Descrição detalhada dos produtos ou serviços.' },
-          type: { type: SchemaType.STRING, enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
+          providerName: { type: FunctionDeclarationSchemaType.STRING, description: 'Razão Social do EMITENTE/PRESTADOR.' },
+          providerDocument: { type: FunctionDeclarationSchemaType.STRING, description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
+          clientName: { type: FunctionDeclarationSchemaType.STRING, description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
+          clientDocument: { type: FunctionDeclarationSchemaType.STRING, description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
+          noteNumber: { type: FunctionDeclarationSchemaType.STRING, description: 'Número da nota fiscal.' },
+          issuedAt: { type: FunctionDeclarationSchemaType.STRING, description: 'Data de emissão no formato DD/MM/AAAA.' },
+          totalValue: { type: FunctionDeclarationSchemaType.NUMBER, description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
+          description: { type: FunctionDeclarationSchemaType.STRING, description: 'Descrição detalhada dos produtos ou serviços.' },
+          type: { type: FunctionDeclarationSchemaType.STRING, enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
         },
         required: [],
       },

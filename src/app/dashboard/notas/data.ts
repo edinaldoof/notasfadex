@@ -76,7 +76,7 @@ export async function getNotes({
 
   try {
     const [notes, total] = await prisma.$transaction([
-      prisma.fiscalNote.findMany({
+      prisma.note.findMany({
         where,
         skip,
         take: limit,
@@ -93,7 +93,7 @@ export async function getNotes({
         },
         orderBy,
       }),
-      prisma.fiscalNote.count({ where }),
+      prisma.note.count({ where }),
     ]);
 
     return { notes: notes as Note[], total };

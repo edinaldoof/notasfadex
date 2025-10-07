@@ -118,7 +118,7 @@ function LixeiraClient() {
 
   useEffect(() => {
     const checkPermissions = async () => {
-      const permission = await hasPermission(PermissionType.CAN_MANAGE_TRASH);
+      const permission = await hasPermission(PermissionType.USER_MANAGE);
       setCanManageTrash(permission);
     };
     if (session) {

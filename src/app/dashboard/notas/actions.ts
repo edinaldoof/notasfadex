@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import { NoteStatus, InvoiceType, Role, PermissionType } from '@prisma/client';
+import { NoteStatus, Role, PermissionType } from '@prisma/client';
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { addDays, differenceInDays } from 'date-fns';
@@ -17,6 +17,7 @@ import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '
 import { hasPermission } from '@/lib/auth-utils';
 import { Prisma } from '@prisma/client';
 import { parseBRLMoneyToFloat } from '@/lib/utils';
+import { Note, InvoiceType } from '@/lib/types';
 
 
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
@@ -79,7 +80,7 @@ export async function addNote(formData: FormData) {
     const { description, totalValue, ...data } = validatedFields.data;
 
     if (!forceCreate && data.noteNumber && data.projectAccountNumber) {
-        const existing = await prisma.fiscalNote.findFirst({
+        const existing = await prisma.note.findFirst({
             where: {
                 noteNumber: data.noteNumber,
                 projectAccountNumber: data.projectAccountNumber,
@@ -124,17 +125,17 @@ export async function addNote(formData: FormData) {
     const deadlineDays = settings?.attestationDeadlineInDays ?? 30;
     const attestationDeadline = addDays(submissionDate, deadlineDays); 
 
-    const newNote = await prisma.fiscalNote.create({
+    const newNote = await prisma.note.create({
       data: {
         ...data,
         description: description,
-        amount: parseBRLMoneyToFloat(totalValue),
+        totalValue: parseBRLMoneyToFloat(totalValue),
         requester: userName,
-        issueDate: submissionDate,
+        issuedAt: submissionDate,
         status: NoteStatus.PENDENTE,
         fileType: file.type,
         fileName: file.name,
-        originalFileUrl: `/api/download/${driveFile.id}`,
+        fileUrl: `/api/download/${driveFile.id}`,
         driveFileId: driveFile.id,
         reportDriveFileId,
         reportFileName,
@@ -198,7 +199,7 @@ export async function updateNote(formData: FormData) {
       return { success: false, message: 'ID da nota não fornecido.' };
     }
     
-    const originalNote = await prisma.fiscalNote.findUnique({ where: { id: noteId } });
+    const originalNote = await prisma.note.findUnique({ where: { id: noteId } });
     if (!originalNote) {
       return { success: false, message: 'Nota fiscal não encontrada.' };
     }
@@ -218,10 +219,10 @@ export async function updateNote(formData: FormData) {
 
     const { description, totalValue, ...data } = validatedFields.data;
     
-    const updateData: Prisma.FiscalNoteUpdateInput = {
+    const updateData: Prisma.NoteUpdateInput = {
         ...data,
         description: description,
-        amount: parseBRLMoneyToFloat(totalValue),
+        totalValue: parseBRLMoneyToFloat(totalValue),
     };
 
     const newFile = formData.get('file') as File | null;
@@ -235,7 +236,7 @@ export async function updateNote(formData: FormData) {
       updateData.fileName = newFile.name;
       updateData.fileType = newFile.type;
       updateData.driveFileId = newDriveFile.id;
-      updateData.originalFileUrl = `/api/download/${newDriveFile.id}`;
+      updateData.fileUrl = `/api/download/${newDriveFile.id}`;
     }
 
     const newReportFile = formData.get('reportFile') as File | null;
@@ -252,7 +253,7 @@ export async function updateNote(formData: FormData) {
       updateData.reportFileUrl = `/api/download/${newReportDriveFile.id}`;
     }
 
-    await prisma.fiscalNote.update({
+    await prisma.note.update({
       where: { id: noteId },
       data: {
         ...updateData,
@@ -302,7 +303,7 @@ export async function attestNote(formData: FormData) {
     const attestedFile = formData.get('attestedFile') as File | null;
     const reportFile = formData.get('reportFile') as File | null;
     
-    const note = await prisma.fiscalNote.findUnique({ where: { id: noteId } });
+    const note = await prisma.note.findUnique({ where: { id: noteId } });
     if (!note) {
         return { success: false, message: 'Nota fiscal não encontrada.' };
     }
@@ -350,7 +351,7 @@ export async function attestNote(formData: FormData) {
     }
 
     await prisma.$transaction([
-      prisma.fiscalNote.update({
+      prisma.note.update({
           where: { id: noteId },
           data: dataToUpdate,
       }),
@@ -359,7 +360,7 @@ export async function attestNote(formData: FormData) {
           type: 'ATTESTED',
           details: historyDetails,
           userId: attestedById,
-          fiscalNoteId: noteId,
+          noteId: noteId,
         }
       })
     ]);
@@ -386,7 +387,7 @@ export async function revertAttestation(noteId: string) {
     const { id: userId } = session.user;
     
     await prisma.$transaction([
-      prisma.fiscalNote.update({
+      prisma.note.update({
           where: { id: noteId },
           data: {
               status: 'PENDENTE',
@@ -403,7 +404,7 @@ export async function revertAttestation(noteId: string) {
           type: 'REVERTED',
           details: 'O atesto da nota foi desfeito.',
           userId: userId,
-          fiscalNoteId: noteId,
+          noteId: noteId,
         }
       })
     ]);
@@ -433,7 +434,7 @@ export async function checkExistingNote(input: { noteNumber: string; projectAcco
     });
 
     const validatedInput = checkExistingNoteSchema.parse(input);
-    const existing = await prisma.fiscalNote.findFirst({
+    const existing = await prisma.note.findFirst({
         where: {
             noteNumber: validatedInput.noteNumber,
             projectAccountNumber: validatedInput.projectAccountNumber,
@@ -467,15 +468,15 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
           return { success: false, message: "Acesso negado." };
         }
 
-        const canManageTrash = await hasPermission(PermissionType.CAN_MANAGE_TRASH);
+        const canManageTrash = await hasPermission(PermissionType.USER_MANAGE);
         
         if (permanent && !canManageTrash) {
              return { success: false, message: "Acesso negado. Você não tem permissão para excluir notas permanentemente." };
         }
         
-        const note = await prisma.fiscalNote.findUnique({
+        const note = await prisma.note.findUnique({
             where: { id: noteId },
-            select: { status: true, deleted: true }
+            select: { status: true, isDeleted: true }
         });
 
         if (!note) {
@@ -483,14 +484,14 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
         }
 
         if (permanent) {
-            if (!note.deleted && !canManageTrash) {
+            if (!note.isDeleted && !canManageTrash) {
                  return { success: false, message: "Apenas notas na lixeira podem ser excluídas permanentemente por não-administradores." };
             }
-            await prisma.fiscalNote.delete({ where: { id: noteId } });
+            await prisma.note.delete({ where: { id: noteId } });
             revalidatePath('/dashboard/lixeira');
             return { success: true, message: "Nota excluída permanentemente." };
         } else {
-            const canSoftDelete = await hasPermission(PermissionType.CAN_DELETE_PENDING_NOTE);
+            const canSoftDelete = await hasPermission(PermissionType.NOTE_DELETE);
              if (!canSoftDelete) {
                  return { success: false, message: "Acesso negado. Você não tem permissão para mover notas para a lixeira." };
              }
@@ -498,10 +499,10 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
                 return { success: false, message: `Não é possível mover uma nota com status "${note.status}" para a lixeira.` };
             }
             await prisma.$transaction([
-                prisma.fiscalNote.update({
+                prisma.note.update({
                     where: { id: noteId },
                     data: { 
-                        deleted: true,
+                        isDeleted: true,
                         deletedAt: new Date(),
                     }
                 }),
@@ -510,7 +511,7 @@ export async function deleteNote(noteId: string, permanent: boolean = false): Pr
                     type: 'DELETED',
                     details: 'Nota movida para a lixeira.',
                     userId: session.user.id,
-                    fiscalNoteId: noteId,
+                    noteId: noteId,
                   }
                 })
             ]);
@@ -532,13 +533,13 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
           return { success: false, message: "Acesso negado." };
       }
 
-      const canManageTrash = await hasPermission(PermissionType.CAN_MANAGE_TRASH);
+      const canManageTrash = await hasPermission(PermissionType.USER_MANAGE);
       if (!canManageTrash) {
           return { success: false, message: "Acesso negado. Você não tem permissão para restaurar notas." };
       }
 
       await prisma.$transaction([
-          prisma.fiscalNote.update({
+          prisma.note.update({
               where: { id: noteId },
               data: {
                   isDeleted: false,
@@ -550,7 +551,7 @@ export async function restoreNote(noteId: string): Promise<{ success: boolean, m
               type: 'RESTORED',
               details: 'Nota restaurada da lixeira.',
               userId: session.user.id,
-              fiscalNoteId: noteId,
+              noteId: noteId,
             }
           })
       ]);
@@ -571,7 +572,7 @@ export async function notifyAllPendingCoordinators(): Promise<{ success: boolean
     }
 
     try {
-        const pendingNotes = await prisma.fiscalNote.findMany({
+        const pendingNotes = await prisma.note.findMany({
             where: {
                 status: NoteStatus.PENDENTE,
                 isDeleted: false,

@@ -30,7 +30,7 @@ export async function getGoalsData(): Promise<GoalsData> {
 
   try {
     // 1. Gastos do mês atual
-    const currentMonthNotes = await prisma.fiscalNote.findMany({
+    const currentMonthNotes = await prisma.note.findMany({
       where: {
         status: NoteStatus.ATESTADA,
         attestedAt: {
@@ -43,7 +43,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     const currentMonthSpending = currentMonthNotes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     // 2. Gastos do mês anterior
-    const lastMonthNotes = await prisma.fiscalNote.findMany({
+    const lastMonthNotes = await prisma.note.findMany({
       where: {
         status: NoteStatus.ATESTADA,
         attestedAt: {
@@ -56,7 +56,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     const lastMonthSpending = lastMonthNotes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
 
     // 3. Tempo médio de ateste (baseado nas notas atestadas no mês atual)
-    const attestedNotesForTiming = await prisma.fiscalNote.findMany({
+    const attestedNotesForTiming = await prisma.note.findMany({
         where: {
             status: NoteStatus.ATESTADA,
             attestedAt: {
@@ -80,7 +80,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     const avgAttestationTimeInDays = attestedNotesForTiming.length > 0 ? totalDays / attestedNotesForTiming.length : 0;
     
     // 4. Notas processadas (criadas) este mês
-    const notesProcessedThisMonth = await prisma.fiscalNote.count({
+    const notesProcessedThisMonth = await prisma.note.count({
         where: {
             createdAt: {
                 gte: startOfCurrentMonth,
@@ -98,7 +98,7 @@ export async function getGoalsData(): Promise<GoalsData> {
     }
 
     // 6. Notas que expiraram este mês
-    const expiredNotesThisMonth = await prisma.fiscalNote.count({
+    const expiredNotesThisMonth = await prisma.note.count({
       where: {
         status: NoteStatus.EXPIRADA,
         updatedAt: { 

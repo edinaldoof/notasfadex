@@ -2,7 +2,9 @@
 'use server';
 
 // Importa as bibliotecas necessárias
-import { genkit, z, defineFlow, generate } from 'genkit';
+import { genkit, z } from 'genkit';
+import { defineFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai';
 import { googleAI } from '@genkit-ai/googleai';
 
 // Garante que as variáveis de ambiente sejam carregadas
@@ -49,7 +51,7 @@ const chatbotFlow = defineFlow(
         },
     });
 
-    const output = llmResponse.output;
+    const output = llmResponse.output();
     if (output) {
       return output;
     }

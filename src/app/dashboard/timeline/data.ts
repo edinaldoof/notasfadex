@@ -15,7 +15,7 @@ export async function getNotesForTimeline(): Promise<Note[]> {
   }
 
   try {
-    const notes = await prisma.fiscalNote.findMany({
+    const notes = await prisma.note.findMany({
       include: {
         history: {
           orderBy: {

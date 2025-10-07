@@ -625,7 +625,7 @@ function NoteItem({ note }: { note: Note }) {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button asChild variant="ghost" size="icon" className="text-slate-400 hover:text-primary">
-                                        <a href={note.originalFileUrl} download>
+                                        <a href={note.fileUrl} download>
                                             <Download className="w-4 h-4" />
                                         </a>
                                     </Button>
