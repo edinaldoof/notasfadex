@@ -1,9 +1,9 @@
 
 'use server';
 
-import prisma from '../../../lib/prisma';
-import { auth } from '../../../auth';
-import { NoteStatus, InvoiceType } from '../../../lib/types';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
+import { NoteStatus, InvoiceType } from '@/lib/types';
 import { z } from 'zod';
 import { startOfMonth, endOfMonth, eachMonthOfInterval, format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

@@ -1,9 +1,9 @@
 
 'use server';
 
-import prisma from '../../../lib/prisma';
-import type { Note } from '../../../lib/types';
-import { auth } from '../../../auth';
+import prisma from '@/lib/prisma';
+import type { Note } from '@/lib/types';
+import { auth } from '@/auth';
 
 
 export async function getNotesForTimeline(): Promise<Note[]> {

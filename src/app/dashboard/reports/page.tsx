@@ -3,24 +3,24 @@
 
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Button } from '../../../../components/ui/button';
-import { Calendar } from '../../../../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../../../../components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { addDays, format, subYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart3, Calendar as CalendarIcon, Download, SlidersHorizontal, Loader2, Users, FileText, CircleDollarSign as DollarIcon, Activity, Percent, Clock, Briefcase } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { CheckBadge } from '../../../../components/icons/check-badge';
+import { CheckBadge } from '@/components/icons/check-badge';
 import { CircleDollarSign } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/lib/utils';
 import { getReportData, ReportData, ReportType } from './actions';
-import { Skeleton } from '../../../../components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
-import { useToast } from '../../../../hooks/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { NoteStatus, InvoiceType } from '../../../lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NoteStatus, InvoiceType } from '@/lib/types';
 
 const reportTypes: { value: ReportType; label: string; description: string; disabled?: boolean }[] = [
     { value: 'totals_by_period', label: 'Totais por Período', description: 'Visão geral de valores e quantidade de notas atestadas.' },

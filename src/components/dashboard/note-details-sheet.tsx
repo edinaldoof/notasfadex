@@ -7,11 +7,11 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '../../../../components/ui/sheet';
-import { Note, HistoryType } from '../../../lib/types';
+} from '@/components/ui/sheet';
+import { Note, HistoryType } from '@/lib/types';
 import { FileText, Stamp, PlusCircle, Undo2, Edit, User, Calendar, BadgeInfo, Hash, CircleDollarSign, Building, Mail, Banknote, FileType, Percent, Copy, Download, MessageSquare, FileSignature, Paperclip, Trash2, Undo as UndoIcon } from 'lucide-react';
-import { Separator } from '../ui/separator';
-import { Button } from '../ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 interface NoteDetailsSheetProps {
   note: Note | null;

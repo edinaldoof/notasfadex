@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AddNoteDialog } from "../add-note-dialog.jsx";
-import { Button } from "../../../../components/ui/button";
+import { AddNoteDialog } from "@/app/dashboard/add-note-dialog";
+import { Button } from "@/components/ui/button";
 
 export function NotasClient() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);

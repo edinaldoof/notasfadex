@@ -9,14 +9,14 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '../../../../components/ui/dialog';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Loader2, Upload, AlertCircle, Eye, Paperclip } from 'lucide-react';
-import { useToast } from '../../../../hooks/use-toast';
-import { Note } from '../../../lib/types';
-import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { Note } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { NotePreviewDialog } from './note-preview-dialog'; 
 
 interface AttestNoteDialogProps {

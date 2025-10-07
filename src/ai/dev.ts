@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 // Sintaxe de importação correta para Genkit v1.x com "type": "module"
-import { genkit } from 'genkit';
+import { genkit, defineFlow } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import './index.js';
@@ -13,13 +13,12 @@ import './flows.js';
 import './actions.js'
 
 // Configuração correta, criando uma instância 'ai' com os plugins
-const ai = genkit({
+genkit({
   plugins: [googleAI()],
-  enableTracingAndMetrics: true,
 });
 
 // CORREÇÃO FINAL: A função para criar um fluxo é 'defineFlow', não 'flow'.
-export const menuChat = ai.defineFlow(
+export const menuChat = defineFlow(
   {
     name: 'menuChat',
     inputSchema: z.object({

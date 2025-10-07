@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { Button } from '../../../../components/ui/button';
-import { cn } from '../../../lib/utils';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { useToast } from '../../../../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 // Ícone oficial do Google (SVG atualizado)
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (

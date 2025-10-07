@@ -1,8 +1,8 @@
 
 'use server';
 
-import prisma from '../../../lib/prisma';
-import { auth } from '../../../auth';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { startOfMonth, endOfMonth, subMonths, differenceInDays } from 'date-fns';
 import { NoteStatus } from '@prisma/client';
 

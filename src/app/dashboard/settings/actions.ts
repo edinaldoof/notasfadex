@@ -1,14 +1,14 @@
 
 'use server';
 
-import prisma from '../../../lib/prisma';
-import { auth } from '../../../auth';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { Role, Settings, EmailTemplate, NoteStatus, PermissionType, SqlServerSettings } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
-import { sendEmail } from '../../../lib/email';
+import { sendEmail } from '@/lib/email';
 import { z } from 'zod';
-import { generateAttestationToken } from '../../../lib/token-utils';
-import { getOrCreateEmailTemplate, getDefaultTemplate } from '../../../lib/email-actions';
+import { generateAttestationToken } from '@/lib/token-utils';
+import { getOrCreateEmailTemplate, getDefaultTemplate } from '@/lib/email-actions';
 
 /**
  * Fetches all users from the database.

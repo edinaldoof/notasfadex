@@ -2,13 +2,13 @@
 'use server';
 
 import { z } from 'zod';
-import prisma from '../../../lib/prisma';
-import { uploadFileToDrive } from '../../../lib/google-drive';
+import prisma from '@/lib/prisma';
+import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { revalidatePath } from 'next/cache';
-import { verifyAttestationToken } from '../../../lib/token-utils';
-import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '../../../lib/email-actions';
-import type { Note } from '../../../lib/types';
+import { verifyAttestationToken } from '@/lib/token-utils';
+import { sendAttestationConfirmationToCoordinator, sendRejectionNotificationEmail } from '@/lib/email-actions';
+import type { Note } from '@/lib/types';
 
 
 // Esta função agora está corretamente em uma Server Action.

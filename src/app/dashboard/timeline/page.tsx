@@ -2,19 +2,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Note, HistoryType } from '../../../lib/types';
+import { Note, HistoryType } from '@/lib/types';
 import { FileText, Stamp, PlusCircle, Undo2, Edit, User, History, Clock, Calendar, Search, AlertTriangle, XCircle, FileSpreadsheet, Trash2, Undo } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "../../../../components/ui/accordion"
+} from "@/components/ui/accordion"
 import { getNotesForTimeline } from './data';
-import { Skeleton } from '../../../../components/ui/skeleton';
-import { Input } from '../../../../components/ui/input';
-import { Badge } from '../../../../components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '../../../../components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const getEventTypeConfig = (type: HistoryType) => {
     switch(type) {

@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '../../../../components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   Command,
   CommandEmpty,
@@ -17,29 +17,29 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "../../../../components/ui/command";
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "../../../../components/ui/popover";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../../../components/ui/form";
-import { Input } from '../../../../components/ui/input';
+} from "@/components/ui/popover";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from '@/components/ui/input';
 import {
   Loader2, Upload, SquarePen, Paperclip, Check, ChevronsUpDown, Star
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useToast } from '../../../../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { updateNote } from './actions';
 import { getProjectAccounts, getProjectDetails } from '@/app/dashboard/actions';
-import { cn, maskCnpj, parseBRLMoneyToFloat } from '../../../lib/utils';
-import { Button } from '../../../../components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
-import { Switch } from '../../../../components/ui/switch';
-import { Separator } from '../../../../components/ui/separator';
-import { Note, Coordinator } from '../../../lib/types';
+import { cn, maskCnpj, parseBRLMoneyToFloat } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Note, Coordinator } from '@/lib/types';
 
 // Tipos e constantes
 const invoiceTypes = [

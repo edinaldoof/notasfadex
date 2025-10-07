@@ -25,26 +25,26 @@ import {
   Building,
   RotateCcw,
 } from 'lucide-react';
-import { Note, NoteStatus, PermissionType } from '../../../lib/types';
+import { Note, NoteStatus, PermissionType } from '@/lib/types';
 import { AddNoteDialog } from '@/app/dashboard/add-note-dialog';
-import { CheckBadge } from '../../../../components/icons/check-badge';
+import { CheckBadge } from '@/components/icons/check-badge';
 import { isPast, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-import { AttestNoteDialog } from '../../../../components/dashboard/attest-note-dialog';
+import { AttestNoteDialog } from '@/components/dashboard/attest-note-dialog';
 import { EditNoteDialog } from '@/app/dashboard/notas/edit-note-dialog';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "../../../../components/ui/popover"
-import { Calendar } from '../../../../components/ui/calendar';
+} from "@/components/ui/popover"
+import { Calendar } from '@/components/ui/calendar';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../../../../components/ui/tooltip"
+} from "@/components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,16 +52,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../../../components/ui/dropdown-menu"
-import { cn } from '../../../lib/utils';
-import { Button, buttonVariants } from '../../../../components/ui/button';
-import { NoteDetailsSheet } from '../../../../components/dashboard/note-details-sheet';
-import { Skeleton } from '../../../../components/ui/skeleton';
+} from "@/components/ui/dropdown-menu"
+import { cn } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getNotes } from './data';
 import { revertAttestation, attestNote, notifyAllPendingCoordinators, deleteNote } from './actions';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
-import { useToast } from '../../../../hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,10 +72,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../../../../components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client';
-import { hasPermission } from '../../../lib/auth-utils';
+import { hasPermission } from '@/lib/auth-utils';
 
 const formatDate = (date: Date | string) => {
   return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });

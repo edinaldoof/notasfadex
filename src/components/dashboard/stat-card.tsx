@@ -1,6 +1,6 @@
 
-import { cn } from "../../../lib/utils";
-import { Skeleton } from "../ui/skeleton.jsx";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface StatCardProps {
   title: string;

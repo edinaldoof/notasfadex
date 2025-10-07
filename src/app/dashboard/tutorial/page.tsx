@@ -8,9 +8,9 @@ import type { Tutorial } from '@prisma/client';
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client';
 import { AddTutorialDialog } from './add-tutorial-dialog';
-import { Button } from '../../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../../components/ui/card';
-import { useToast } from '../../../../hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../../../../components/ui/alert-dialog";
-import { Skeleton } from '../../../../components/ui/skeleton';
-import { Input } from '../../../../components/ui/input';
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 
 const TutorialCard = ({ tutorial, isOwner, onDelete }: { tutorial: Tutorial; isOwner: boolean; onDelete: (id: string) => void; }) => {
   const [showVideo, setShowVideo] = useState(false);

@@ -11,13 +11,13 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '../../../../components/ui/dialog';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
-import { Textarea } from '../../../../components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '../../../../components/ui/radio-group';
-import { useToast } from '../../../../hooks/use-toast';
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
 import { addTutorial } from './actions';
 import { Loader2, Upload, Video, File as FileIcon } from 'lucide-react';
 import { TutorialType } from '@prisma/client';

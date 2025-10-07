@@ -3,20 +3,20 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import prisma from '../../../lib/prisma';
-import { auth } from '../../../auth';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
 import { NoteStatus, InvoiceType, Role, PermissionType } from '@prisma/client';
-import { uploadFileToDrive } from '../../../lib/google-drive';
+import { uploadFileToDrive } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { addDays, differenceInDays } from 'date-fns';
 import { 
     sendAttestationRequestEmail, 
     sendAttestationReminderEmail 
-} from '../../../lib/email-actions';
-import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '../../../../ai/flows/extract-note-data-flow';
-import { hasPermission } from '../../../lib/auth-utils';
+} from '@/lib/email-actions';
+import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '@/ai/flows/extract-note-data-flow';
+import { hasPermission } from '@/lib/auth-utils';
 import { Prisma } from '@prisma/client';
-import { parseBRLMoneyToFloat } from '../../../lib/utils';
+import { parseBRLMoneyToFloat } from '@/lib/utils';
 
 
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;

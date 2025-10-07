@@ -14,7 +14,7 @@ import {
   MoreHorizontal,
   Eye,
 } from 'lucide-react';
-import { Note, PermissionType } from '../../../lib/types';
+import { Note, PermissionType } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -22,14 +22,14 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "../../../../components/ui/popover"
-import { Calendar } from '../../../../components/ui/calendar';
+} from "@/components/ui/popover"
+import { Calendar } from '@/components/ui/calendar';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../../../../components/ui/tooltip"
+} from "@/components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,15 +37,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../../../components/ui/dropdown-menu"
-import { cn } from '../../../lib/utils';
-import { Button, buttonVariants } from '../../../../components/ui/button';
-import { NoteDetailsSheet } from '../../../../components/dashboard/note-details-sheet';
-import { Skeleton } from '../../../../components/ui/skeleton';
+} from "@/components/ui/dropdown-menu"
+import { cn } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { NoteDetailsSheet } from '@/components/dashboard/note-details-sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getNotes } from '../notas/data';
 import { deleteNote, restoreNote } from '../notas/actions';
-import { Input } from '../../../../components/ui/input';
-import { useToast } from '../../../../hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,9 +56,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../../../../components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"
 import { useSession } from 'next-auth/react';
-import { hasPermission } from '../../../lib/auth-utils';
+import { hasPermission } from '@/lib/auth-utils';
 
 function TableSkeleton() {
   return (

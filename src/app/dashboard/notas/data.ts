@@ -1,9 +1,9 @@
 
 'use server';
 
-import prisma from '../../../lib/prisma';
-import { auth } from '../../../auth';
-import type { Note } from '../../../lib/types';
+import prisma from '@/lib/prisma';
+import { auth } from '@/auth';
+import type { Note } from '@/lib/types';
 import { Role } from '@prisma/client';
 import { DateRange } from 'react-day-picker';
 

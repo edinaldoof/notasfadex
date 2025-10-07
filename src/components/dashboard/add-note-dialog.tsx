@@ -10,21 +10,21 @@ import { ptBR } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
 
 // UI Components
-import { Button } from '../../../../components/ui/button';
-import { Calendar } from '../../../../components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/dialog';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '../../../../components/ui/popover';
-import { useToast } from '../../../../hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useToast } from '@/hooks/use-toast';
 
 // Utilities
-import { cn } from '../../../lib/utils';
-import { toDataURL } from '../../../lib/media-utils';
+import { cn } from '@/lib/utils';
+import { toDataURL } from '@/lib/media-utils';
 
 // Server Actions
 import { addNote } from '@/app/dashboard/notas/actions';
-import { extractNoteData } from '../../../../ai/flows/extract-note-data-flow';
+import { extractNoteData } from '@/ai/flows/extract-note-data-flow';
 
 // Validação do formulário com Zod
 const addNoteFormSchema = z.object({
