@@ -3,6 +3,7 @@
 
 import { subDays } from 'date-fns';
 import { Role, SqlServerSettings } from '@prisma/client';
+import { DateRange } from 'react-day-picker';
 
 import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
@@ -10,7 +11,7 @@ import { getProjectAccountsFromSqlServer, getProjectDetailsByAccount } from '@/l
 import { z } from 'zod';
 import type { ProjectDetails } from '@/lib/types';
 
-export async function getDashboardSummary() {
+export async function getDashboardSummary(dateRange?: DateRange) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -23,42 +24,60 @@ export async function getDashboardSummary() {
       };
     }
 
-    const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
-    const whereClause = isManagerOrOwner ? { isDeleted: false } : { userId: session.user.id, isDeleted: false };
+    const isManagerOrOwner =
+      session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
 
-    const notes = await prisma.note.findMany({
-      where: whereClause,
-      select: {
-        status: true,
-        totalValue: true,
+    const userWhereClause = isManagerOrOwner
+      ? { isDeleted: false }
+      : { userId: session.user.id, isDeleted: false };
+
+    const dateFilter = dateRange?.from && {
+      createdAt: {
+        gte: dateRange.from,
+        lte: dateRange.to || new Date(),
       },
-    });
+    };
 
-    const totalNotes = notes.length;
-    const attestedNotes = notes.filter((note) => note.status === 'ATESTADA').length;
-    const pendingNotes = notes.filter((note) => note.status === 'PENDENTE').length;
-    const totalAmount = notes.reduce((sum, note) => sum + (note.totalValue || 0), 0);
+    const dateRangedWhereClause = { ...userWhereClause, ...dateFilter };
 
     const thirtyDaysAgo = subDays(new Date(), 30);
-    const recentNotes = await prisma.note.findMany({
+    const thirtyDayWhereClause = {
+      ...userWhereClause,
+      createdAt: { gte: thirtyDaysAgo },
+    };
+
+    const [
+      totalNotes,
+      attestedNotes,
+      pendingNotes,
+      totalAmountResult,
+      totalRecent,
+      resolvedRecent,
+    ] = await prisma.$transaction([
+      prisma.note.count({ where: dateRangedWhereClause }),
+      prisma.note.count({
+        where: { ...dateRangedWhereClause, status: 'ATESTADA' },
+      }),
+      prisma.note.count({
+        where: { ...dateRangedWhereClause, status: 'PENDENTE' },
+      }),
+      prisma.note.aggregate({
+        _sum: { totalValue: true },
+        where: dateRangedWhereClause,
+      }),
+      prisma.note.count({ where: thirtyDayWhereClause }),
+      prisma.note.count({
         where: {
-            ...whereClause,
-            createdAt: {
-                gte: thirtyDaysAgo,
-            },
+          ...thirtyDayWhereClause,
+          status: { in: ['ATESTADA', 'REJEITADA'] },
         },
-        select: {
-            status: true,
-        },
-    });
+      }),
+    ]);
 
-    const totalRecent = recentNotes.length;
-    const resolvedRecent = recentNotes.filter(
-        note => note.status === 'ATESTADA' || note.status === 'REJEITADA'
-    ).length;
+    const totalAmount = totalAmountResult._sum.totalValue || 0;
+    const resolutionRate =
+      totalRecent > 0 ? Math.round((resolvedRecent / totalRecent) * 100) : 0;
 
-    const resolutionRate = totalRecent > 0 ? Math.round((resolvedRecent / totalRecent) * 100) : 0;
-    
     return {
       totalNotes,
       attestedNotes,
@@ -79,45 +98,46 @@ export async function getDashboardSummary() {
 }
 
 export async function getRecentActivities() {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return [];
-        }
-        
-        const isManagerOrOwner = session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
-
-        const historyEvents = await prisma.noteHistory.findMany({
-            take: 3,
-            orderBy: {
-                date: 'desc'
-            },
-            include: {
-                author: {
-                    select: {
-                        name: true,
-                        image: true,
-                    }
-                },
-                note: {
-                    select: {
-                        userId: true, 
-                        projectAccountNumber: true,
-                        noteNumber: true,
-                    }
-                }
-            }
-        });
-
-        const filteredEvents = isManagerOrOwner
-            ? historyEvents
-            : historyEvents.filter(event => event.note.userId === session.user.id);
-            
-        return filteredEvents;
-    } catch (error) {
-        console.error('Failed to fetch recent activities:', error);
-        return [];
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return [];
     }
+
+    const isManagerOrOwner =
+      session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
+    const whereClause = isManagerOrOwner
+      ? {}
+      : { note: { userId: session.user.id } };
+
+    const historyEvents = await prisma.noteHistory.findMany({
+      where: whereClause,
+      take: 3,
+      orderBy: {
+        date: 'desc',
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+        note: {
+          select: {
+            userId: true,
+            projectAccountNumber: true,
+            noteNumber: true,
+          },
+        },
+      },
+    });
+
+    return historyEvents;
+  } catch (error) {
+    console.error('Failed to fetch recent activities:', error);
+    return [];
+  }
 }
 
 export async function getProjectAccounts() {

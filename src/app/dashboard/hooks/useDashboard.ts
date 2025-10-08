@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { getDashboardSummary, getRecentActivities } from '../actions';
 import { HistoryType } from '@prisma/client';
+import { DateRange } from 'react-day-picker';
 
 // Interface for the summary
 interface DashboardSummary {
@@ -38,6 +39,7 @@ export function useDashboard() {
   const [greeting, setGreeting] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   useEffect(() => {
     const getGreeting = () => {
@@ -67,7 +69,7 @@ export function useDashboard() {
     setLoadingActivities(true);
     try {
       const [summaryData, activitiesData] = await Promise.all([
-        getDashboardSummary(),
+        getDashboardSummary(dateRange),
         getRecentActivities(),
       ]);
       setSummary(summaryData);
@@ -80,7 +82,7 @@ export function useDashboard() {
       setLoadingSummary(false);
       setLoadingActivities(false);
     }
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -111,5 +113,7 @@ export function useDashboard() {
     currentDate,
     handleNoteAdded,
     attestedPercentage,
+    dateRange,
+    setDateRange,
   };
 }

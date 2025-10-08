@@ -14,6 +14,7 @@ import { CheckBadge } from '@/components/icons/check-badge';
 import { useDashboard } from './hooks/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { StatCard } from './components/StatCards';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { QuickAction } from './components/QuickActions';
 import { RecentActivity } from './components/RecentActivity';
 import { OverviewCard } from './components/OverviewCard';
@@ -32,6 +33,8 @@ export default function DashboardPage() {
     currentDate,
     handleNoteAdded,
     attestedPercentage,
+    dateRange,
+    setDateRange,
   } = useDashboard();
 
   return (
@@ -43,6 +46,13 @@ export default function DashboardPage() {
         onAddNote={() => setShowAddModal(true)}
         loading={status === 'loading'}
       />
+
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+          Visão Geral
+        </h3>
+        <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
