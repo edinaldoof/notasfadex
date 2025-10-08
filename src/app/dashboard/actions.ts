@@ -51,8 +51,8 @@ export async function getDashboardSummary(dateRange?: DateRange) {
       attestedNotes,
       pendingNotes,
       totalAmountResult,
-      totalRecent,
       resolvedRecent,
+      rejectedRecent,
     ] = await prisma.$transaction([
       prisma.note.count({ where: dateRangedWhereClause }),
       prisma.note.count({
@@ -65,18 +65,26 @@ export async function getDashboardSummary(dateRange?: DateRange) {
         _sum: { totalValue: true },
         where: dateRangedWhereClause,
       }),
-      prisma.note.count({ where: thirtyDayWhereClause }),
       prisma.note.count({
         where: {
           ...thirtyDayWhereClause,
-          status: { in: ['ATESTADA', 'REJEITADA'] },
+          status: 'ATESTADA',
+        },
+      }),
+      prisma.note.count({
+        where: {
+          ...thirtyDayWhereClause,
+          status: 'REJEITADA',
         },
       }),
     ]);
 
     const totalAmount = totalAmountResult._sum.totalValue || 0;
+    const totalTerminalRecent = resolvedRecent + rejectedRecent;
     const resolutionRate =
-      totalRecent > 0 ? Math.round((resolvedRecent / totalRecent) * 100) : 0;
+      totalTerminalRecent > 0
+        ? Math.round((resolvedRecent / totalTerminalRecent) * 100)
+        : 0;
 
     return {
       totalNotes,
