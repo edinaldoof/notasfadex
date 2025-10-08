@@ -70,7 +70,7 @@ export function useDashboard() {
     try {
       const [summaryData, activitiesData] = await Promise.all([
         getDashboardSummary(dateRange),
-        getRecentActivities(),
+        getRecentActivities(dateRange),
       ]);
       setSummary(summaryData);
       setActivities(activitiesData);

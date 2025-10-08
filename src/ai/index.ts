@@ -7,7 +7,7 @@
  */
 
 // Importa a instância 'ai' JÁ CONFIGURADA do nosso novo ficheiro de configuração.
-import { ai } from './config.js'; 
+import { ai } from './genkit.js';
 import { z } from 'zod';
 
 // =========================================================

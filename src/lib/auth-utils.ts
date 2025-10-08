@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "../../../auth";
-import prisma from "../../../lib/prisma";
+import { auth } from "@/auth";
+import prisma from "@/lib/prisma";
 import { Role, PermissionType } from "@prisma/client";
 import { hasRolePermission } from "./permissions";
 

@@ -97,7 +97,7 @@ export async function getDashboardSummary(dateRange?: DateRange) {
   }
 }
 
-export async function getRecentActivities() {
+export async function getRecentActivities(dateRange?: DateRange) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -106,13 +106,22 @@ export async function getRecentActivities() {
 
     const isManagerOrOwner =
       session.user.role === Role.OWNER || session.user.role === Role.MANAGER;
-    const whereClause = isManagerOrOwner
+    const userWhereClause = isManagerOrOwner
       ? {}
       : { note: { userId: session.user.id } };
 
+    const dateFilter = dateRange?.from && {
+      date: {
+        gte: dateRange.from,
+        lte: dateRange.to || new Date(),
+      },
+    };
+
+    const whereClause = { ...userWhereClause, ...dateFilter };
+
     const historyEvents = await prisma.noteHistory.findMany({
       where: whereClause,
-      take: 3,
+      take: 5,
       orderBy: {
         date: 'desc',
       },

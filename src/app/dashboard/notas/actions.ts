@@ -17,14 +17,14 @@ import { performExtraction, ExtractNoteDataInput, ExtractNoteDataOutput } from '
 import { hasPermission } from '@/lib/auth-utils';
 import { Prisma } from '@prisma/client';
 import { parseBRLMoneyToFloat } from '@/lib/utils';
-import { Note, InvoiceType } from '@/lib/types';
+import { Note, NoteType } from '@/lib/types';
 
 
 const emailRegex = /^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9_.-]+(?<![_.-])@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
 const emailListRegex = /^$|^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(, *([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))*$/;
 
 const noteFormSchema = z.object({
-  invoiceType: z.nativeEnum(InvoiceType),
+  invoiceType: z.nativeEnum(NoteType),
   hasWithholdingTax: z.preprocess((val) => val === 'on' || val === 'true' || val === true, z.boolean()),
   projectTitle: z.string().min(1, 'O título do projeto é obrigatório.'),
   coordinatorName: z.string().min(1, 'O nome do coordenador é obrigatório.'),

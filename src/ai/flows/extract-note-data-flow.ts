@@ -6,7 +6,7 @@
  * (CNPJ/CPF, datas e dinheiro) e geração com baixa temperatura para reduzir variação.
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel, FunctionDeclarationSchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from '@google/generative-ai';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { parseBRLMoneyToFloat } from '@/lib/utils'; // Importa a função do local centralizado
@@ -48,17 +48,17 @@ const dataExtractionTool = {
       description:
         'Envia os dados extraídos da nota fiscal para o sistema. Use esta função para retornar todos os campos que conseguir encontrar no documento.',
       parameters: {
-        type: FunctionDeclarationSchemaType.OBJECT,
+        type: "OBJECT",
         properties: {
-          providerName: { type: FunctionDeclarationSchemaType.STRING, description: 'Razão Social do EMITENTE/PRESTADOR.' },
-          providerDocument: { type: FunctionDeclarationSchemaType.STRING, description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
-          clientName: { type: FunctionDeclarationSchemaType.STRING, description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
-          clientDocument: { type: FunctionDeclarationSchemaType.STRING, description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
-          noteNumber: { type: FunctionDeclarationSchemaType.STRING, description: 'Número da nota fiscal.' },
-          issuedAt: { type: FunctionDeclarationSchemaType.STRING, description: 'Data de emissão no formato DD/MM/AAAA.' },
-          totalValue: { type: FunctionDeclarationSchemaType.NUMBER, description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
-          description: { type: FunctionDeclarationSchemaType.STRING, description: 'Descrição detalhada dos produtos ou serviços.' },
-          type: { type: FunctionDeclarationSchemaType.STRING, enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
+          providerName: { type: "STRING", description: 'Razão Social do EMITENTE/PRESTADOR.' },
+          providerDocument: { type: "STRING", description: 'CNPJ/CPF do EMITENTE/PRESTADOR (extrair apenas os números).' },
+          clientName: { type: "STRING", description: 'Razão Social do DESTINATÁRIO/TOMADOR.' },
+          clientDocument: { type: "STRING", description: 'CNPJ/CPF do DESTINATÁRIO/TOMADOR (extrair apenas os números).' },
+          noteNumber: { type: "STRING", description: 'Número da nota fiscal.' },
+          issuedAt: { type: "STRING", description: 'Data de emissão no formato DD/MM/AAAA.' },
+          totalValue: { type: "NUMBER", description: 'Valor total da nota (use ponto como separador decimal, ex: 1234.56).' },
+          description: { type: "STRING", description: 'Descrição detalhada dos produtos ou serviços.' },
+          type: { type: "STRING", enum: ['PRODUTO', 'SERVICO'], description: "Inferir se é 'PRODUTO' (DANFE) ou 'SERVICO' (NFS-e)." },
         },
         required: [],
       },
@@ -72,10 +72,9 @@ const dataExtractionTool = {
 const NBSP = '\u00A0';
 
 /** Mantém apenas dígitos em um documento de identificação */
-function onlyDigits(value?: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const digits = value.replace(/\D+/g, '');
-  return digits || undefined;
+function onlyDigits(value?: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  return value.replace(/\D+/g, '');
 }
 
 /** Converte datas para DD/MM/AAAA sempre que possível */
@@ -261,6 +260,8 @@ async function executeExtractionWithModel(
   if (Array.isArray(extractedData.description)) {
     extractedData.description = extractedData.description.filter(Boolean).join('\n');
   }
+
+  console.log(`[AI Extraction - ${requestId}] Dados normalizados antes da validação final:`, extractedData);
 
   return ExtractNoteDataOutputSchema.parse(extractedData);
 }

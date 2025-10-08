@@ -1,6 +1,6 @@
 import { JWT } from "next-auth/jwt";
 import { User, Account } from "next-auth";
-import prisma from "../../../lib/prisma";
+import prisma from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
 /**
